@@ -13,6 +13,8 @@ public class TPSC : MonoBehaviour
     [SerializeField] private float normalSens;
     [SerializeField] private LayerMask aimColliderLayerMask = new LayerMask();
     [SerializeField] private Transform debugTransform;
+    [SerializeField] private Transform bulletPrefab;
+    [SerializeField] private Transform spawnBullet;
     private ThirdPersonController thirdPersonController;
     private void Awake()
     {
@@ -23,10 +25,12 @@ public class TPSC : MonoBehaviour
     { Vector3 mouseworldPos = Vector3.zero;
         Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
         Ray ray = Camera.main.ScreenPointToRay(screenCenter);
+        Transform hitTransform = null;
         if (Physics.Raycast(ray, out RaycastHit raycastHit, 999f, aimColliderLayerMask))
         {
-            debugTransform.position = raycastHit.point;
+          //  debugTransform.position = raycastHit.point;
             mouseworldPos = raycastHit.point;
+            hitTransform = raycastHit.transform;
         }
         if (starterAssetsInputs.aim)
         {
@@ -45,6 +49,12 @@ public class TPSC : MonoBehaviour
             thirdPersonController.SetSens(normalSens);
             thirdPersonController.SetRotateOnMove(true);
         }
-      
+        if (starterAssetsInputs.shoot)
+        {
+            
+            Vector3 aimDr = (mouseworldPos - spawnBullet.position).normalized;
+            Instantiate(bulletPrefab, spawnBullet.position, Quaternion.LookRotation(aimDr, Vector3.up));
+            starterAssetsInputs.shoot = false;
+        }
     }
 }
