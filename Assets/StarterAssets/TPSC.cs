@@ -16,9 +16,11 @@ public class TPSC : MonoBehaviour
     [SerializeField] private Transform bulletPrefab;
     [SerializeField] private Transform spawnBullet;
     private ThirdPersonController thirdPersonController;
+    private Animator animator;
     private void Awake()
     {
         starterAssetsInputs = GetComponent<StarterAssetsInputs>();
+        animator = GetComponent<Animator>();
         thirdPersonController = GetComponent<ThirdPersonController>();
     }
     private void Update()
@@ -37,6 +39,7 @@ public class TPSC : MonoBehaviour
             aimCam.gameObject.SetActive(true);
             thirdPersonController.SetSens(aimSens);
             thirdPersonController.SetRotateOnMove(false);
+            animator.SetLayerWeight(1, Mathf.Lerp(animator.GetLayerWeight(1),1f,Time.deltaTime*10f));
             Vector3 worldAimTarget = mouseworldPos;
             worldAimTarget.y = transform.position.y;
             Vector3 aimDir=(worldAimTarget-transform.position).normalized;
@@ -48,6 +51,7 @@ public class TPSC : MonoBehaviour
             aimCam.gameObject.SetActive(false);
             thirdPersonController.SetSens(normalSens);
             thirdPersonController.SetRotateOnMove(true);
+            animator.SetLayerWeight(1, Mathf.Lerp(animator.GetLayerWeight(1), 0f, Time.deltaTime * 10f));
         }
         if (starterAssetsInputs.shoot)
         {
