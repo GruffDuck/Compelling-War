@@ -4,14 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.Effects;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Traits
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.Effects;
+    using Opsive.UltimateCharacterController.Traits.Damage;
+    using UnityEngine;
+
     /// <summary>
     /// Extends the health component by allowing the character to take fall damage. The amount of damage is specified by a curve.
     /// </summary>
@@ -44,8 +45,7 @@ namespace Opsive.UltimateCharacterController.Traits
         public int DamagedEffectIndex { get { return m_DamagedEffectIndex; } set { m_DamagedEffectIndex = value; } }
 
         private UltimateCharacterLocomotion m_CharacterLocomotion;
-        private GameObject[] m_ColliderGameObjects;
-        private int[] m_ColliderLayers;
+        private int m_CharacterLayer;
         private Effect m_DamagedEffect;
 
         /// <summary>
@@ -63,34 +63,22 @@ namespace Opsive.UltimateCharacterController.Traits
         /// <summary>
         /// Initialize the collider layers after the UltimateCharacterLocomotion has been initialized.
         /// </summary>
-        private void Start()
+        protected override void Start()
         {
-            m_ColliderGameObjects = new GameObject[m_CharacterLocomotion.ColliderCount];
-            for (int i = 0; i < m_ColliderGameObjects.Length; ++i) {
-                m_ColliderGameObjects[i] = m_CharacterLocomotion.Colliders[i].gameObject;
-            }
-            m_ColliderLayers = new int[m_CharacterLocomotion.ColliderCount];
+            base.Start();
 
             if (!string.IsNullOrEmpty(m_DamagedEffectName)) {
-                m_DamagedEffect = m_CharacterLocomotion.GetEffect(UnityEngineUtility.GetType(m_DamagedEffectName), m_DamagedEffectIndex);
+                m_DamagedEffect = m_CharacterLocomotion.GetEffect(Shared.Utility.TypeUtility.GetType(m_DamagedEffectName), m_DamagedEffectIndex);
             }
         }
 
         /// <summary>
         /// The object has taken been damaged.
         /// </summary>
-        /// <param name="amount">The amount of damage taken.</param>
-        /// <param name="position">The position of the damage.</param>
-        /// <param name="direction">The direction that the object took damage from.</param>
-        /// <param name="forceMagnitude">The magnitude of the force that is applied to the object.</param>
-        /// <param name="frames">The number of frames to add the force to.</param>
-        /// <param name="radius">The radius of the explosive damage. If 0 then a non-explosive force will be used.</param>
-        /// <param name="attacker">The GameObject that did the damage.</param>
-        /// <param name="attackerObject">The object that did the damage.</param>
-        /// <param name="hitCollider">The Collider that was hit.</param>
-        public override void OnDamage(float amount, Vector3 position, Vector3 direction, float forceMagnitude, int frames, float radius, GameObject attacker, object attackerObject, Collider hitCollider)
+        /// <param name="damageData">The data associated with the damage.</param>
+        public override void OnDamage(DamageData damageData)
         {
-            base.OnDamage(amount, position, direction, forceMagnitude, frames, radius, attacker, attackerObject, hitCollider);
+            base.OnDamage(damageData);
 
             if (m_DamagedEffect != null) {
                 m_CharacterLocomotion.TryStartEffect(m_DamagedEffect);
@@ -105,13 +93,11 @@ namespace Opsive.UltimateCharacterController.Traits
         /// <param name="attacker">The GameObject that killed the character.</param>
         public override void Die(Vector3 position, Vector3 force, GameObject attacker)
         {
+            m_CharacterLayer = m_GameObject.layer;
             base.Die(position, force, attacker);
 
             if (m_DeathLayer != 0) {
-                for (int i = 0; i < m_ColliderGameObjects.Length; ++i) {
-                    m_ColliderLayers[i] = m_ColliderGameObjects[i].layer;
-                    m_ColliderGameObjects[i].layer = m_DeathLayer;
-                }
+                m_CharacterLocomotion.SetCollisionLayer(m_DeathLayer);
             }
         }
 
@@ -123,9 +109,7 @@ namespace Opsive.UltimateCharacterController.Traits
             base.OnRespawn();
 
             if (m_DeathLayer != 0) {
-                for (int i = 0; i < m_CharacterLocomotion.Colliders.Length; ++i) {
-                    m_ColliderGameObjects[i].layer = m_ColliderLayers[i];
-                }
+                m_CharacterLocomotion.SetCollisionLayer(m_CharacterLayer);
             }
         }
 

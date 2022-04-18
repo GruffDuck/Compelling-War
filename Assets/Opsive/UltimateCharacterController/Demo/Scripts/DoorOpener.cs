@@ -4,14 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Demo.Objects;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Demo
 {
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Demo.Objects;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Opens the doors when the character enters the trigger.
     /// </summary>

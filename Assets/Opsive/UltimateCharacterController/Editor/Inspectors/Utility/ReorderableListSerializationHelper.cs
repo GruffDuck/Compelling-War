@@ -4,16 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Character.Abilities;
-using Opsive.UltimateCharacterController.Character.Abilities.Items;
-using System;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.Character.Abilities;
+    using Opsive.UltimateCharacterController.Character.Abilities.Items;
+    using Opsive.UltimateCharacterController.Utility;
+    using System;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Helper class for managing the ReoderableList.
     /// </summary>
@@ -30,7 +32,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
             // Start with a fresh cache.
             s_ObjectTypes.Clear();
             s_CanAddMultipleTypes.Clear();
-            InspectorDrawerUtility.OnEnable();
+            Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.OnEnable();
         }
 
         /// <summary>
@@ -40,13 +42,22 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
                                                 ReorderableList.HeaderCallbackDelegate drawHeaderCallback, ReorderableList.ElementCallbackDelegate drawElementCallback, 
                                                 ReorderableList.ReorderCallbackDelegate reorderCallback, ReorderableList.AddCallbackDelegate addCallback, 
                                                 ReorderableList.RemoveCallbackDelegate removeCallback, ReorderableList.SelectCallbackDelegate selectCallback,
-                                                Action<int> drawSelectedElementCallback, string key, bool requireOne, bool indentList)
+                                                Action<int> drawSelectedElementCallback, string key, bool requireOne, bool indentList, bool useSerializedData = true)
         {
             // Initialize the reorder list on first run.
             if (reorderableList == null) {
-                var data = inspector.PropertyFromName(inspector.serializedObject, serializedData);
-                reorderableList = new ReorderableList(inspector.serializedObject, data, (reorderCallback != null), true, !Application.isPlaying, 
-                                                    !Application.isPlaying && (!requireOne || (drawnObject != null && drawnObject.Length > 1)));
+#if UNITY_2021_2_OR_NEWER
+                if (!useSerializedData && drawnObject != null) {
+                    reorderableList = new ReorderableList(drawnObject, drawnObject.GetType(), (reorderCallback != null), true, !Application.isPlaying,
+                                                        !Application.isPlaying && (!requireOne || (drawnObject != null && drawnObject.Length > 1)));
+                } else {
+#endif
+                    var data = inspector.PropertyFromName(inspector.serializedObject, serializedData);
+                    reorderableList = new ReorderableList(inspector.serializedObject, data, (reorderCallback != null), true, !Application.isPlaying,
+                                                        !Application.isPlaying && (!requireOne || (drawnObject != null && drawnObject.Length > 1)));
+#if UNITY_2021_2_OR_NEWER
+                }
+#endif
                 reorderableList.drawHeaderCallback = (Rect rect) =>
                 {
                     EditorGUI.LabelField(rect, "Name");
@@ -65,19 +76,28 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
                     reorderableList.index = EditorPrefs.GetInt(key, -1);
                 }
             }
+            
+            var indentLevel = EditorGUI.indentLevel;
+            if (indentList) {
+                // ReorderableLists do not like indentation.
+                while (EditorGUI.indentLevel > 0) {
+                    EditorGUI.indentLevel--;
+                }
+            }
 
             var listRect = GUILayoutUtility.GetRect(0, reorderableList.GetHeight());
             // Indent the list so it lines up with the rest of the content.
             if (indentList) {
-                listRect.x += InspectorUtility.IndentWidth;
-                listRect.xMax -= InspectorUtility.IndentWidth;
+                listRect.x += Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * indentLevel;
+                listRect.xMax -= Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * indentLevel;
             }
             reorderableList.DoList(listRect);
+            while (EditorGUI.indentLevel < indentLevel) {
+                EditorGUI.indentLevel++;
+            }
             if (reorderableList != null && reorderableList.index != -1) {
                 if (drawnObject != null && reorderableList.index < drawnObject.Length) {
-                    EditorGUI.indentLevel++;
                     drawSelectedElementCallback(reorderableList.index);
-                    EditorGUI.indentLevel--;
                 }
             }
         }
@@ -96,8 +116,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// </summary>
         public static void AddObjectType(Type type, bool friendlyNamespacePrefix, Array existingTypes, GenericMenu.MenuFunction2 addCallback)
         {
-            List<Type> typeList;
-            if (!s_ObjectTypes.TryGetValue(type, out typeList)) {
+            if (!s_ObjectTypes.TryGetValue(type, out var typeList)) {
                 // Search through all of the assemblies to find any types that derive from specified type.
                 typeList = new List<Type>();
                 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
@@ -140,8 +159,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
                 if (!addType) {
                     continue;
                 }
-                
-                addMenu.AddItem(new GUIContent(InspectorUtility.DisplayTypeName(typeList[i], friendlyNamespacePrefix)), false, addCallback, typeList[i]);
+
+                var group = Shared.Utility.TypeUtility.GetAttribute(typeList[i], typeof(Shared.Utility.Group)) as Shared.Utility.Group;
+                addMenu.AddItem(new GUIContent((group != null ? (group.Name + "/") : string.Empty) + InspectorUtility.DisplayTypeName(typeList[i], friendlyNamespacePrefix)), false, addCallback, typeList[i]);
             }
 
             addMenu.ShowAsContext();
@@ -150,21 +170,15 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// <summary>
         /// Returns true if multiple of the same type can be added.
         /// </summary>
-        /// <param name="abilityType">The type of object.</param>
+        /// <param name="type">The type of object.</param>
         /// <returns>True if multiple of the same type can be added.</returns>
         private static bool CanAddMultipleTypes(Type type)
         {
-            // Multiple effects can always be added.
-            if (typeof(UltimateCharacterController.Character.Effects.Effect).IsAssignableFrom(type)) {
-                return true;
-            }
-
-            bool multipleTypes;
-            if (s_CanAddMultipleTypes.TryGetValue(type, out multipleTypes)) {
+            if (s_CanAddMultipleTypes.TryGetValue(type, out var multipleTypes)) {
                 return multipleTypes;
             }
 
-            multipleTypes = type.GetCustomAttributes(typeof(AllowMultipleAbilityTypes), true).Length > 0;
+            multipleTypes = type.GetCustomAttributes(typeof(AllowDuplicateTypes), true).Length > 0;
             s_CanAddMultipleTypes.Add(type, multipleTypes);
             return multipleTypes;
         }

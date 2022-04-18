@@ -11,8 +11,7 @@ namespace Opsive.UltimateCharacterController.Utility
     /// </summary>
     public static class AssetInfo
     {
-        private static string s_Version = "2.1.10";
-        public static string Version { get { return s_Version; } }
+        public static string Version { get { return "2.4.6"; } }
 
         public static string Name
         {

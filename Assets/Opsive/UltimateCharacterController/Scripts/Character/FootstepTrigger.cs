@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character
 {
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Notifies the CharacterFootEffects component when the foot has collided with the ground.
     /// </summary>
@@ -41,7 +41,7 @@ namespace Opsive.UltimateCharacterController.Character
         {
             // Notify the CharacterFootEffects component if the layer is valid.
             if (MathUtility.InLayerMask(other.gameObject.layer, m_CharacterLayerManager.IgnoreInvisibleCharacterWaterLayers)) {
-                m_FootEffects.FootStep(m_Transform, m_FlipFootprint);
+                m_FootEffects.TriggerFootStep(m_Transform, m_FlipFootprint);
             }
         }
     }

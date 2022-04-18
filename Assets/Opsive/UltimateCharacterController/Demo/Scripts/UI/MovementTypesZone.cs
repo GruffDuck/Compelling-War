@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Camera;
-using Opsive.UltimateCharacterController.Events;
-
 namespace Opsive.UltimateCharacterController.Demo.UI
 {
+    using Opsive.Shared.Events;
+    using Opsive.UltimateCharacterController.Camera;
+    using Opsive.UltimateCharacterController.Character;
+    using UnityEngine;
+
     /// <summary>
     /// Manages the movement types zone. Allows switching between movement types.
     /// </summary>
@@ -42,8 +42,8 @@ namespace Opsive.UltimateCharacterController.Demo.UI
         /// </summary>
         private void Start()
         {
-            var camera = Utility.UnityEngineUtility.FindCamera(null);
-            m_CameraController = camera.GetComponent<CameraController>();
+            var foundCamera = Opsive.Shared.Camera.CameraUtility.FindCamera(null);
+            m_CameraController = foundCamera.GetComponent<CameraController>();
             m_Character = GameObject.FindObjectOfType<DemoManager>().Character;
             m_CharacterLocomotion = m_Character.GetComponent<UltimateCharacterLocomotion>();
 
@@ -76,22 +76,16 @@ namespace Opsive.UltimateCharacterController.Demo.UI
         /// Change the movement type to the specified type.
         /// </summary>
         /// <param name="type">The type to change the value to.</param>
+        /// <param name="updateSwitcher">Should the type be set with the Movement Type Switcher?</param>
         private void ChangeMovementType(MovementType type, bool updateSwitcher)
         {
             // Revert the old.
-            UnityEngine.UI.ColorBlock buttonColors;
             if (m_ButtonImages[(int)m_MovementType] != null) {
-                m_ButtonImages[(int)m_MovementType].color = m_NormalColor;
-                buttonColors = m_Buttons[(int)m_MovementType].colors;
-                buttonColors.normalColor = m_NormalColor;
-                m_Buttons[(int)m_MovementType].colors = buttonColors;
+                SetButtonColor((int)m_MovementType, m_NormalColor);
             }
 
             m_MovementType = type;
-            m_ButtonImages[(int)m_MovementType].color = m_PressedColor;
-            buttonColors = m_Buttons[(int)m_MovementType].colors;
-            buttonColors.normalColor = m_PressedColor;
-            m_Buttons[(int)m_MovementType].colors = buttonColors;
+            SetButtonColor((int)m_MovementType, m_PressedColor);
 
             // Set the new movement type with the Movement Type Switcher.
             if (updateSwitcher) {
@@ -146,7 +140,7 @@ namespace Opsive.UltimateCharacterController.Demo.UI
         /// <summary>
         /// The camera perspective between first and third person has changed.
         /// </summary>
-        /// <param name="inFirstPerson">Is the camera in a first person view?</param>
+        /// <param name="firstPersonPerspective">Is the camera in a first person view?</param>
         private void OnChangePerspectives(bool firstPersonPerspective)
         {
             if (m_PerspectiveSwitchMovementType != MovementType.None) {

@@ -4,17 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using Opsive.UltimateCharacterController.Character.Abilities;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-using System.Reflection;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abilities
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.Character.Abilities;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Items;
+    using System;
+    using System.Reflection;
+    using UnityEditor;
+    using UnityEngine;
+
     /// <summary>
     /// Draws a custom inspector for the Ragdoll Ability.
     /// </summary>
@@ -58,7 +59,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
             baseCallback += () =>
             {
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Space(InspectorUtility.IndentWidth * 2);
+                GUILayout.Space(Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * 2);
                 if (GUILayout.Button("Add Ragdoll Colliders")) {
                     AddRagdollColliders((parent as Component).gameObject);
                 }
@@ -169,8 +170,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
             }
 
             if (removeChildColliders) {
-                var children = transform.childCount;
-                for (int i = 0; i < transform.childCount; ++i) {
+                for (int i = transform.childCount - 1; i >= 0; --i) {
                     var child = transform.GetChild(i);
                     // No ragdoll colliders exist under the Character layer GameObjects no under the item GameObjects.
                     if (child.gameObject.layer == LayerManager.Character || child.GetComponent<ItemPlacement>() != null || child.GetComponent<ItemSlot>() != null) {

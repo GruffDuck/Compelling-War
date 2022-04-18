@@ -4,18 +4,20 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Demo
 {
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Notifies the DemoManager when the character enters a trigger.
     /// </summary>
     public class DemoZoneTrigger : MonoBehaviour
     {
+        private int m_EnterExitCount;
         private DemoManager m_DemoManager;
 
         /// <summary>
@@ -43,7 +45,9 @@ namespace Opsive.UltimateCharacterController.Demo
                 return;
             }
 
-            m_DemoManager.EnteredTriggerZone(this, other.gameObject);
+            if (m_DemoManager.EnteredTriggerZone(this, other.gameObject)) {
+                m_EnterExitCount++;
+            }
         }
 
         /// <summary>
@@ -63,7 +67,10 @@ namespace Opsive.UltimateCharacterController.Demo
                 return;
             }
 
-            m_DemoManager.ExitedTriggerZone(this);
+            m_EnterExitCount--;
+            if (m_EnterExitCount == 0) {
+                m_DemoManager.ExitedTriggerZone(this);
+            }
         }
     }
 }

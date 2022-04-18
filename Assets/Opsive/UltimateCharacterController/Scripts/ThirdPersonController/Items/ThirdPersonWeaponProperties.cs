@@ -4,8 +4,6 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
 {
     /// <summary>

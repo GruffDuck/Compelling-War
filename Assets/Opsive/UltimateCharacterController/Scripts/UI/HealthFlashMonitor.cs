@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.UI;
-using Opsive.UltimateCharacterController.Events;
-
 namespace Opsive.UltimateCharacterController.UI
 {
+    using Opsive.Shared.Events;
+    using UnityEngine;
+    using UnityEngine.UI;
+
     /// <summary>
     /// The HealthFlashMonitor will show a full screen flash when the character takes damage or is healed.
     /// </summary>
@@ -73,13 +73,13 @@ namespace Opsive.UltimateCharacterController.UI
         /// </summary>
         protected override void Awake()
         {
-            base.Awake();
-
             m_FlashImage = GetComponentInChildren<Image>();
             if (m_FlashImage == null) {
                 Debug.LogError("Error: Unable to find an Image component for the damage flash. Disabling.");
                 return;
             }
+
+            base.Awake();
 
             m_FlashImage.color = Color.clear;
             m_GameObject = gameObject;

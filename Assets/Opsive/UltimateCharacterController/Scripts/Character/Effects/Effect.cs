@@ -4,19 +4,23 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Camera;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character.Effects
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.StateSystem;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Camera;
+    using Opsive.UltimateCharacterController.StateSystem;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Effects allow for extra camera/item movements that are applied to the character. Examples of an effect include an earthquake shake or a boss stomp. Effects 
     /// do not affect the Animator and are not synchronized over the network. For anything more involved an Ability should be used instead.
     /// </summary>
     [System.Serializable]
+    [UnityEngine.Scripting.Preserve]
+    [AllowDuplicateTypes]
     public abstract class Effect : StateObject
     {
         [Tooltip("Can the ability be activated?")]
@@ -99,7 +103,7 @@ namespace Opsive.UltimateCharacterController.Character.Effects
         /// <summary>
         /// Tries to start the effect.
         /// </summary>
-        /// <returns>True if the effect was successfully started.</param>
+        /// <returns>True if the effect was successfully started.</returns>
         public bool StartEffect()
         {
             return m_CharacterLocomotion.TryStartEffect(this);

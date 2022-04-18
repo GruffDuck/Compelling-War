@@ -1,3 +1,14 @@
-﻿{
-	"name": "Opsive.UltimateCharacterController"
+{
+    "name": "Opsive.UltimateCharacterController",
+    "references": [
+        "Opsive.Shared"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
 }

@@ -4,15 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.MovementTypes;
-using Opsive.UltimateCharacterController.Input;
-using Opsive.UltimateCharacterController.Motion;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.MovementTypes
 {
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Input;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.MovementTypes;
+    using Opsive.UltimateCharacterController.Motion;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// The Pseudo3D MovementType can move the character relative to a 2.5D camera.
     /// </summary>
@@ -79,7 +80,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
         {
 #if UNITY_EDITOR
             if (m_LookSource == null) {
-                Debug.LogError("Error: There is no look source attached to the character. Ensure the character has a look source attached (such as a camera).");
+                Debug.LogError($"Error: There is no look source attached to the character {m_GameObject.name}. Ensure the character has a look source attached. For player characters the look source is the Camera Controller, and AI agents use the Local Look Source.");
                 return 0;
             }
 #endif

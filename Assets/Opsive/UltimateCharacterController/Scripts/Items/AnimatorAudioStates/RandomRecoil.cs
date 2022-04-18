@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-
 namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
 {
+    using Opsive.UltimateCharacterController.Character;
+    using UnityEngine;
+
     /// <summary>
     /// The RandomRecoil state will move from one state to another in a random order.
     /// </summary>
@@ -46,13 +46,21 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
         /// <returns>Was the state changed successfully?</returns>
         public override bool NextState()
         {
+            var lastIndex = m_CurrentIndex;
             var count = 0;
             var size = m_States.Length;
+            if (size == 0) {
+                return false;
+            }
             do {
                 m_CurrentIndex = UnityEngine.Random.Range(0, size);
                 ++count;
             } while ((!IsStateValid(m_CurrentIndex) || !m_States[m_CurrentIndex].Enabled) && count <= size);
-            return count <= size;
+            var stateChange = count <= size;
+            if (stateChange) {
+                ChangeStates(lastIndex, m_CurrentIndex);
+            }
+            return stateChange;
         }
     }
 }

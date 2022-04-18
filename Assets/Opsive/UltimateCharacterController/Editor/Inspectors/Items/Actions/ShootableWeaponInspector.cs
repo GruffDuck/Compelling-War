@@ -4,18 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEditor;
-using UnityEngine;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState;
-using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 {
+    using Opsive.Shared.Editor.Inspectors.StateSystem;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Items.Actions;
+    using System;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Shows a custom inspector for the ShootableWeapon component.
     /// </summary>
@@ -58,7 +58,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                 var projectile = PropertyFromName("m_Projectile");
                 if (Foldout("Firing")) {
                     EditorGUI.indentLevel++;
-                    EditorGUILayout.PropertyField(PropertyFromName("m_ConsumableItemType"));
+                    EditorGUILayout.PropertyField(PropertyFromName("m_ConsumableItemDefinition"));
                     var fireMode = PropertyFromName("m_FireMode");
                     EditorGUILayout.PropertyField(fireMode);
                     if (fireMode.enumValueIndex == (int)ShootableWeapon.FireMode.Burst) {
@@ -77,7 +77,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                         EditorGUILayout.PropertyField(PropertyFromName("m_MinChargeStrength"));
                         if (Foldout("Charge Audio")) {
                             EditorGUI.indentLevel++;
-                            m_ReorderableChargeAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_ShootableWeapon.ChargeAudioClipSet, PropertyFromName("m_ChargeAudioClipSet"), m_ReorderableChargeAudioClipsList, OnChargeAudioClipDraw, OnChargeAudioClipListAdd, OnChargeAudioClipListRemove);
+                            m_ReorderableChargeAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_ShootableWeapon.ChargeAudioClipSet, m_ReorderableChargeAudioClipsList, OnChargeAudioClipDraw, OnChargeAudioClipListAdd, OnChargeAudioClipListRemove);
                             EditorGUI.indentLevel--;
                         }
                         EditorGUI.indentLevel--;
@@ -88,9 +88,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                     EditorGUILayout.HelpBox("If a projectile prefab is specified then this projectile will be fired from the weapon. If no projectile is specified then a hitscan will be used.", MessageType.Info);
                     EditorGUILayout.PropertyField(projectile);
                     if (projectile.objectReferenceValue == null) {
+                        EditorGUILayout.PropertyField(PropertyFromName("m_HitscanFireDelay"));
                         EditorGUILayout.PropertyField(PropertyFromName("m_HitscanFireRange"));
                         EditorGUILayout.PropertyField(PropertyFromName("m_MaxHitscanCollisionCount"));
-                        InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnHitscanImpactEvent"));
+                        Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnHitscanImpactEvent"));
                     } else {
                         if ((projectile.objectReferenceValue as GameObject).GetComponent<UltimateCharacterController.Objects.Projectile>() == null) {
                             EditorGUILayout.HelpBox("The projectile must have the Projectile component attached to it.", MessageType.Error);
@@ -108,9 +109,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                         EditorGUI.indentLevel--;
                     }
                     EditorGUILayout.PropertyField(PropertyFromName("m_DryFireItemSubstateParameterValue"));
-                    if (InspectorUtility.Foldout(target, "Dry Fire Audio")) {
+                    if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Dry Fire Audio")) {
                         EditorGUI.indentLevel++;
-                        m_ReorderableDryFireAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_ShootableWeapon.DryFireAudioClipSet, PropertyFromName("m_DryFireAudioClipSet"), m_ReorderableDryFireAudioClipsList, OnDryFireAudioClipDraw, OnDryFireAudioClipListAdd, OnDryFireAudioClipListRemove);
+                        m_ReorderableDryFireAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_ShootableWeapon.DryFireAudioClipSet, m_ReorderableDryFireAudioClipsList, OnDryFireAudioClipDraw, OnDryFireAudioClipListAdd, OnDryFireAudioClipListRemove);
                         EditorGUI.indentLevel--;
                     }
                     EditorGUI.indentLevel--;
@@ -122,6 +123,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                     if (projectile.objectReferenceValue == null) {
                         EditorGUILayout.PropertyField(PropertyFromName("m_HitscanTriggerInteraction"));
                     }
+                    EditorGUILayout.PropertyField(PropertyFromName("m_DamageProcessor"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_DamageAmount"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_ImpactForce"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_ImpactForceFrames"));
@@ -151,14 +153,18 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                     if (reloadClipProperty.objectReferenceValue != null) {
                         EditorGUI.indentLevel++;
                         var shootableWeapon = target as ShootableWeapon;
-                        shootableWeapon.ReloadClipTargetLayer = EditorGUILayout.LayerField(new GUIContent("Reload Clip Target Layer",
-                            "The layer that the clip object should change to after being reloaded."), shootableWeapon.ReloadClipTargetLayer);
+                        if (shootableWeapon != null) {
+                            shootableWeapon.ReloadClipTargetLayer = EditorGUILayout.LayerField(new GUIContent(
+                                    "Reload Clip Target Layer",
+                                    "The layer that the clip object should change to after being reloaded."),
+                                shootableWeapon.ReloadClipTargetLayer);
+                        }
                         EditorGUILayout.PropertyField(PropertyFromName("m_ReloadClipLayerChangeDelay"));
                         InspectorUtility.DrawAnimationEventTrigger(target, "Reload Drop Clip Event", PropertyFromName("m_ReloadDropClipEvent"));
                         EditorGUI.indentLevel--;
                     }
                     InspectorUtility.DrawAnimationEventTrigger(target, "Reload Attach Clip Event", PropertyFromName("m_ReloadAttachClipEvent"));
-                    if (Foldout("Animator Audio")) {
+                    if (Foldout("Animator Audio", "Reload")) {
                         EditorGUI.indentLevel++;
                         AnimatorAudioStateSetInspector.DrawAnimatorAudioStateSet(m_ShootableWeapon, m_ShootableWeapon.ReloadAnimatorAudioStateSet, "m_ReloadAnimatorAudioStateSet", true,
                                     ref m_ReorderableReloadAnimatorAudioStateSetList, OnAnimatorAudioStateListDraw, OnAnimatorAudioStateListSelect,
@@ -169,9 +175,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                                     GetSelectedAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedReloadAnimatorAudioStateSetIndexKey)));
                         EditorGUI.indentLevel--;
                     }
-                    if (InspectorUtility.Foldout(target, "Reload Complete Audio")) {
+                    if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Reload Complete Audio")) {
                         EditorGUI.indentLevel++;
-                        m_ReorderableReloadCompleteAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_ShootableWeapon.ReloadCompleteAudioClipSet, PropertyFromName("m_ReloadCompleteAudioClipSet"), m_ReorderableReloadCompleteAudioClipsList, OnReloadCompleteAudioClipDraw, OnReloadCompleteAudioClipListAdd, OnReloadCompleteAudioClipListRemove);
+                        m_ReorderableReloadCompleteAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_ShootableWeapon.ReloadCompleteAudioClipSet, m_ReorderableReloadCompleteAudioClipsList, OnReloadCompleteAudioClipDraw, OnReloadCompleteAudioClipListAdd, OnReloadCompleteAudioClipListRemove);
                         EditorGUI.indentLevel--;
                     }
                 }
@@ -391,7 +397,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 
             StateInspector.OnStateListDraw(animatorAudioState, animatorAudioState.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 StateInspector.UpdateDefaultStateValues(animatorAudioState.States);
             }
         }
@@ -413,7 +419,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.AddExistingPreset(animatorAudioState.GetType(), animatorAudioState.States, m_ReorderableReloadAnimatorAudioStateSetStateList, GetSelectedAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedReloadAnimatorAudioStateSetIndexKey)));
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableReloadAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -427,7 +433,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.CreatePreset(animatorAudioState, animatorAudioState.States, m_ReorderableReloadAnimatorAudioStateSetStateList, GetSelectedAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedReloadAnimatorAudioStateSetIndexKey)));
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableReloadAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -440,7 +446,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var animatorAudioState = m_ShootableWeapon.ReloadAnimatorAudioStateSet.States[EditorPrefs.GetInt(SelectedReloadAnimatorAudioStateSetIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new UltimateCharacterController.StateSystem.State[animatorAudioState.States.Length];
+            var copiedStates = new Shared.StateSystem.State[animatorAudioState.States.Length];
             Array.Copy(animatorAudioState.States, copiedStates, animatorAudioState.States.Length);
             for (int i = 0; i < animatorAudioState.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -453,7 +459,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.OnStateListReorder(animatorAudioState.States);
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableReloadAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -467,7 +473,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.OnStateListRemove(animatorAudioState.States, GetSelectedAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedReloadAnimatorAudioStateSetIndexKey)), list);
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableReloadAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }

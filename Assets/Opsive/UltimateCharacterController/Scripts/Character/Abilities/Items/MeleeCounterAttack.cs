@@ -4,13 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities.Items
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Items.Actions;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Plays a counter attack in response to an opponent's attack. In order for the counter attack ability to start the character
     /// must first block the opponent's melee attack.
@@ -19,7 +20,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
     [DefaultInputName("Fire1")]
     [DefaultItemStateIndex(2)]
     [DefaultState("Use")]
-    [AllowMultipleAbilityTypes]
+    [AllowDuplicateTypes]
     public class MeleeCounterAttack : Use
     {
         [Tooltip("The maximum distance away from the opponent that the counter attack can start.")]

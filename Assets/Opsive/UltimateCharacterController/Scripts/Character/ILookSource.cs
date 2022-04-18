@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.Character
 {
+    using UnityEngine;
+
     /// <summary>
     /// Interface which specifies an object which can be used for determine the character's look direction.
     /// </summary>
@@ -36,7 +36,9 @@ namespace Opsive.UltimateCharacterController.Character
         /// <summary>
         /// Returns the position of the look source.
         /// </summary>
-        Vector3 LookPosition();
+        /// <param name="characterLookPosition">Is the character look position being retrieved?</param>
+        /// <returns>The position of the look source.</returns>
+        Vector3 LookPosition(bool characterLookPosition);
 
         /// <summary>
         /// Returns the direction that the character is looking.
@@ -51,8 +53,9 @@ namespace Opsive.UltimateCharacterController.Character
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
+        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
+        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil);
+        Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread);
     }
 }

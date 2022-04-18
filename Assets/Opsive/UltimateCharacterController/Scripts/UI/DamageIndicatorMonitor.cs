@@ -4,15 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.UI;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.UI
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Character;
+    using UnityEngine;
+    using UnityEngine.UI;
+
     /// <summary>
     /// The DamageIndicatorMonitor will show a directional arrow of the direction that the character was damaged from.
     /// </summary>
@@ -50,9 +50,9 @@ namespace Opsive.UltimateCharacterController.UI
             /// Initializes the pooled HitIndicator values.
             /// </summary>
             /// <param name="attacker">The GameObject that did the damage.</param>
-            /// <param name="angle">The angle of the indicator.</param>
-            /// <param name="image">A reference to the GameObject of the indicator.</param>
-            public void Initialize(Transform attacker, Vector3 position, float angle, GameObject gameObject)
+            /// <param name="position">The position of the indicator.</param>
+            /// <param name="gameObject">A reference to the GameObject of the indicator.</param>
+            public void Initialize(Transform attacker, Vector3 position, GameObject gameObject)
             {
                 m_Attacker = attacker;
                 m_Position = position;
@@ -85,9 +85,8 @@ namespace Opsive.UltimateCharacterController.UI
         public float IndicatorFadeTime { get { return m_IndicatorFadeTime; } set { m_IndicatorFadeTime = value; } }
 
         private GameObject m_GameObject;
-        private Transform m_CameraTransform;
+        private Camera m_Camera;
         private Transform m_CharacterTransform;
-        private UltimateCharacterLocomotion m_CharacterLocomotion;
 
         private int m_ActiveDamageIndicatorCount;
         private DamageIndicator[] m_ActiveDamageIndicators;
@@ -110,7 +109,16 @@ namespace Opsive.UltimateCharacterController.UI
                 m_StoredIndicators[i] = images[i].gameObject;
                 m_StoredIndicators[i].SetActive(false);
             }
+        }
 
+        /// <summary>
+        /// Starts the UI.
+        /// </summary>
+        protected override void Start()
+        {
+            base.Start();
+
+            // Enable when the character is damaged.
             m_GameObject.SetActive(false);
         }
 
@@ -123,7 +131,7 @@ namespace Opsive.UltimateCharacterController.UI
             if (m_Character != null) {
                 EventHandler.UnregisterEvent<float, Vector3, Vector3, GameObject, Collider>(m_Character, "OnHealthDamage", OnDamage);
                 EventHandler.UnregisterEvent(m_Character, "OnRespawn", OnRespawn);
-                m_CameraTransform = null;
+                m_Camera = null;
             }
 
             base.OnAttachCharacter(character);
@@ -133,17 +141,15 @@ namespace Opsive.UltimateCharacterController.UI
             }
 
             // A camera must exist.
-            var camera = UnityEngineUtility.FindCamera(m_Character);
-            if (camera != null) {
-                m_CameraTransform = camera.transform;
-            }
-            if (m_CameraTransform == null) {
+            m_Camera = Shared.Camera.CameraUtility.FindCamera(m_Character);
+            if (m_Camera == null) {
                 Debug.LogError("Error: The Damage Indicator Monitor must have a camera attached to the character.");
                 return;
             }
 
             m_CharacterTransform = m_Character.transform;
-            m_CharacterLocomotion = m_Character.GetCachedComponent<UltimateCharacterLocomotion>();
+            gameObject.SetActive(CanShowUI());
+
             EventHandler.RegisterEvent<float, Vector3, Vector3, GameObject, Collider>(m_Character, "OnHealthDamage", OnDamage);
             EventHandler.RegisterEvent(m_Character, "OnRespawn", OnRespawn);
         }
@@ -159,18 +165,22 @@ namespace Opsive.UltimateCharacterController.UI
         private void OnDamage(float amount, Vector3 position, Vector3 force, GameObject attacker, Collider hitCollider)
         {
             // Don't show a hit indicator if the force is 0 or there is no attacker. This prevents damage such as fall damage from showing the damage indicator.
-            if ((!m_AlwaysShowIndicator && force.sqrMagnitude == 0) || attacker == null) {
+            if ((!m_AlwaysShowIndicator && force.sqrMagnitude == 0) || attacker == null || m_ActiveDamageIndicatorCount == m_ActiveDamageIndicators.Length) {
                 return;
             }
 
-            var direction = Vector3.ProjectOnPlane(m_CharacterTransform.position - ((m_FollowAttacker && m_Character != attacker) ? attacker.transform.position : position),
-                                                    m_CharacterLocomotion.Up);
-            // The hit indicator is shown on a 2D canvas so the y direction should be ignored.
-            direction.y = 0;
-            direction.Normalize();
+            var attackerPosition = (m_FollowAttacker && m_CharacterTransform != attacker.transform) ? attacker.transform.position : position;
+
+            // Adjust the hit position.
+            var localHitPosition = attacker.transform.InverseTransformPoint(position);
+            localHitPosition.x = localHitPosition.z = 0;
+            attackerPosition += attacker.transform.TransformDirection(localHitPosition);
+
+            var screenPoint = m_Camera.WorldToScreenPoint(attackerPosition);
+            var centerScreenPoint = ((new Vector2(screenPoint.x, screenPoint.y) - (new Vector2(m_Camera.pixelWidth, m_Camera.pixelHeight) / 2)) * Mathf.Sign(screenPoint.z)).normalized;
 
             // Determine the angle of the damage position to determine if a new damage indicator should be shown.
-            var angle = Vector3.Angle(direction, m_CameraTransform.forward) * Mathf.Sign(Vector3.Dot(direction, m_CameraTransform.right));
+            var angle = Vector2.SignedAngle(centerScreenPoint, Vector2.right);
 
             // Do not show a new damage indicator if the angle is less than a threshold compared to the already displayed indicators.
             DamageIndicator damageIndicator;
@@ -184,8 +194,8 @@ namespace Opsive.UltimateCharacterController.UI
             }
 
             // Add the indicator to the active hit indicators list and enable the component.
-            damageIndicator = ObjectPool.Get<DamageIndicator>();
-            damageIndicator.Initialize(attacker.transform, position, angle, m_StoredIndicators[m_DamageIndicatorIndex]);
+            damageIndicator = GenericObjectPool.Get<DamageIndicator>();
+            damageIndicator.Initialize(attacker.transform, position, m_StoredIndicators[m_DamageIndicatorIndex]);
             m_ActiveDamageIndicators[m_ActiveDamageIndicatorCount] = damageIndicator;
             m_ActiveDamageIndicatorCount++;
             m_DamageIndicatorIndex = (m_DamageIndicatorIndex + 1) % m_StoredIndicators.Length;
@@ -193,6 +203,7 @@ namespace Opsive.UltimateCharacterController.UI
             // Allow the indicators to move/fade.
             m_GameObject.SetActive(true);
         }
+
         /// <summary>
         /// One or more hit indicators are shown. 
         /// </summary>
@@ -204,7 +215,7 @@ namespace Opsive.UltimateCharacterController.UI
                 var alpha = (m_IndicatorFadeTime - (Time.time - (m_ActiveDamageIndicators[i].DisplayTime + m_IndicatorVisiblityTime))) / m_IndicatorFadeTime;
                 if (alpha <= 0) {
                     m_ActiveDamageIndicators[i].GameObject.SetActive(false);
-                    ObjectPool.Return(m_ActiveDamageIndicators[i]);
+                    GenericObjectPool.Return(m_ActiveDamageIndicators[i]);
                     m_ActiveDamageIndicatorCount--;
                     // Sort the array so the complete indicators are at the end.
                     for (int j = i; j < m_ActiveDamageIndicatorCount; ++j) {
@@ -216,24 +227,28 @@ namespace Opsive.UltimateCharacterController.UI
                 color.a = alpha;
                 m_ActiveDamageIndicators[i].Image.color = color;
 
-                var direction = Vector3.ProjectOnPlane(m_CharacterTransform.position - ((m_FollowAttacker && m_CharacterTransform != m_ActiveDamageIndicators[i].Attacker) ?
-                                                        m_ActiveDamageIndicators[i].Attacker.position : m_ActiveDamageIndicators[i].Position),
-                                                        m_CharacterLocomotion.Up);
-                // The hit indicator is shown on a 2D canvas so the y direction should be ignored.
-                direction.y = 0;
-                direction.Normalize();
+                var attackerPosition = (m_FollowAttacker && m_CharacterTransform != m_ActiveDamageIndicators[i].Attacker) ?
+                                                        m_ActiveDamageIndicators[i].Attacker.position : m_ActiveDamageIndicators[i].Position;
 
-                var angle = Vector3.Angle(direction, m_CameraTransform.forward) * Mathf.Sign(Vector3.Dot(direction, m_CameraTransform.right));
-                m_ActiveDamageIndicators[i].Angle = angle;
+                // Adjust the hit position.
+                var localHitPosition = m_ActiveDamageIndicators[i].Attacker.InverseTransformPoint(m_ActiveDamageIndicators[i].Position);
+                localHitPosition.x = localHitPosition.z = 0;
+                attackerPosition += m_ActiveDamageIndicators[i].Attacker.TransformDirection(localHitPosition);
+
+                var screenPoint = m_Camera.WorldToScreenPoint(attackerPosition);
+                var centerScreenPoint = ((new Vector2(screenPoint.x, screenPoint.y) - (new Vector2(m_Camera.pixelWidth, m_Camera.pixelHeight) / 2)) * Mathf.Sign(screenPoint.z)).normalized;
+
+                var angle = Vector2.SignedAngle(centerScreenPoint, Vector2.right);
+                m_ActiveDamageIndicators[i].Angle = 90 - angle;
 
                 // Face the image in the direction of the angle.
                 var rotation = m_ActiveDamageIndicators[i].RectTransform.localEulerAngles;
-                rotation.z = -m_ActiveDamageIndicators[i].Angle;
+                rotation.z = m_ActiveDamageIndicators[i].Angle;
                 m_ActiveDamageIndicators[i].RectTransform.localEulerAngles = rotation;
 
                 // Position the indicator relative to the direction.
                 var position = m_ActiveDamageIndicators[i].RectTransform.localPosition;
-                position.x = -Mathf.Sin(m_ActiveDamageIndicators[i].Angle * Mathf.Deg2Rad) * m_IndicatorOffset;
+                position.x = Mathf.Sin(m_ActiveDamageIndicators[i].Angle * Mathf.Deg2Rad) * m_IndicatorOffset;
                 position.y = -Mathf.Cos(m_ActiveDamageIndicators[i].Angle * Mathf.Deg2Rad) * m_IndicatorOffset;
                 m_ActiveDamageIndicators[i].RectTransform.localPosition = position;
             }
@@ -252,7 +267,7 @@ namespace Opsive.UltimateCharacterController.UI
             // No indicators should be shown when the character respawns.
             for (int i = m_ActiveDamageIndicatorCount - 1; i > -1; --i) {
                 m_ActiveDamageIndicators[i].GameObject.SetActive(false);
-                ObjectPool.Return(m_ActiveDamageIndicators[i]);
+                GenericObjectPool.Return(m_ActiveDamageIndicators[i]);
             }
             m_ActiveDamageIndicatorCount = 0;
             m_GameObject.SetActive(false);
@@ -264,7 +279,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <returns>True if the UI can be shown.</returns>
         protected override bool CanShowUI()
         {
-            return m_ActiveDamageIndicatorCount > 0;
+            return base.CanShowUI() && m_ActiveDamageIndicatorCount > 0;
         }
     }
 }

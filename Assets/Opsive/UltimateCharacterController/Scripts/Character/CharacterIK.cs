@@ -4,16 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Inventory;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Motion;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Inventory;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Motion;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Allows the character to stand on uneven surfaces and rotates and positions the character's limbs to face in the look direction.
     /// </summary>
@@ -24,7 +25,7 @@ namespace Opsive.UltimateCharacterController.Character
         [SerializeField] protected bool m_DebugDrawLookRay;
 #endif
         [Tooltip("The index of the base layer within the Animator Controller.")]
-        [SerializeField] protected int m_BaseLayerIndex = 0;
+        [SerializeField] protected int m_BaseLayerIndex;
         [Tooltip("The index of the upper body layer within the Animator Controller.")]
         [SerializeField] protected int m_UpperBodyLayerIndex = 4;
         [Tooltip("The layers that the component should use when determining the objects to test against.")]
@@ -33,7 +34,7 @@ namespace Opsive.UltimateCharacterController.Character
                                                                 1 << LayerManager.SubCharacter | 1 << LayerManager.Character);
         [Tooltip("An offset to apply to the look at direction for the body and arms.")]
         [SerializeField] protected Vector3 m_LookAtOffset;
-        [InspectorFoldout("Body")]
+        [Shared.Utility.InspectorFoldout("Body")]
         [Tooltip("Determines how much weight is applied to the body when looking at the target. (0-1).")]
         [Range(0, 1)] [SerializeField] protected float m_LookAtBodyWeight = 0.05f;
         [Tooltip("Determines how much weight is applied to the head when looking at the target. (0-1).")]
@@ -42,23 +43,29 @@ namespace Opsive.UltimateCharacterController.Character
         [Range(0, 1)] [SerializeField] protected float m_LookAtEyesWeight = 1;
         [Tooltip("A value of 0 means the character is completely unrestrained in motion, 1 means the character motion completely clamped (look at becomes impossible) (0-1).")]
         [Range(0, 1)] [SerializeField] protected float m_LookAtClampWeight = 0.35f;
+        [Tooltip("The adjustment speed to apply to the Look At position.")]
+        [SerializeField] protected float m_LookAtAdjustmentSpeed = 0.5f;
+        [Tooltip("The name of the state when the character is actively looking at a target.")]
+        [SerializeField] protected string m_ActiveLookAtStateName = "LookAt";
         [Tooltip("The speed at which the look at weight should adjust.")]
-        [SerializeField] protected float m_LookAtAdjustmentSpeed = 0.2f;
+        [SerializeField] protected float m_LookAtWeightAdjustmentSpeed = 0.2f;
         [Tooltip("The speed at which the hips position should adjust to using IK and not using IK.")]
         [SerializeField] protected float m_HipsPositionAdjustmentSpeed = 4;
-        [InspectorFoldout("Feet")]
+        [Shared.Utility.InspectorFoldout("Feet")]
         [Tooltip("The offset of the foot between the foot bone and the base of the foot.")]
         [SerializeField] protected float m_FootOffsetAdjustment = 0.005f;
         [Tooltip("The speed at which the foot weight should adjust to when foot IK is active.")]
         [SerializeField] protected float m_FootWeightActiveAdjustmentSpeed = 10;
         [Tooltip("The speed at which the foot weight should adjust to when foot IK is inactive.")]
         [SerializeField] protected float m_FootWeightInactiveAdjustmentSpeed = 2;
-        [InspectorFoldout("Upper Arm")]
+        [Tooltip("The overridden weight for foot IK. Set to -1 to disable.")]
+        [SerializeField] protected float m_OverrideFootIKWeight = -1f;
+        [Shared.Utility.InspectorFoldout("Upper Arm")]
         [Tooltip("Determines how much weight is applied to the upper arms when looking at the target (0-1).")]
         [Range(0, 1)] [SerializeField] protected float m_UpperArmWeight = 1;
         [Tooltip("The speed at which the upper arm rotation should adjust to using IK and not using IK.")]
         [SerializeField] protected float m_UpperArmAdjustmentSpeed = 10;
-        [InspectorFoldout("Hands")]
+        [Shared.Utility.InspectorFoldout("Hands")]
         [Tooltip("Determines how much weight is applied to the hands when looking at the target (0-1).")]
         [Range(0, 1)] [SerializeField] protected float m_HandWeight = 1;
         [Tooltip("The speed at which the hand position/rotation should adjust to using IK and not using IK.")]
@@ -81,45 +88,48 @@ namespace Opsive.UltimateCharacterController.Character
         public float LookAtEyesWeight { get { return m_LookAtEyesWeight; } set { m_LookAtEyesWeight = value; } }
         public float LookAtClampWeight { get { return m_LookAtClampWeight; } set { m_LookAtClampWeight = value; } }
         public float LookAtAdjustmentSpeed { get { return m_LookAtAdjustmentSpeed; } set { m_LookAtAdjustmentSpeed = value; } }
-        public float HipsPositionAdjustmentSpeed { get { return m_HipsPositionAdjustmentSpeed; }
-            set { m_HipsPositionAdjustmentSpeed = value;
+        public string ActiveLookAtStateName { get { return m_ActiveLookAtStateName; } set { m_ActiveLookAtStateName = value; } }
+        public float LookAtWeightAdjustmentSpeed { get { return m_LookAtWeightAdjustmentSpeed; } set { m_LookAtWeightAdjustmentSpeed = value; } }
+        public float HipsPositionAdjustmentSpeed {
+            get { return m_HipsPositionAdjustmentSpeed; }
+            set {
+                m_HipsPositionAdjustmentSpeed = value;
                 if (m_HipsPositionAdjustmentSpeed == 0) { m_HipsOffset = 0; }
             }
         }
         public float FootOffsetAdjustment { get { return m_FootOffsetAdjustment; } set { m_FootOffsetAdjustment = value; } }
         public float FootWeightActiveAdjustmentSpeed { get { return m_FootWeightActiveAdjustmentSpeed; } set { m_FootWeightActiveAdjustmentSpeed = value; } }
         public float FootWeightInactiveAdjustmentSpeed { get { return m_FootWeightInactiveAdjustmentSpeed; } set { m_FootWeightInactiveAdjustmentSpeed = value; } }
+        public float OverrideFootIKWeight { get { return m_OverrideFootIKWeight; } set { m_OverrideFootIKWeight = value; } }
         public float UpperArmWeight { get { return m_UpperArmWeight; } set { m_UpperArmWeight = value; } }
         public float UpperArmAdjustmentSpeed { get { return m_UpperArmAdjustmentSpeed; } set { m_UpperArmAdjustmentSpeed = value; } }
         public float HandWeight { get { return m_HandWeight; } set { m_HandWeight = value; } }
         public float HandAdjustmentSpeed { get { return m_HandAdjustmentSpeed; } set { m_HandAdjustmentSpeed = value; } }
         public Vector3 HandPositionOffset { get { return m_HandPositionOffset; } set { m_HandPositionOffset = value; } }
-        public Spring LeftHandPositionSpring { get { return m_LeftHandPositionSpring; }
+        public Spring LeftHandPositionSpring {
+            get { return m_LeftHandPositionSpring; }
             set {
                 m_LeftHandPositionSpring = value;
                 if (m_LeftHandPositionSpring != null) { m_LeftHandPositionSpring.Initialize(false, true); }
             }
         }
-        public Spring LeftHandRotationSpring { get { return m_LeftHandRotationSpring; }
+        public Spring LeftHandRotationSpring {
+            get { return m_LeftHandRotationSpring; }
             set {
                 m_LeftHandRotationSpring = value;
                 if (m_LeftHandRotationSpring != null) { m_LeftHandRotationSpring.Initialize(true, true); }
             }
         }
-        public Spring RightHandPositionSpring
-        {
+        public Spring RightHandPositionSpring {
             get { return m_RightHandPositionSpring; }
-            set
-            {
+            set {
                 m_RightHandPositionSpring = value;
                 if (m_RightHandPositionSpring != null) { m_RightHandPositionSpring.Initialize(false, true); }
             }
         }
-        public Spring RightHandRotationSpring
-        {
+        public Spring RightHandRotationSpring {
             get { return m_RightHandPositionSpring; }
-            set
-            {
+            set {
                 m_RightHandPositionSpring = value;
                 if (m_RightHandPositionSpring != null) { m_RightHandPositionSpring.Initialize(true, true); }
             }
@@ -150,13 +160,13 @@ namespace Opsive.UltimateCharacterController.Character
         private bool m_Aiming;
         private bool m_ItemInUse;
 
+        private Vector3 m_LookAtPosition;
         private float m_LookAtBodyIKWeight;
         private float m_LookAtHeadIKWeight;
         private float m_LookAtEyesIKWeight;
 
         private Vector3 m_HipsPosition;
         private float m_HipsOffset;
-        private bool m_HipsUpdate;
         private float[] m_FootOffset = new float[2];
         private float[] m_FootIKWeight = new float[2];
         private float[] m_MaxLegLength = new float[2];
@@ -185,6 +195,8 @@ namespace Opsive.UltimateCharacterController.Character
         private Transform m_LeftHandItemIKHintTarget;
         private Transform m_RightHandItemIKHintTarget;
 
+        private bool m_ActiveLookAtTarget;
+        private Vector3 m_LookAtTargetPosition;
         private Transform[] m_IKTarget;
         private Transform[] m_AbilityIKTarget;
         private Transform[] m_InterpolationTarget;
@@ -214,65 +226,9 @@ namespace Opsive.UltimateCharacterController.Character
             m_GameObject = gameObject;
             m_Transform = transform;
             m_Animator = m_GameObject.GetCachedComponent<Animator>();
-
-            // Assign the humanoid limbs. If the character is not a humanoid then the component will stay disabled because Unity's IK system
-            // only works with humanoids.
-            if (!m_Animator.isHuman) {
-                Debug.LogError("Error: The CharacterIK component only works with humanoid models.");
-                m_Enable = enabled = false;
-                return;
-            }
-
-            m_Head = m_Animator.GetBoneTransform(HumanBodyBones.Head);
-            if (m_Head == null) {
-                Debug.LogError("Error: The Head bone is not assigned to the character " + m_GameObject.name + ".");
-                m_Enable = enabled = false;
-                return;
-            }
-            m_Hips = m_Animator.GetBoneTransform(HumanBodyBones.Hips);
-            m_LeftFoot = m_Animator.GetBoneTransform(HumanBodyBones.LeftFoot);
-            m_RightFoot = m_Animator.GetBoneTransform(HumanBodyBones.RightFoot);
-            if (m_LeftFoot == null || m_RightFoot == null) {
-                Debug.LogError("Error: The Left or Right foot bone is not assigned to the character " + m_GameObject.name + ".");
-                m_Enable = enabled = false;
-                return;
-            }
-            m_LeftToes = m_Animator.GetBoneTransform(HumanBodyBones.LeftToes);
-            m_RightToes = m_Animator.GetBoneTransform(HumanBodyBones.RightToes);
-            m_LeftLowerLeg = m_Animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg);
-            m_RightLowerLeg = m_Animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
-            m_LeftHand = m_Animator.GetBoneTransform(HumanBodyBones.LeftHand);
-            m_RightHand = m_Animator.GetBoneTransform(HumanBodyBones.RightHand);
-            if (m_LeftHand == null || m_RightHand == null) {
-                Debug.LogError("Error: The Left or Right hand bone is not assigned to the character " + m_GameObject.name + ".");
-                m_Enable = enabled = false;
-                return;
-            }
-            m_LeftUpperArm = m_Animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-            m_RightUpperArm = m_Animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
-
             m_CharacterLocomotion = m_GameObject.GetCachedComponent<UltimateCharacterLocomotion>();
 
-            // The limbs should snap into position at the start.
-            m_ImmediatePosition = true;
-
-            // Perform measurements during initialization while in a T-Pose so they can be compared against during the IK pass.
-            for (int i = 0; i < 2; ++i) {
-                var foot = i == 0 ? m_LeftFoot : m_RightFoot;
-                m_FootOffset[i] = m_Transform.InverseTransformPoint(foot.position).y - m_FootOffsetAdjustment;
-                m_MaxLegLength[i] = m_Transform.InverseTransformPoint(i == 0 ? m_LeftLowerLeg.position : m_RightLowerLeg.position).y - m_FootOffsetAdjustment;
-            }
-            m_HipsPosition = m_Transform.InverseTransformPoint(m_Hips.position);
-
-            // The slot IDs can be populated programmatically by finding a reference to the ItemSlot component.
-            var itemSlot = m_LeftHand.GetComponentInChildren<ItemSlot>();
-            if (itemSlot != null) {
-                m_HandSlotID[0] = itemSlot.ID;
-            }
-            itemSlot = m_RightHand.GetComponentInChildren<ItemSlot>();
-            if (itemSlot != null) {
-                m_HandSlotID[1] = itemSlot.ID;
-            }
+            InitializeBones(true);
 
             // Initialize the target ik arrays.
             var count = (int)IKGoal.Last;
@@ -307,6 +263,81 @@ namespace Opsive.UltimateCharacterController.Character
             enabled = false;
         }
 
+        /// <summary>
+        /// Initializes the humanoid bones.
+        /// </summary>
+        /// <param name="fromAwake">Are the bones being initalized from awake?</param>
+        /// <returns>True if the bones aare initialized.</returns>
+        private bool InitializeBones(bool fromAwake)
+        {
+            if (m_Head != null) {
+                return true;
+            }
+
+            // Assign the humanoid limbs. If the character is not a humanoid then the component will stay disabled because Unity's IK system
+            // only works with humanoids.
+            if (!m_Animator.isHuman) {
+                if (!fromAwake) {
+                    Debug.LogError("Error: The CharacterIK component only works with humanoid models.");
+                }
+                return false;
+            }
+
+            m_Head = m_Animator.GetBoneTransform(HumanBodyBones.Head);
+            if (m_Head == null) {
+                if (!fromAwake) {
+                    Debug.LogError($"Error: The Head bone is not assigned to the character {m_GameObject.name}.");
+                }
+                return false;
+            }
+            m_Hips = m_Animator.GetBoneTransform(HumanBodyBones.Hips);
+            m_LeftFoot = m_Animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+            m_RightFoot = m_Animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            if (m_LeftFoot == null || m_RightFoot == null) {
+                if (!fromAwake) {
+                    Debug.LogError($"Error: The Left or Right foot bone is not assigned to the character {m_GameObject.name}.");
+                }
+                return false;
+            }
+            m_LeftToes = m_Animator.GetBoneTransform(HumanBodyBones.LeftToes);
+            m_RightToes = m_Animator.GetBoneTransform(HumanBodyBones.RightToes);
+            m_LeftLowerLeg = m_Animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg);
+            m_RightLowerLeg = m_Animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
+            m_LeftHand = m_Animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            m_RightHand = m_Animator.GetBoneTransform(HumanBodyBones.RightHand);
+            if (m_LeftHand == null || m_RightHand == null) {
+                if (!fromAwake) {
+                    Debug.LogError($"Error: The Left or Right hand bone is not assigned to the character {m_GameObject.name}.");
+                }
+                return false;
+            }
+            m_LeftUpperArm = m_Animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+            m_RightUpperArm = m_Animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+
+            // The limbs should snap into position at the start.
+            m_ImmediatePosition = true;
+
+            // Perform measurements during initialization while in a T-Pose so they can be compared against during the IK pass.
+            for (int i = 0; i < 2; ++i) {
+                var foot = i == 0 ? m_LeftFoot : m_RightFoot;
+                m_FootOffset[i] = m_Transform.InverseTransformPoint(foot.position).y - m_FootOffsetAdjustment;
+                m_MaxLegLength[i] = m_Transform.InverseTransformPoint(i == 0 ? m_LeftLowerLeg.position : m_RightLowerLeg.position).y - m_FootOffsetAdjustment;
+            }
+            m_HipsPosition = m_Transform.InverseTransformPoint(m_Hips.position);
+
+            // The slot IDs can be populated programmatically by finding a reference to the ItemSlot component.
+            var itemSlot = m_LeftHand.GetComponentInChildren<ItemSlot>();
+            if (itemSlot != null) {
+                m_HandSlotID[0] = itemSlot.ID;
+            }
+            itemSlot = m_RightHand.GetComponentInChildren<ItemSlot>();
+            if (itemSlot != null) {
+                m_HandSlotID[1] = itemSlot.ID;
+            }
+
+            return true;
+        }
+
 #if UNITY_EDITOR
         /// <summary>
         /// Implement start so the enable/disable toggle appears up in the inspector.
@@ -322,11 +353,47 @@ namespace Opsive.UltimateCharacterController.Character
         {
             var prevEnabled = enabled;
             m_LookSource = lookSource;
-            enabled = m_Enable && m_LookSource != null;
+            enabled = InitializeBones(true) && m_LookSource != null;
+            if (m_LookSource != null) {
+                m_LookAtPosition = GetDefaultLookAtPosition();
+                m_LookAtPosition = m_Head.position + (m_LookAtPosition - m_Head.position).normalized;
+            }
             // If the component is enabled update the animator so OnAnimatorIK will run.
-            if (enabled && !prevEnabled) {
+            if (enabled && !prevEnabled && m_Animator.isActiveAndEnabled) {
                 m_Animator.Update(0);
             }
+        }
+
+        /// <summary>
+        /// Sets the target that the character should look at.
+        /// </summary>
+        /// <param name="active">Should the character look at the target position?</param>
+        /// <param name="position">The position that the character should look at.</param>
+        public override void SetLookAtPosition(bool active, Vector3 position)
+        {
+            if (active) {
+                m_LookAtTargetPosition = position;
+            }
+            if (m_ActiveLookAtTarget != active) {
+                if (!string.IsNullOrEmpty(m_ActiveLookAtStateName)) {
+                    Shared.StateSystem.StateManager.SetState(m_GameObject, m_ActiveLookAtStateName, active);
+                }
+                m_ActiveLookAtTarget = active;
+            }
+        }
+
+        /// <summary>
+        /// Returns the default position that the character should look at.
+        /// </summary>
+        /// <returns>The default position that the character should look at.</returns>
+        public override Vector3 GetDefaultLookAtPosition()
+        {
+            var headPosition = m_Head.position;
+            var lookDirection = m_LookSource.LookDirection(headPosition, false, 0, true, false);
+            // Multiply the local offset by the distance so the same relative offset will be applied for both the upper body and head.
+            var localOffset = m_LookAtOffset * m_LookSource.LookDirectionDistance;
+            localOffset.z += m_LookSource.LookDirectionDistance;
+            return MathUtility.TransformPoint(headPosition, Quaternion.LookRotation(lookDirection), localOffset);
         }
 
         /// <summary>
@@ -358,15 +425,13 @@ namespace Opsive.UltimateCharacterController.Character
         /// <param name="duration">The amount of time it takes to reach the goal.</param>
         public override void SetAbilityIKTarget(Transform target, IKGoal ikGoal, float duration)
         {
-            if (duration > 0) {
-                if (m_InterpolationTarget[(int)ikGoal] == null) {
-                    var interpTarget = new GameObject("IK Interpolation " + ikGoal);
-                    m_InterpolationTarget[(int)ikGoal] = interpTarget.transform;
-                    m_InterpolationTarget[(int)ikGoal].SetParentOrigin(m_Transform);
-                }
-                m_StartInterpolation[(int)ikGoal] = Time.time;
-                m_InterpolationDuration[(int)ikGoal] = duration;
+            if (m_InterpolationTarget[(int)ikGoal] == null) {
+                var interpTarget = new GameObject("IK Interpolation " + ikGoal);
+                m_InterpolationTarget[(int)ikGoal] = interpTarget.transform;
+                m_InterpolationTarget[(int)ikGoal].SetParentOrigin(m_Transform);
             }
+            m_StartInterpolation[(int)ikGoal] = Time.time;
+            m_InterpolationDuration[(int)ikGoal] = duration;
 
             SetAbilityIKTarget(target, ikGoal);
         }
@@ -413,7 +478,7 @@ namespace Opsive.UltimateCharacterController.Character
         /// <summary>
         /// An item has been equipped.
         /// </summary>
-        /// <param name="itemType">The equipped item.</param>
+        /// <param name="item">The equipped item.</param>
         /// <param name="slotID">The slot that the item now occupies.</param>
         private void OnEquipItem(Item item, int slotID)
         {
@@ -440,7 +505,7 @@ namespace Opsive.UltimateCharacterController.Character
             }
             Item dominantItem = null;
             for (int i = 0; i < m_Inventory.SlotCount; ++i) {
-                var item = m_Inventory.GetItem(i);
+                var item = m_Inventory.GetActiveItem(i);
                 if (item != null && item.DominantItem) {
                     dominantItem = item;
                     break;
@@ -476,8 +541,7 @@ namespace Opsive.UltimateCharacterController.Character
         /// <summary>
         /// The Aim ability has started or stopped.
         /// </summary>
-        /// <param name="start">Has the Aim ability started?</param>
-        /// <param name="inputStart">Was the ability started from input?</param>
+        /// <param name="aim">Has the Aim ability started?</param>
         private void OnAim(bool aim)
         {
             m_Aiming = aim;
@@ -566,7 +630,7 @@ namespace Opsive.UltimateCharacterController.Character
         private void PositionLowerBody()
         {
             var hipsOffset = m_CharacterLocomotion.ColliderSpacing;
-            if (m_CharacterLocomotion.Grounded && m_CharacterLocomotion.UsingVerticalCollisionDetection) {
+            if (m_OverrideFootIKWeight > 0 || (m_CharacterLocomotion.Grounded && m_CharacterLocomotion.UsingVerticalCollisionDetection)) {
                 // There are two passes for positioning the feet. The hips need to be positioned first and then the feet can be positioned.
                 for (int i = 0; i < 2; ++i) {
                     // If a foot ik target is set then the feet are positioned manually.
@@ -593,7 +657,7 @@ namespace Opsive.UltimateCharacterController.Character
                     // Fire the second raycast from the toe. If a closer object is hit then the toe raycast results should be used. This prevent the toe from clipping objects
                     // if the object isn't at the same height as the foot.
                     target = (i == 0 ? m_LeftToes : m_RightToes);
-                    if (target != null && Physics.Raycast(GetFootRaycastPosition(target, lowerLeg, out distance), -m_CharacterLocomotion.Up, out m_RaycastHit, 
+                    if (target != null && Physics.Raycast(GetFootRaycastPosition(target, lowerLeg, out distance), -m_CharacterLocomotion.Up, out m_RaycastHit,
                                                             distance + m_FootOffset[i] + m_MaxLegLength[i], m_LayerMask, QueryTriggerInteraction.Ignore) &&
                                                             m_Transform.InverseTransformPoint(m_RaycastHit.point).y < m_CharacterLocomotion.MaxStepHeight) {
                         // In addition to checking the distance also ensure the normal is the same as the up direction as the character. This will prevent the toes from
@@ -622,7 +686,7 @@ namespace Opsive.UltimateCharacterController.Character
             }
 
             // Smoothly position the hips.
-            m_HipsOffset = m_ImmediatePosition ? hipsOffset : Mathf.Lerp(m_HipsOffset, hipsOffset, m_HipsPositionAdjustmentSpeed * Time.fixedDeltaTime);
+            m_HipsOffset = m_ImmediatePosition ? hipsOffset : Mathf.Lerp(m_HipsOffset, hipsOffset, m_HipsPositionAdjustmentSpeed * Time.deltaTime);
             m_HipsPosition = m_Transform.InverseTransformPoint(m_Hips.position);
             m_HipsPosition.y -= m_HipsOffset;
 
@@ -631,7 +695,7 @@ namespace Opsive.UltimateCharacterController.Character
                 var ikGoal = (i == 0 ? AvatarIKGoal.LeftFoot : AvatarIKGoal.RightFoot);
                 var position = m_Animator.GetIKPosition(ikGoal);
                 var rotation = m_Animator.GetIKRotation(ikGoal);
-                var targetWeight = 0f;
+                var targetWeight = m_OverrideFootIKWeight != -1 ? m_OverrideFootIKWeight : 0f;
 
                 var adjustmentSpeed = m_FootWeightInactiveAdjustmentSpeed;
                 Transform target;
@@ -656,7 +720,11 @@ namespace Opsive.UltimateCharacterController.Character
                     }
                 }
 
-                m_FootIKWeight[i] = Mathf.Clamp01(m_ImmediatePosition ? targetWeight : Mathf.MoveTowards(m_FootIKWeight[i], targetWeight, adjustmentSpeed * Time.fixedDeltaTime));
+                if (adjustmentSpeed == 0) {
+                    m_FootIKWeight[i] = 0;
+                } else {
+                    m_FootIKWeight[i] = Mathf.Clamp01(m_ImmediatePosition ? targetWeight : Mathf.MoveTowards(m_FootIKWeight[i], targetWeight, adjustmentSpeed * Time.deltaTime));
+                }
 
                 // Other objects have the chance of modifying the final position and rotation value.
                 if (m_OnUpdateIKPosition != null) {
@@ -706,25 +774,34 @@ namespace Opsive.UltimateCharacterController.Character
         /// </summary>
         private void LookAtTarget()
         {
-            var lookDirection = m_LookSource.LookDirection(m_Head.position, false, 0, true);
-            // Multiply the local offset by the distance so the same relative offset will be applied for both the upper body and head.
-            var localOffset = m_LookAtOffset * m_LookSource.LookDirectionDistance;
-            localOffset.z += m_LookSource.LookDirectionDistance;
-            var position = MathUtility.TransformPoint(m_Head.position, Quaternion.LookRotation(lookDirection), localOffset);
-            m_Animator.SetLookAtPosition(position);
+            var headPosition = m_Head.position;
+            var lookAtPosition = m_ActiveLookAtTarget ? m_LookAtTargetPosition : GetDefaultLookAtPosition();
+            lookAtPosition = headPosition + (lookAtPosition - headPosition).normalized;
+            m_LookAtPosition = m_ImmediatePosition ? lookAtPosition : Vector3.Lerp(m_LookAtPosition, lookAtPosition, m_LookAtAdjustmentSpeed);
+            // If the target position has a positive y value then the character should not look down betwen the lerp.
+            var localDirection = m_Transform.InverseTransformPoint(lookAtPosition);
+            if (localDirection.y > 0) {
+                var localLookAtPosition = m_Transform.InverseTransformPoint(m_LookAtPosition);
+                if (localLookAtPosition.y < 0) {
+                    localLookAtPosition.y = 0;
+                    m_LookAtPosition = m_Transform.TransformPoint(localLookAtPosition);
+                }
+            }
+            m_Animator.SetLookAtPosition(m_LookAtPosition);
 
             m_LookAtBodyIKWeight = m_ImmediatePosition ? m_LookAtBodyWeight :
-                                    Mathf.Lerp(m_LookAtBodyIKWeight, m_LookAtBodyWeight, m_LookAtAdjustmentSpeed);
+                                    Mathf.Lerp(m_LookAtBodyIKWeight, m_LookAtBodyWeight, m_LookAtWeightAdjustmentSpeed);
             m_LookAtHeadIKWeight = m_ImmediatePosition ? m_LookAtHeadWeight :
-                                        Mathf.Lerp(m_LookAtHeadIKWeight, m_LookAtHeadWeight, m_LookAtAdjustmentSpeed);
+                                        Mathf.Lerp(m_LookAtHeadIKWeight, m_LookAtHeadWeight, m_LookAtWeightAdjustmentSpeed);
             m_LookAtEyesIKWeight = m_ImmediatePosition ? m_LookAtHeadWeight :
-                                        Mathf.Lerp(m_LookAtEyesIKWeight, m_LookAtHeadWeight, m_LookAtAdjustmentSpeed);
+                                        Mathf.Lerp(m_LookAtEyesIKWeight, m_LookAtHeadWeight, m_LookAtWeightAdjustmentSpeed);
             m_Animator.SetLookAtWeight(1, m_LookAtBodyIKWeight, m_LookAtHeadIKWeight, m_LookAtEyesIKWeight, m_LookAtClampWeight);
 
 #if UNITY_EDITOR
             // Visualize the direction of the target look position.
             if (m_DebugDrawLookRay) {
-                Debug.DrawRay(m_Animator.GetBoneTransform(HumanBodyBones.Head).position, lookDirection * m_LookSource.LookDirectionDistance, Color.green);
+                var direction = (m_LookAtPosition - headPosition).normalized * m_LookSource.LookDirectionDistance;
+                Debug.DrawRay(headPosition, direction, Color.green);
             }
 #endif
         }
@@ -751,28 +828,15 @@ namespace Opsive.UltimateCharacterController.Character
                 }
 
                 m_HandRotationIKWeight[i] = Mathf.Clamp01(m_ImmediatePosition ? targetWeight :
-                                                Mathf.MoveTowards(m_HandRotationIKWeight[i], targetWeight, m_HandAdjustmentSpeed * Time.fixedDeltaTime));
+                                                Mathf.MoveTowards(m_HandRotationIKWeight[i], targetWeight, m_HandAdjustmentSpeed * Time.deltaTime));
 
                 // Set the IK rotation after the weight has been set. This is done after the weight is set because the rotation should be set at any time 
                 // the weight is greater than zero (such as when the hands are transitioning from aiming to no aiming).
-                var targetRotation = m_Animator.GetIKRotation(ikGoal);
-                if (m_HandRotationIKWeight[i] > 0) {
-                    if (ikTarget != null) {
-                        targetRotation = m_IKTarget[(int)(i == 0 ? IKGoal.LeftHand : IKGoal.RightHand)].rotation;
-                    } else {
-                        // Use the distant hand so the hands are always pointing in the same direction.
-                        if (distantHand == null) {
-                            if (m_Transform.InverseTransformPoint(m_RightHand.position).z < m_Transform.InverseTransformPoint(m_LeftHand.position).z) {
-                                distantHand = m_LeftHand;
-                            } else {
-                                distantHand = m_RightHand;
-                            }
-                        }
-                        var lookDirection = (m_LookSource.LookDirection(distantHand.position, false, 0, true) + m_Transform.TransformDirection(m_LookAtOffset)).normalized;
-                        targetRotation = Quaternion.LookRotation(lookDirection, m_CharacterLocomotion.Up) * Quaternion.Inverse(m_Transform.rotation) * 
-                                            Quaternion.Euler(m_Transform.TransformDirection(i == 0 ? m_LeftHandRotationSpring.Value : m_RightHandRotationSpring.Value)) *
-                                            m_Animator.GetIKRotation(ikGoal);
-                    }
+                Quaternion targetRotation;
+                if (ikTarget != null) {
+                    targetRotation = ikTarget.rotation;
+                } else {
+                    targetRotation = GetTargetHandRotation(ref distantHand, i == 0, ikGoal);
                 }
                 // Other objects have the chance of modifying the final rotation value.
                 targetWeight = m_HandRotationIKWeight[i];
@@ -786,6 +850,33 @@ namespace Opsive.UltimateCharacterController.Character
         }
 
         /// <summary>
+        /// Returns the target rotation of the hand.
+        /// </summary>
+        /// <param name="distantHand">A reference to the hand that is further away from the character.</param>
+        /// <param name="leftHand">Is the hand the left hand?</param>
+        /// <param name="ikGoal">The AvatarIKGoal of the hand.</param>
+        /// <returns>The target rotation of the hand.</returns>
+        private Quaternion GetTargetHandRotation(ref Transform distantHand, bool leftHand, AvatarIKGoal ikGoal)
+        {
+            if (m_HandRotationIKWeight[leftHand ? 0 : 1] == 0) {
+                return m_Animator.GetIKRotation(ikGoal);
+            }
+
+            // Use the distant hand so the hands are always pointing in the same direction.
+            if (distantHand == null) {
+                if (m_Transform.InverseTransformPoint(m_RightHand.position).z < m_Transform.InverseTransformPoint(m_LeftHand.position).z) {
+                    distantHand = m_LeftHand;
+                } else {
+                    distantHand = m_RightHand;
+                }
+            }
+            var lookDirection = (m_LookSource.LookDirection(distantHand.position, false, 0, true, false) + m_Transform.TransformDirection(m_LookAtOffset)).normalized;
+            return Quaternion.LookRotation(lookDirection, m_CharacterLocomotion.Up) * Quaternion.Inverse(m_Transform.rotation) *
+                                Quaternion.Euler(m_Transform.TransformDirection(leftHand ? m_LeftHandRotationSpring.Value : m_RightHandRotationSpring.Value)) *
+                                m_Animator.GetIKRotation(ikGoal);
+        }
+
+        /// <summary>
         /// Rotates the upper arms to face the target.
         /// </summary>
         private void RotateUpperArms()
@@ -796,14 +887,14 @@ namespace Opsive.UltimateCharacterController.Character
             }
 
             var prevUpperArmWeight = m_DominantUpperArmWeight;
-            m_DominantUpperArmWeight = Mathf.Clamp01(m_ImmediatePosition ? targetWeight : Mathf.MoveTowards(m_DominantUpperArmWeight, targetWeight, m_UpperArmAdjustmentSpeed * Time.fixedDeltaTime));
+            m_DominantUpperArmWeight = Mathf.Clamp01(m_ImmediatePosition ? targetWeight : Mathf.MoveTowards(m_DominantUpperArmWeight, targetWeight, m_UpperArmAdjustmentSpeed * Time.deltaTime));
             if (prevUpperArmWeight > 0 && m_DominantUpperArmWeight == 0) {
                 DetermineDominantHand();
             }
             if (m_DominantUpperArm != null) {
                 if (m_DominantUpperArmWeight > 0) {
                     // The dominant upper arm should rotate to face the target.
-                    var localLookDirection = m_Transform.InverseTransformDirection(m_LookSource.LookDirection(m_DominantUpperArm.position, false, 0, true));
+                    var localLookDirection = m_Transform.InverseTransformDirection(m_LookSource.LookDirection(m_DominantUpperArm.position, false, 0, true, false));
                     var lookDirection = m_Transform.InverseTransformDirection(m_Transform.forward);
                     lookDirection.y = localLookDirection.y;
                     lookDirection = m_Transform.TransformDirection(lookDirection).normalized;
@@ -811,8 +902,10 @@ namespace Opsive.UltimateCharacterController.Character
                     if (localLookDirection.y < 0) {
                         lookDirection = Vector3.Lerp(m_Transform.forward, lookDirection, 1 - Mathf.Abs(localLookDirection.y));
                     }
-                    var targetRotation = Quaternion.FromToRotation(m_Transform.forward, lookDirection) * m_DominantUpperArm.rotation;
-                    targetRotation = Quaternion.Slerp(m_DominantUpperArm.rotation, targetRotation, m_DominantUpperArmWeight);
+
+                    var dominantUpperArmRotation = m_DominantUpperArm.rotation;
+                    var targetRotation = Quaternion.FromToRotation(m_Transform.forward, lookDirection) * dominantUpperArmRotation;
+                    targetRotation = Quaternion.Slerp(dominantUpperArmRotation, targetRotation, m_DominantUpperArmWeight);
 
                     // When the hand IK positions are set they should use the updated rotation.
                     var offset = Vector3.Scale(m_DominantUpperArm.InverseTransformPoint(m_DominantHand.position), m_DominantHand.lossyScale);
@@ -844,19 +937,20 @@ namespace Opsive.UltimateCharacterController.Character
 
             m_InterpolateIKTargets = false;
             var updateIKTargets = false;
+            Transform distantHand = null;
             for (int i = 0; i < (int)IKGoal.Last; ++i) {
                 if (m_StartInterpolation[i] != -1) {
                     Vector3 ikPosition;
                     var ikRotation = Quaternion.identity;
                     // Convert the IKGoal to an AvatarIKGoal/AvatarIKHint.
                     if (i == (int)IKGoal.LeftHand) {
-                        ikPosition = m_Animator.GetIKPosition(AvatarIKGoal.LeftHand);
-                        ikRotation = m_Animator.GetIKRotation(AvatarIKGoal.LeftHand);
+                        ikPosition = GetTargetHandPosition(m_LeftHand, true);
+                        ikRotation = GetTargetHandRotation(ref distantHand, true, AvatarIKGoal.LeftHand);
                     } else if (i == (int)IKGoal.LeftElbow) {
                         ikPosition = m_Animator.GetIKHintPosition(AvatarIKHint.LeftElbow);
                     } else if (i == (int)IKGoal.RightHand) {
-                        ikPosition = m_Animator.GetIKPosition(AvatarIKGoal.RightHand);
-                        ikRotation = m_Animator.GetIKRotation(AvatarIKGoal.RightHand);
+                        ikPosition = GetTargetHandPosition(m_RightHand, false);
+                        ikRotation = GetTargetHandRotation(ref distantHand, false, AvatarIKGoal.RightHand);
                     } else if (i == (int)IKGoal.RightElbow) {
                         ikPosition = m_Animator.GetIKHintPosition(AvatarIKHint.RightElbow);
                     } else if (i == (int)IKGoal.LeftFoot) {
@@ -872,17 +966,16 @@ namespace Opsive.UltimateCharacterController.Character
                     }
                     // If the target is not null then the transform should interpolate towards the target. If the target is null then
                     // the interpolation should move back towards the original ik position.
-                    var time = Mathf.Clamp01((Time.time - m_StartInterpolation[i]) / m_InterpolationDuration[i]);
+                    var time = m_InterpolationDuration[i] > 0 ? Mathf.Clamp01((Time.time - m_StartInterpolation[i]) / m_InterpolationDuration[i]) : 1;
                     if (m_AbilityIKTarget[i] == null) {
-                        m_InterpolationTarget[i].position = Vector3.Lerp(m_InterpolationTarget[i].position, ikPosition, time);
+                        m_InterpolationTarget[i].SetPositionAndRotation(Vector3.Lerp(m_InterpolationTarget[i].position, ikPosition, time), Quaternion.Slerp(m_InterpolationTarget[i].rotation, ikRotation, time));
                         if (time == 1) {
                             m_StartInterpolation[i] = -1;
                             updateIKTargets = true;
                         }
                     } else {
-                        m_InterpolationTarget[i].position = Vector3.Lerp(ikPosition, m_AbilityIKTarget[i].position, time);
+                        m_InterpolationTarget[i].SetPositionAndRotation(Vector3.Lerp(ikPosition, m_AbilityIKTarget[i].position, time), Quaternion.Slerp(ikRotation, m_AbilityIKTarget[i].rotation, time));
                     }
-                    m_InterpolationTarget[i].rotation = ikRotation;
                     m_InterpolateIKTargets = true;
                 }
             }
@@ -912,27 +1005,19 @@ namespace Opsive.UltimateCharacterController.Character
                 }
 
                 m_HandPositionIKWeight[i] = Mathf.Clamp01(m_ImmediatePosition ? targetWeight :
-                                                Mathf.MoveTowards(m_HandPositionIKWeight[i], targetWeight, m_HandAdjustmentSpeed * Time.fixedDeltaTime));
+                                                Mathf.MoveTowards(m_HandPositionIKWeight[i], targetWeight, m_HandAdjustmentSpeed * Time.deltaTime));
 
                 // Set the IK position after the weight has been set. This is done after the weight is set because the position should be set at any time 
                 // the weight is greater than zero (such as when the hands are transitioning from aiming to no aiming).
                 var targetPosition = m_Animator.GetIKPosition(ikGoal);
                 if (m_HandPositionIKWeight[i] > 0) {
                     if (ikTarget != null) {
-                        targetPosition = m_IKTarget[(int)(i == 0 ? IKGoal.LeftHand : IKGoal.RightHand)].position;
+                        targetPosition = ikTarget.position;
                         if (hintTarget != null) {
                             m_Animator.SetIKHintPosition(hintGoal, hintTarget.position);
                         }
                     } else {
-                        // The RotateUpperArms method will set the dominant and nondominant hand positions if it is being used. Otherwise the offset is set of the nondominant hand.
-                        Vector3 handPosition;
-                        if (m_DominantUpperArmWeight > 0) {
-                            handPosition = (hand == m_DominantHand ? m_DominantHandPosition : m_NonDominantHandPosition);
-                        } else {
-                            handPosition = ((hand == m_DominantHand || m_DominantHand == null) ? hand.position : m_DominantHand.TransformPoint(m_HandOffset));
-                        }
-                        targetPosition = handPosition + m_Transform.TransformDirection(i == 0 ? m_LeftHandPositionSpring.Value : m_RightHandPositionSpring.Value) + 
-                                            m_Transform.TransformDirection(m_HandPositionOffset);
+                        targetPosition = GetTargetHandPosition(hand, i == 0);
                     }
                 }
                 // Other objects have the chance of modifying the final position value.
@@ -945,6 +1030,25 @@ namespace Opsive.UltimateCharacterController.Character
                 m_Animator.SetIKPositionWeight(ikGoal, targetWeight);
                 m_Animator.SetIKHintPositionWeight(hintGoal, hintTarget != null ? m_HandPositionIKWeight[i] : 0);
             }
+        }
+
+        /// <summary>
+        /// Returns the target position of the hand.
+        /// </summary>
+        /// <param name="hand">The hand to retrieve the position of.</param>
+        /// <param name="leftHand">Is the hand the left hand?</param>
+        /// <returns>The target position of the hand.</returns>
+        private Vector3 GetTargetHandPosition(Transform hand, bool leftHand)
+        {
+            // The RotateUpperArms method will set the dominant and nondominant hand positions if it is being used. Otherwise the offset is set of the nondominant hand.
+            Vector3 handPosition;
+            if (m_DominantUpperArmWeight > 0) {
+                handPosition = (hand == m_DominantHand ? m_DominantHandPosition : m_NonDominantHandPosition);
+            } else {
+                handPosition = ((hand == m_DominantHand || m_DominantHand == null) ? hand.position : m_DominantHand.TransformPoint(m_HandOffset));
+            }
+            return handPosition + m_Transform.TransformDirection(leftHand ? m_LeftHandPositionSpring.Value : m_RightHandPositionSpring.Value) +
+                                            m_Transform.TransformDirection(m_HandPositionOffset);
         }
 
         /// <summary>

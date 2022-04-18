@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using System;
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.Motion
 {
+    using System;
+    using UnityEngine;
+
     /// <summary>
     /// This is a modified version of the perlin noise class from the official Unity 'Procedural Examples' at the following URL:
     /// https://www.assetstore.unity3d.com/en/#!/content/5141
@@ -242,10 +242,8 @@ namespace Opsive.UltimateCharacterController.Motion
                 m_Octaves = inOctaves;
                 m_IntOctaves = (int)inOctaves;
                 m_Exponent = new float[m_IntOctaves + 1];
-                float frequency = 1.0f;
                 for (int i = 0; i < m_IntOctaves + 1; i++) {
                     m_Exponent[i] = (float)Math.Pow(m_Lacunarity, -inH);
-                    frequency *= m_Lacunarity;
                 }
 
                 if (noise == null) {

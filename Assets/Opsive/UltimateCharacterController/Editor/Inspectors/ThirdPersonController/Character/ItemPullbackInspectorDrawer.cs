@@ -4,18 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using Opsive.UltimateCharacterController.Character.Abilities;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.ThirdPersonController.Character.Abilities.Items;
-using Opsive.UltimateCharacterController.Utility;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Character;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonController.Character.Abilities
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.Character.Abilities;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Character;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.ThirdPersonController.Character.Abilities.Items;
+    using Opsive.UltimateCharacterController.Utility;
+    using System;
+    using UnityEditor;
+    using UnityEngine;
+
     /// <summary>
     /// Draws a custom inspector for the ItemPullback Ability.
     /// </summary>
@@ -41,7 +42,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
         {
             var itemPullbackAbility = ability as ItemPullback;
             if (itemPullbackAbility.Collider != null) {
-                RemoveCollider(itemPullbackAbility, (parent as Component).gameObject);
+                RemoveCollider(itemPullbackAbility);
             }
         }
 
@@ -58,7 +59,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
             baseCallback += () =>
             {
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Space(InspectorUtility.IndentWidth * 2);
+                GUILayout.Space(Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * 2);
                 var itemPullbackAbility = ability as ItemPullback;
                 GUI.enabled = itemPullbackAbility.Collider == null;
                 if (GUILayout.Button("Add Collider")) {
@@ -67,7 +68,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
 
                 GUI.enabled = itemPullbackAbility.Collider != null;
                 if (GUILayout.Button("Remove Collider")) {
-                    RemoveCollider(itemPullbackAbility, (parent as Component).gameObject);
+                    RemoveCollider(itemPullbackAbility);
                 }
                 GUI.enabled = true;
                 EditorGUILayout.EndHorizontal();
@@ -85,7 +86,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
         {
             // Position the collider under the Colliders GameObject if it exists.
             Transform collidersTransform;
-            if ((collidersTransform = parent.transform.Find("Colliders"))) {
+            if ((collidersTransform = parent.transform.Find("Colliders")) != null) {
                 parent = collidersTransform.gameObject;
             }
             var itemPullbackCollider = new GameObject("Item Pullback Collider");
@@ -103,8 +104,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
         /// Removes the collider from the ability.
         /// </summary>
         /// <param name="itemPullbackAbility">The ability to remove the collider from.</param>
-        /// <param name="parent">The parent of the item pullback ability.</param>
-        private void RemoveCollider(ItemPullback itemPullbackAbility, GameObject parent)
+        private void RemoveCollider(ItemPullback itemPullbackAbility)
         {
             UnityEngine.Object.DestroyImmediate(itemPullbackAbility.Collider.gameObject, true);
             itemPullbackAbility.Collider = null;

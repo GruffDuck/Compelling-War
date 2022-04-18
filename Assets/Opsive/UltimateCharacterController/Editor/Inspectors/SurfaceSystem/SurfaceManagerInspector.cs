@@ -4,15 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.SurfaceSystem;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.SurfaceSystem;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Shows a custom inspector for the Surface Manager.
     /// </summary>
@@ -55,7 +55,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
 
             if (m_SurfaceManager.ObjectSurfaces != null && m_ObjectSurfacesList.index != -1 && m_ObjectSurfacesList.index < m_SurfaceManager.ObjectSurfaces.Length) {
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Space(InspectorUtility.IndentWidth);
+                GUILayout.Space(Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth);
                 EditorGUILayout.BeginVertical();
                 var objectSurface = m_SurfaceManager.ObjectSurfaces[m_ObjectSurfacesList.index];
                 objectSurface.SurfaceType = EditorGUILayout.ObjectField("Surface Type", objectSurface.SurfaceType, typeof(SurfaceType), true) as SurfaceType;
@@ -121,6 +121,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
                 EditorGUILayout.EndHorizontal();
             }
 
+            EditorGUILayout.PropertyField(PropertyFromName("m_MainTexturePropertyName"));
+            EditorGUILayout.PropertyField(PropertyFromName("m_DetectTerrainTreeTextures"), true);
+
             if (Foldout("Fallbacks")) {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(PropertyFromName("m_FallbackSurfaceImpact"), true);
@@ -129,7 +132,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
                 EditorGUI.indentLevel--;
             }
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }

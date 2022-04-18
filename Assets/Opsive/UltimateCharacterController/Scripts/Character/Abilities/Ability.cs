@@ -4,25 +4,30 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using System;
-using Opsive.UltimateCharacterController.Audio;
-using Opsive.UltimateCharacterController.Character.Abilities.Starters;
-using Opsive.UltimateCharacterController.Character.Effects;
-using Opsive.UltimateCharacterController.Input;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Motion;
-using Opsive.UltimateCharacterController.Objects.CharacterAssist;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using Opsive.Shared.Audio;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Input;
+    using Opsive.Shared.Inventory;
+    using Opsive.Shared.StateSystem;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Character.Abilities.Starters;
+    using Opsive.UltimateCharacterController.Character.Effects;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Motion;
+    using Opsive.UltimateCharacterController.Objects.CharacterAssist;
+    using System;
+    using UnityEngine;
+
+    using EventHandler = Opsive.Shared.Events.EventHandler;
+
     /// <summary>
     /// Abilities extend the character controller to allow new functionality without having to directly change the core character controller code. Abilities can change 
     /// any aspect of the character controller, from disabling gravity to setting the Animator Controller parameters. Abilities are synchronized over the network.
     /// </summary>
     [Serializable]
+    [UnityEngine.Scripting.Preserve]
     public abstract class Ability : StateObject
     {
         /// <summary>
@@ -83,8 +88,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         [HideInInspector] [SerializeField] protected Traits.AttributeModifier m_AttributeModifier = new Traits.AttributeModifier();
         [Tooltip("Specifies the name of the state that the ability should use when active.")]
         [HideInInspector] [SerializeField] protected string m_State;
-        [Tooltip("Should the ItemType name be appened to the name of the state name?")]
-        [HideInInspector] [SerializeField] protected bool m_StateAppendItemTypeName;
+        [Tooltip("Should the ItemIdentifier name be appened to the name of the state name?")]
+        [HideInInspector] [SerializeField] protected bool m_StateAppendItemIdentifierName;
         [Tooltip("Specifies the value to set the Ability Index parameter to. -1 will not set the parameter.")]
         [HideInInspector] [SerializeField] protected int m_AbilityIndexParameter = -1;
         [Tooltip("A set of AudioClips that can be played when the ability is started.")]
@@ -113,8 +118,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         [HideInInspector] [SerializeField] protected int m_StartEffectIndex = -1;
         [Tooltip("A mask specifying which slots can have the item equipped when the ability is active.")]
         [HideInInspector] [SerializeField] protected int m_AllowEquippedSlotsMask = -1;
-        [Tooltip("An array of item types that are allowed to be equipped when the ability starts. Any item type can be equipped if no item types are specified.")]
-        [HideInInspector] [SerializeField] protected Inventory.ItemType[] m_AllowItemTypes;
+        [Tooltip("An array of ItemDefinitions that are allowed to be equipped when the ability starts. Any item can be equipped if no ItemDefinitions are specified.")]
+        [HideInInspector] [SerializeField] protected ItemDefinitionBase[] m_AllowItemDefinitions;
         [Tooltip("Should the items be unequipped immediately?")]
         [HideInInspector] [SerializeField] protected bool m_ImmediateUnequip;
         [Tooltip("Should the ability equip the slots that were unequipped when the ability started?")]
@@ -128,7 +133,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         [HideInInspector] [SerializeField] protected string m_InspectorDescription;
 #endif
 
-        public virtual bool Enabled { get { return m_Enabled; } set { m_Enabled = value; if (!m_Enabled && IsActive) { StopAbility(true, false); } } }
+        public bool Enabled { get { return m_Enabled; } set { m_Enabled = value; if (!m_Enabled && IsActive && CanForceStopAbility()) { StopAbility(true, false); } SetEnabled(value); } }
         public AbilityStartType StartType { get { return m_StartType; }
             set {
                 if (m_CharacterLocomotion != null && m_StartType == AbilityStartType.Automatic && value != AbilityStartType.Automatic && value != AbilityStartType.Manual) {
@@ -149,7 +154,17 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
         }
         public AbilityStopType StopType { get { return m_StopType; } set { m_StopType = value; } }
-        public string[] InputNames { get { return m_InputNames; } set { m_InputNames = value; } }
+        public string[] InputNames {
+            get { return m_InputNames; }
+            set {
+                m_InputNames = value;
+                m_ButtonUp = new bool[m_InputNames.Length];
+                for (int i = 0; i < m_InputNames.Length; ++i) {
+                    m_ButtonUp[i] = true;
+                }
+                m_ActiveInput = new bool[m_InputNames.Length];
+            }
+        }
         public float LongPressDuration { get { return m_LongPressDuration; } set { m_LongPressDuration = value; } }
         public bool WaitForLongPressRelease { get { return m_WaitForLongPressRelease; } set { m_WaitForLongPressRelease = value; } }
         public Serialization StarterData
@@ -163,7 +178,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 }
             }
         }
-        [Utility.NonSerialized] public Traits.AttributeModifier AttributeModifier { get { return m_AttributeModifier; } set { m_AttributeModifier = value; } }
+        [Shared.Utility.NonSerialized] public Traits.AttributeModifier AttributeModifier { get { return m_AttributeModifier; } set { m_AttributeModifier = value; } }
         public string State { get { return m_State; } set { m_State = value; } }
         public virtual int AbilityIndexParameter { get { return m_AbilityIndexParameter; } set { m_AbilityIndexParameter = value; } }
         public AudioClipSet StartAudioClipSet { get { return m_StartAudioClipSet; } set { m_StartAudioClipSet = value; } }
@@ -179,7 +194,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         public string StartEffectName { get { return m_StartEffectName; } set { m_StartEffectName = value; } }
         public int StartEffectIndex { get { return m_StartEffectIndex; } set { m_StartEffectIndex = value; } }
         public int AllowEquippedSlotsMask { get { return m_AllowEquippedSlotsMask; } set { m_AllowEquippedSlotsMask = value; } }
-        public Inventory.ItemType[] AllowItemTypes { get { return m_AllowItemTypes; } set { m_AllowItemTypes = value; } }
+        public ItemDefinitionBase[] AllowItemDefinitions { get { return m_AllowItemDefinitions; } set { m_AllowItemDefinitions = value; } }
         public bool ImmediateUnequip { get { return m_ImmediateUnequip; } set { m_ImmediateUnequip = value; } }
         public bool ReequipSlots { get { return m_ReequipSlots; } set { m_ReequipSlots = value; } }
         public virtual string AbilityMessageText { get { return m_AbilityMessageText; }
@@ -217,13 +232,12 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         private int m_ActiveCount;
         private Effect m_StartEffect;
         protected AbilityStarter m_Starter;
-        private AudioSource m_StartAudioSource;
 
         public bool IsActive { get { return m_ActiveIndex != -1; } }
-        [Utility.NonSerialized] public int Index { get { return m_Index; } set { m_Index = value; } }
-        [Utility.NonSerialized] public int ActiveIndex { get { return m_ActiveIndex; } set { m_ActiveIndex = value; } }
-        [Utility.NonSerialized, Snapshot] public int InputIndex { get { return m_InputIndex; } set { m_InputIndex = value; } }
-        [Utility.NonSerialized, Snapshot] public float InputAxisValue { get { return m_InputAxisValue; } set { m_InputAxisValue = value; } }
+        [Shared.Utility.NonSerialized] public int Index { get { return m_Index; } set { m_Index = value; } }
+        [Shared.Utility.NonSerialized] public int ActiveIndex { get { return m_ActiveIndex; } set { m_ActiveIndex = value; } }
+        [Shared.Utility.NonSerialized, Snapshot] public int InputIndex { get { return m_InputIndex; } set { m_InputIndex = value; } }
+        [Shared.Utility.NonSerialized, Snapshot] public float InputAxisValue { get { return m_InputAxisValue; } set { m_InputAxisValue = value; } }
         public float StartTime { get { return m_StartTime; } }
         public bool CheckForAbilityMessage { get { return m_CheckForAbilityMessage; } }
         public bool AbilityMessageCanStart
@@ -231,7 +245,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             set {
                 if (m_AbilityMessageCanStart != value) {
                     m_AbilityMessageCanStart = value;
-                    Events.EventHandler.ExecuteEvent(m_GameObject, "OnAbilityMessageCanStart", this, value);
+                    EventHandler.ExecuteEvent(m_GameObject, "OnAbilityMessageCanStart", this, value);
                 }
             }
         }
@@ -241,7 +255,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         public virtual bool CanReceiveMultipleStarts { get { return false; } }
         public virtual bool CanStayActivatedOnDeath { get { return false; } }
         public virtual bool ImmediateStartItemVerifier { get { return false; } }
-        [Utility.NonSerialized] public virtual int AbilityIntData { get { return -1; } set { /* Intentionally left blank. */ } }
+        [Shared.Utility.NonSerialized] public virtual int AbilityIntData { get { return -1; } set { /* Intentionally left blank. */ } }
         public virtual float AbilityFloatData { get { return -1; } }
 #if UNITY_EDITOR
         // Allows the ability to show a brief description within the inspector's ReorderableList.
@@ -287,7 +301,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 m_AttributeModifier.Initialize(m_GameObject);
             }
             if (!string.IsNullOrEmpty(m_StartEffectName)) {
-                m_StartEffect = m_CharacterLocomotion.GetEffect(UnityEngineUtility.GetType(m_StartEffectName), m_StartEffectIndex);
+                m_StartEffect = m_CharacterLocomotion.GetEffect(Shared.Utility.TypeUtility.GetType(m_StartEffectName), m_StartEffectIndex);
             }
             DeserializeAbilityStarter();
 
@@ -413,10 +427,10 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         }
 
         /// <summary>
-        /// Returns the possible AbilityStartLocations that the character can move towards.
+        /// Returns the possible MoveTowardsLocations that the character can move towards.
         /// </summary>
-        /// <returns>The possible AbilityStartLocations that the character can move towards.</returns>
-        public virtual AbilityStartLocation[] GetStartLocations() { return null; }
+        /// <returns>The possible MoveTowardsLocations that the character can move towards.</returns>
+        public virtual MoveTowardsLocation[] GetMoveTowardsLocations() { return null; }
 
         /// <summary>
         /// Called when another ability is attempting to start and the current ability is active.
@@ -443,7 +457,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// <summary>
         /// Tries to start the ability.
         /// </summary>
-        /// <returns>True if the ability was successfully started.</param>
+        /// <returns>True if the ability was successfully started.</returns>
         public bool StartAbility()
         {
             return m_CharacterLocomotion.TryStartAbility(this);
@@ -482,6 +496,13 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                     m_StartType == AbilityStartType.LongPress || m_StartType == AbilityStartType.Tap) {
                     m_ButtonUp[m_InputIndex] = false;
                 }
+            } else {
+                // If the ability was started manually/automatically and the ability has an input stop type then any of those inputs should be able to stop the ability.
+                if (m_StopType != AbilityStopType.Automatic && m_StopType != AbilityStopType.Manual) {
+                    for (int i = 0; i < m_ActiveInput.Length; ++i) {
+                        m_ActiveInput[i] = true;
+                    }
+                }
             }
             m_InputIndex = -1;
             if (m_StartEffect != null) {
@@ -491,7 +512,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 m_Starter.AbilityStarted();
             }
 
-            m_StartAudioSource = m_StartAudioClipSet.PlayAudioClip(m_GameObject);
+            m_StartAudioClipSet.PlayAudioClip(m_GameObject);
 
             if (m_UseGravity == AbilityBoolOverride.True) {
                 m_CharacterLocomotion.ForceUseGravity = true;
@@ -527,8 +548,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
 
             if (m_Inventory != null && m_ActiveCount == 1) {
-                Events.EventHandler.RegisterEvent<Item, int>(m_GameObject, "OnInventoryEquipItem", OnEquipItem);
-                Events.EventHandler.RegisterEvent<Item, int>(m_GameObject, "OnInventoryUnequipItem", OnUnequipItem);
+                EventHandler.RegisterEvent<Item, int>(m_GameObject, "OnInventoryEquipItem", OnEquipItem);
+                EventHandler.RegisterEvent<Item, int>(m_GameObject, "OnInventoryUnequipItem", OnUnequipItem);
             }
         }
 
@@ -540,11 +561,11 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         {
             if (!string.IsNullOrEmpty(m_State)) {
                 StateManager.SetState(m_GameObject, m_State, active);
-                if (m_Inventory != null && m_StateAppendItemTypeName) {
+                if (m_Inventory != null && m_StateAppendItemIdentifierName) {
                     for (int i = 0; i < m_Inventory.SlotCount; ++i) {
-                        var item = m_Inventory.GetItem(i);
+                        var item = m_Inventory.GetActiveItem(i);
                         if (item != null && item.IsActive()) {
-                            var itemStateName = m_State + item.ItemType.name;
+                            var itemStateName = m_State + item.ItemDefinition.name;
                             StateManager.SetState(m_GameObject, itemStateName, active);
                         }
                     }
@@ -555,12 +576,12 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// <summary>
         /// An item has been equipped.
         /// </summary>
-        /// <param name="itemType">The equipped item.</param>
+        /// <param name="item">The equipped item.</param>
         /// <param name="slotID">The slot that the item now occupies.</param>
         private void OnEquipItem(Item item, int slotID)
         {
             if (IsActive && !string.IsNullOrEmpty(m_State)) {
-                var itemStateName = m_State + item.ItemType.name;
+                var itemStateName = m_State + item.ItemDefinition.name;
                 StateManager.SetState(m_GameObject, itemStateName, true);
             }
         }
@@ -573,7 +594,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         private void OnUnequipItem(Item item, int slotID)
         {
             if (IsActive && !string.IsNullOrEmpty(m_State)) {
-                var itemStateName = m_State + item.ItemType.name;
+                var itemStateName = m_State + item.ItemDefinition.name;
                 StateManager.SetState(m_GameObject, itemStateName, false);
             }
         }
@@ -688,10 +709,10 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         protected virtual void AbilityStopped(bool force)
         {
             m_InputIndex = -1;
-            if (m_StartAudioSource != null && m_StartAudioSource.isPlaying) {
-                m_StartAudioSource.Stop();
+            m_StartAudioClipSet.Stop(m_GameObject);
+            if (!force) {
+                m_StopAudioClipSet.PlayAudioClip(m_GameObject);
             }
-            m_StopAudioClipSet.PlayAudioClip(m_GameObject);
 
             ResetInput(force);
             if (m_Starter != null) {
@@ -731,8 +752,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 m_AttributeModifier.EnableModifier(false);
             }
             if (m_ActiveCount == 0 && m_Inventory != null) {
-                Events.EventHandler.UnregisterEvent<Item, int>(m_GameObject, "OnInventoryEquipItem", OnEquipItem);
-                Events.EventHandler.UnregisterEvent<Item, int>(m_GameObject, "OnInventoryUnequipItem", OnUnequipItem);
+                EventHandler.UnregisterEvent<Item, int>(m_GameObject, "OnInventoryEquipItem", OnEquipItem);
+                EventHandler.UnregisterEvent<Item, int>(m_GameObject, "OnInventoryUnequipItem", OnUnequipItem);
             }
         }
 
@@ -775,6 +796,12 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// Should the input be checked to ensure button up is using the correct value?
         /// </summary>
         protected virtual bool ShouldCheckInput() { return true; }
+
+        /// <summary>
+        /// Called when the ability is enabled or disabled.
+        /// </summary>
+        /// <param name="enabled">Is the ability enabled?</param>
+        protected virtual void SetEnabled(bool enabled) { }
 
         /// <summary>
         /// The Animator is requesting the animation's delta position and rotation. The ability can use an AnimationMotion ScriptableObject to generate move data without using
@@ -835,7 +862,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// </summary>
         /// <typeparam name="T">The type of component to return.</typeparam>
         /// <returns>The component of type T. Can be null.</returns>
-        protected T GetComponent<T>()
+        protected T GetComponent<T>() where T : Component
         {
             return m_GameObject.GetComponent<T>();
         }
@@ -1022,7 +1049,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 return;
             }
 
-            m_AnimatorMonitor.SetSpeedParameter(value, m_CharacterLocomotion.TimeScale);
+            m_CharacterLocomotion.SpeedParameterOverride = value != 0;
+            m_AnimatorMonitor.SetSpeedParameter(m_CharacterLocomotion.SpeedParameterOverride ? value : m_CharacterLocomotion.SpeedParameterValue, m_CharacterLocomotion.TimeScale);
         }
 
         /// <summary>
@@ -1044,5 +1072,15 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// </summary>
         /// <returns>True if the camera can zoom.</returns>
         public virtual bool CanCameraZoom() { return true; }
+
+        /// <summary>
+        /// Unity callback to draw the editor gizmos.
+        /// </summary>
+        public virtual void OnDrawGizmos() { }
+
+        /// <summary>
+        /// Unity callback to draw the editor gizmos when selected.
+        /// </summary>
+        public virtual void OnDrawGizmosSelected() { }
     }
 }

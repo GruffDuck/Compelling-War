@@ -4,14 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using Opsive.UltimateCharacterController.Input;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities.Starters
 {
+    using Opsive.Shared.Input;
+
     /// <summary>
     /// The AbilityStarter allows a custom object to decide when the ability should start.
     /// </summary>
     [System.Serializable]
+    [UnityEngine.Scripting.Preserve]
     public abstract class AbilityStarter
     {
         protected Ability m_Ability;

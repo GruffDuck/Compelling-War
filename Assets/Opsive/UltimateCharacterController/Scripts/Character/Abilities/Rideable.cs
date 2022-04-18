@@ -4,13 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using UnityEngine;
+    using Opsive.Shared.Utility;
+    using Opsive.Shared.Events;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Utility;
+
     /// <summary>
     /// Added to a Ultimate Character Controller character that can be ridden.
     /// </summary>
@@ -19,13 +20,14 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
     [DefaultStopType(AbilityStopType.Manual)]
     public class Rideable : Ability
     {
-        [Tooltip("The location that the character should be parented to after mounting on the object.")]
-        [SerializeField] protected Transform m_MountParent;
+        [Tooltip("The Transform that the character should be located to after mounting on the object.")]
+        [SerializeField] protected Transform m_RideLocation;
         [Tooltip("The collider area that should be checked to determine if the character can dismount on the left side.")]
         [SerializeField] protected Collider m_LeftDismountCollider;
         [Tooltip("The collider area that should be checked to determine if the character can dismount on the right side.")]
         [SerializeField] protected Collider m_RightDismountCollider;
 
+        public Transform RideLocation { get { return m_RideLocation; } }
         [NonSerialized] public Collider LeftDismountCollider { get { return m_LeftDismountCollider; } set { m_LeftDismountCollider = value; } }
         [NonSerialized] public Collider RightDismountCollider { get { return m_RightDismountCollider; } set { m_RightDismountCollider = value; } }
 
@@ -33,8 +35,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         private Transform m_PreviousParent;
         private Ride m_Ride;
         private Collider[] m_OverlapColliders;
-        private Quaternion m_Torque;
-        private Vector3 m_MoveDirection;
 
         public override int AbilityIntData
         {
@@ -49,8 +49,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         public UltimateCharacterLocomotion CharacterLocomotion { get { return m_CharacterLocomotion; } }
         public GameObject GameObject { get { return m_GameObject; } }
         public Transform Transform { get { return m_Transform; } }
-        public Quaternion Torque { get { return m_Torque; } }
-        public Vector3 MoveDirection { get { return m_MoveDirection; } }
 
         /// <summary>
         /// Initialize the default values.
@@ -59,8 +57,9 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         {
             base.Awake();
 
-            if (m_MountParent == null) {
-                m_MountParent = m_Transform;
+            if (m_RideLocation == null) {
+                Debug.LogWarning("Warning: The RidePLocation is null. This should be set to the Transform that the Ride character is parented to.");
+                m_RideLocation = m_Transform;
             }
             m_OverlapColliders = new Collider[1];
 
@@ -104,8 +103,9 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
 
             // Set the parent of the character so it moves with the rideable object.
             var characterLocomotion = m_Ride.CharacterLocomotion;
-            m_PreviousParent = characterLocomotion.transform.parent;
-            characterLocomotion.transform.parent = m_MountParent;
+            var rideTransform = characterLocomotion.transform;
+            m_PreviousParent = rideTransform.parent;
+            rideTransform.parent = m_RideLocation;
 
             if (m_OriginalColliders == null) {
                 m_OriginalColliders = new Collider[m_CharacterLocomotion.ColliderCount];
@@ -118,10 +118,10 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
 
             // The rideable object should ignore the character's colliders.
             m_CharacterLocomotion.AddColliders(characterLocomotion.Colliders);
-            m_CharacterLocomotion.AddSubColliders(characterLocomotion.SubColliders);
+            m_CharacterLocomotion.AddIgnoredColliders(characterLocomotion.IgnoredColliders);
 
             // The character should ignore the rideable object's layers. This will prevent the character from detecting the rideable colliders.
-            characterLocomotion.AddSubColliders(m_OriginalColliders);
+            characterLocomotion.AddIgnoredColliders(m_OriginalColliders);
         }
 
         /// <summary>
@@ -135,31 +135,15 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         }
 
         /// <summary>
-        /// Verify the rotation values.
-        /// </summary>
-        public override void ApplyRotation()
-        {
-            m_Torque = m_CharacterLocomotion.Torque;
-        }
-
-        /// <summary>
-        /// Verify the position values.
-        /// </summary>
-        public override void ApplyPosition()
-        {
-            m_MoveDirection = m_CharacterLocomotion.MoveDirection;
-        }
-
-        /// <summary>
         /// Move the ride character after the current character has moved.
         /// </summary>
         public override void LateUpdate()
         {
-            KinematicObjectManager.FixedCharacterMove(m_Ride.CharacterLocomotion.KinematicObjectIndex);
+            KinematicObjectManager.CharacterMove(m_Ride.CharacterLocomotion.KinematicObjectIndex);
         }
 
         /// <summary>
-        /// Can the character dismount? The AbilityStartLocation dismount colliders must be clear for the charcter to be able to dismount.
+        /// Can the character dismount? The MoveTowardsLocation dismount colliders must be clear for the charcter to be able to dismount.
         /// </summary>
         /// <param name="leftDismount">Should the character dismount from the left side?</param>
         /// <returns>True if the character can dismount.</returns>
@@ -190,19 +174,20 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
 
             int hitCount;
+            var dismountTransform = dismountCollider.transform;
             if (dismountCollider is CapsuleCollider) {
                 Vector3 startEndCap, endEndCap;
                 var capsuleCollider = dismountCollider as CapsuleCollider;
-                MathUtility.CapsuleColliderEndCaps(capsuleCollider, dismountCollider.transform.TransformPoint(capsuleCollider.center), dismountCollider.transform.rotation, out startEndCap, out endEndCap);
+                MathUtility.CapsuleColliderEndCaps(capsuleCollider, dismountTransform.TransformPoint(capsuleCollider.center), dismountTransform.rotation, out startEndCap, out endEndCap);
                 hitCount = Physics.OverlapCapsuleNonAlloc(startEndCap, endEndCap, capsuleCollider.radius * MathUtility.ColliderRadiusMultiplier(capsuleCollider), m_OverlapColliders, 
                                 m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
             } else if (dismountCollider is BoxCollider) {
                 var boxCollider = dismountCollider as BoxCollider;
-                hitCount = Physics.OverlapBoxNonAlloc(dismountCollider.transform.TransformPoint(boxCollider.center), Vector3.Scale(boxCollider.size, boxCollider.transform.lossyScale) / 2, 
-                                    m_OverlapColliders, dismountCollider.transform.rotation, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
+                hitCount = Physics.OverlapBoxNonAlloc(dismountTransform.TransformPoint(boxCollider.center), Vector3.Scale(boxCollider.size, dismountTransform.lossyScale) / 2, 
+                                    m_OverlapColliders, dismountTransform.rotation, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
             } else { // SphereCollider.
                 var sphereCollider = dismountCollider as SphereCollider;
-                hitCount = Physics.OverlapSphereNonAlloc(dismountCollider.transform.TransformPoint(sphereCollider.center), sphereCollider.radius * MathUtility.ColliderRadiusMultiplier(sphereCollider), 
+                hitCount = Physics.OverlapSphereNonAlloc(dismountTransform.TransformPoint(sphereCollider.center), sphereCollider.radius * MathUtility.ColliderRadiusMultiplier(sphereCollider), 
                                         m_OverlapColliders, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
             }
 
@@ -239,11 +224,11 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             characterLocomotion.transform.parent = m_PreviousParent;
 
             // Revert the rideable colliders on the ride character.
-            characterLocomotion.RemoveSubColliders(m_OriginalColliders);
+            characterLocomotion.RemoveIgnoredColliders(m_OriginalColliders);
 
             // Revert the added colliders.
             m_CharacterLocomotion.RemoveColliders(characterLocomotion.Colliders);
-            m_CharacterLocomotion.RemoveSubColliders(characterLocomotion.SubColliders);
+            m_CharacterLocomotion.RemoveIgnoredColliders(characterLocomotion.IgnoredColliders);
 
             // The Ride character can update normally again.
             m_Ride.CharacterLocomotion.ManualMove = false;

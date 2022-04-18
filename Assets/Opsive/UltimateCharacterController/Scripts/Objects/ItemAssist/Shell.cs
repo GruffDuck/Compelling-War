@@ -4,11 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Game;
-
 namespace Opsive.UltimateCharacterController.Objects.ItemAssist
 {
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Represents a shell casing which uses the trajectory object for kinematic shell movement.
     /// </summary>
@@ -33,10 +34,10 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
             m_StartScale = transform.localScale;
 
             // The Rigidbody is only used to notify Unity that the object isn't static. The Rigidbody doesn't control any movement.
-            var rigidbody = GetComponent<Rigidbody>();
-            rigidbody.mass = m_Mass;
-            rigidbody.isKinematic = true;
-            rigidbody.constraints = RigidbodyConstraints.FreezeAll;
+            var shellRigidbody = GetComponent<Rigidbody>();
+            shellRigidbody.mass = m_Mass;
+            shellRigidbody.isKinematic = true;
+            shellRigidbody.constraints = RigidbodyConstraints.FreezeAll;
         }
 
         /// <summary>
@@ -62,9 +63,9 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
             base.FixedUpdate();
 
             if (Time.time > m_RemoveTime) { // The shell should be removed.
-                m_Transform.localScale = Vector3.Lerp(m_Transform.localScale, Vector3.zero, Utility.TimeUtility.FramerateDeltaTime * 0.2f);
+                m_Transform.localScale = Vector3.Lerp(m_Transform.localScale, Vector3.zero, TimeUtility.FramerateDeltaTime * 0.2f);
                 if (Time.time > m_RemoveTime + 0.5f) {
-                    ObjectPool.Destroy(m_GameObject);
+                    ObjectPoolBase.Destroy(m_GameObject);
                 }
             }
         }
@@ -79,7 +80,7 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
 
             if (m_Velocity.sqrMagnitude > 4) { // Hard bounce.
                 // Apply more random rotation velocity to make the shell behave a bit unpredictably on a hard bounce (similar to real brass shell behavior).
-                AddTorque(Random.rotation.eulerAngles * 0.15f * (Random.value > 0.5f ? 1 : -1));
+                AddTorque(0.15f * (Random.value > 0.5f ? 1 : -1) * Random.rotation.eulerAngles);
             } else if (Random.value > m_Persistence) { // Soft bounce.
                 // Remove the shell after half a second on a soft bounce.
                 m_RemoveTime = Time.time + 0.5f;

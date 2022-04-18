@@ -4,14 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Objects;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Items.Actions
 {
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Events;
+    using Opsive.UltimateCharacterController.Character.Abilities.Items;
+    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
+    using Opsive.UltimateCharacterController.Objects;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Extends the ThrowableItem to allow a pin to be removed.
     /// </summary>
@@ -30,9 +32,10 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <summary>
         /// Starts the item use.
         /// </summary>
-        public override void StartItemUse()
+        /// <param name="itemAbility">The item ability that is using the item.</param>
+        public override void StartItemUse(ItemAbility itemAbility)
         {
-            base.StartItemUse();
+            base.StartItemUse(itemAbility);
 
             // An Animator Audio State Set may prevent the item from being used.
             if (!IsItemInUse()) {
@@ -49,7 +52,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                     if (m_RemovePinEvent.WaitForAnimationEvent) {
                         EventHandler.RegisterEvent(m_Character, "OnAnimatorItemRemovePin", RemovePin);
                     } else {
-                        Scheduler.ScheduleFixed(m_RemovePinEvent.Duration, RemovePin);
+                        SchedulerBase.ScheduleFixed(m_RemovePinEvent.Duration, RemovePin);
                     }
                 }
             }
@@ -58,7 +61,6 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <summary>
         /// The pin has been removed from the grenade.
         /// </summary>
-        /// <param name="fromAnimationEvent">Is the event being triggered from an animation event?</param>
         private void RemovePin()
         {
             EventHandler.UnregisterEvent(m_Character, "OnAnimatorItemRemovePin", RemovePin);

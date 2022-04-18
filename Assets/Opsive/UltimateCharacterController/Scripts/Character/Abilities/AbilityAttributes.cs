@@ -4,19 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using System;
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
-    /// <summary>
-    /// Attribute which allows the type to be added multiple times.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public class AllowMultipleAbilityTypes : Attribute
-    {
-        // Intentionally left blank.
-    }
+    using System;
+    using UnityEngine;
 
     /// <summary>
     /// Attribute which specifies the default input name for the ability.

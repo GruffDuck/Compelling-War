@@ -4,14 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities.Items
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Items.Actions;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// The Block ability will play a blocking animation when another object comes into contact with the Shield ItemAction.
     /// </summary>
@@ -81,7 +81,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
             } else if (slotID == 2) {
                 EventHandler.RegisterEvent(m_GameObject, "OnAnimatorItemImpactCompleteThirdSlot", OnItemImpactCompleteThirdSlot);
             } else if (slotID != -1) {
-                Debug.LogError("Error: The Block ability does not listen to slot " + m_SlotID);
+                Debug.LogError($"Error: The Block ability does not listen to slot {m_SlotID}.");
             }
         }
 
@@ -186,7 +186,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
             StartAbility();
 
             if (!shield.ImpactCompleteEvent.WaitForAnimationEvent) {
-                m_BlockEvents[slotID] = Scheduler.ScheduleFixed(shield.ImpactCompleteEvent.Duration, ImpactComplete, slotID);
+                m_BlockEvents[slotID] = SchedulerBase.ScheduleFixed(shield.ImpactCompleteEvent.Duration, ImpactComplete, slotID);
             }
             m_CharacterLocomotion.UpdateItemAbilityAnimatorParameters();
         }
@@ -197,7 +197,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
         private void OnItemImpactComplete()
         {
             for (int i = 0; i < m_Shields.Length; ++i) {
-                if (m_Shields[i] != null) {
+                if (m_Shields[i] != null && !m_Shields[i].ImpactCompleteEvent.WaitForSlotEvent) {
                     ImpactComplete(i);
                 }
             }
@@ -208,6 +208,9 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
         /// </summary>
         private void OnItemImpactCompleteFirstSlot()
         {
+            if (m_Shields[0] == null || !m_Shields[0].ImpactCompleteEvent.WaitForSlotEvent || m_Shields[0].Item.SlotID != 0) {
+                return;
+            }
             ImpactComplete(0);
         }
 
@@ -216,7 +219,11 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
         /// </summary>
         private void OnItemImpactCompleteSecondSlot()
         {
-            ImpactComplete(1);
+            var index = m_SlotID == -1 ? 1 : 0;
+            if (m_Shields[index] == null || m_Shields[index].ImpactCompleteEvent.WaitForSlotEvent || m_Shields[index].Item.SlotID != 1) {
+                return;
+            }
+            ImpactComplete(index);
         }
 
         /// <summary>
@@ -224,7 +231,11 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
         /// </summary>
         private void OnItemImpactCompleteThirdSlot()
         {
-            ImpactComplete(2);
+            var index = m_SlotID == -1 ? 2 : 0;
+            if (m_Shields[index] == null || m_Shields[index].ImpactCompleteEvent.WaitForSlotEvent || m_Shields[index].Item.SlotID != 2) {
+                return;
+            }
+            ImpactComplete(index);
         }
 
         /// <summary>
@@ -268,7 +279,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
                     m_Shields[i].StopBlockImpact();
                     m_Shields[i] = null;
                     if (m_BlockEvents[i] != null) {
-                        Scheduler.Cancel(m_BlockEvents[i]);
+                        SchedulerBase.Cancel(m_BlockEvents[i]);
                         m_BlockEvents[i] = null;
                     }
                 }

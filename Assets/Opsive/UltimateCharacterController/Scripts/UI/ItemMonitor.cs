@@ -4,15 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.UI;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Inventory;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.UI
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Inventory;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Inventory;
+    using UnityEngine;
+    using UnityEngine.UI;
+
     /// <summary>
     /// The ItemMonitor will update the UI for the character's items.
     /// </summary>
@@ -30,12 +31,10 @@ namespace Opsive.UltimateCharacterController.UI
         protected override void OnAttachCharacter(GameObject character)
         {
             if (m_Character != null) {
-                EventHandler.UnregisterEvent<ItemType, float, bool, bool>(m_Character, "OnInventoryPickupItemType", OnPickupItemType);
+                EventHandler.UnregisterEvent<IItemIdentifier, int, bool, bool>(m_Character, "OnInventoryPickupItemIdentifier", OnPickupItemIdentifier);
                 EventHandler.UnregisterEvent<Item, bool>(m_Character, "OnItemUpdateDominantItem", OnUpdateDominantItem);
-                EventHandler.UnregisterEvent<Item, ItemType, float>(m_Character, "OnItemUseConsumableItemType", OnUseConsumableItemType);
-                EventHandler.UnregisterEvent<ItemType, float>(m_Character, "OnInventoryUseItemType", OnUseItemType);
-                EventHandler.UnregisterEvent<Item, int>(m_Character, "OnAbilityUnequipItemComplete", OnUnequipItem);
-                EventHandler.UnregisterEvent<Item, int>(m_Character, "OnInventoryRemoveItem", OnUnequipItem);
+                EventHandler.UnregisterEvent<Item, IItemIdentifier, int>(m_Character, "OnItemUseConsumableItemIdentifier", OnUseConsumableItemIdentifier);
+                EventHandler.UnregisterEvent<IItemIdentifier, int>(m_Character, "OnInventoryAdjustItemIdentifierAmount", OnAdjustItemIdentifierAmount);
             }
 
             base.OnAttachCharacter(character);
@@ -49,23 +48,22 @@ namespace Opsive.UltimateCharacterController.UI
             if (m_CharacterInventory == null) {
                 return;
             }
+            gameObject.SetActive(CanShowUI());
 
-            EventHandler.RegisterEvent<ItemType, float, bool, bool>(m_Character, "OnInventoryPickupItemType", OnPickupItemType);
+            EventHandler.RegisterEvent<IItemIdentifier, int, bool, bool>(m_Character, "OnInventoryPickupItemIdentifier", OnPickupItemIdentifier);
             EventHandler.RegisterEvent<Item, bool>(m_Character, "OnItemUpdateDominantItem", OnUpdateDominantItem);
-            EventHandler.RegisterEvent<Item, ItemType, float>(m_Character, "OnItemUseConsumableItemType", OnUseConsumableItemType);
-            EventHandler.RegisterEvent<ItemType, float>(m_Character, "OnInventoryUseItemType", OnUseItemType);
-            EventHandler.RegisterEvent<Item, int>(m_Character, "OnAbilityUnequipItemComplete", OnUnequipItem);
-            EventHandler.RegisterEvent<Item, int>(m_Character, "OnInventoryRemoveItem", OnUnequipItem);
+            EventHandler.RegisterEvent<Item, IItemIdentifier, int>(m_Character, "OnItemUseConsumableItemIdentifier", OnUseConsumableItemIdentifier);
+            EventHandler.RegisterEvent<IItemIdentifier, int>(m_Character, "OnInventoryAdjustItemIdentifierAmount", OnAdjustItemIdentifierAmount);
         }
 
         /// <summary>
-        /// An ItemType has been picked up within the inventory.
+        /// An ItemIdentifier has been picked up within the inventory.
         /// </summary>
-        /// <param name="itemType">The ItemType that has been picked up.</param>
-        /// <param name="count">The amount of item picked up.</param>
+        /// <param name="itemIdentifier">The ItemIdentifier that has been picked up.</param>
+        /// <param name="amount">The amount of item picked up.</param>
         /// <param name="immediatePickup">Was the item be picked up immediately?</param>
         /// <param name="forceEquip">Should the item be force equipped?</param>
-        protected virtual void OnPickupItemType(ItemType itemType, float count, bool immediatePickup, bool forceEquip) { }
+        protected virtual void OnPickupItemIdentifier(IItemIdentifier itemIdentifier, int amount, bool immediatePickup, bool forceEquip) { }
 
         /// <summary>
         /// The DominantItem field has been updated for the specified item.
@@ -75,25 +73,18 @@ namespace Opsive.UltimateCharacterController.UI
         protected virtual void OnUpdateDominantItem(Item item, bool dominantItem) { }
 
         /// <summary>
-        /// The specified consumable ItemType has been used.
+        /// The specified consumable ItemIdentifier has been used.
         /// </summary>
         /// <param name="item">The Item that has been used.</param>
-        /// <param name="itemType">The ItemType that has been used.</param>
-        /// <param name="count">The remaining amount of the specified ItemType.</param>
-        protected virtual void OnUseConsumableItemType(Item item, ItemType itemType, float count) { }
+        /// <param name="itemIdentifier">The ItemIdentifier that has been used.</param>
+        /// <param name="amount">The remaining amount of the specified IItemIdentifier.</param>
+        protected virtual void OnUseConsumableItemIdentifier(Item item, IItemIdentifier itemIdentifier, int amount) { }
 
         /// <summary>
-        /// The specified ItemType has been used.
+        /// The specified ItemIdentifier amount has been adjusted.
         /// </summary>
-        /// <param name="itemType">The ItemType that has been used.</param>
-        /// <param name="count">The remaining amount of the specified ItemType.</param>
-        protected virtual void OnUseItemType(ItemType itemType, float count) { }
-
-        /// <summary>
-        /// An item has been unequipped.
-        /// </summary>
-        /// <param name="itemType">The unequipped item.</param>
-        /// <param name="slotID">The slot that the item previously occupied.</param>
-        protected virtual void OnUnequipItem(Item item, int slotID) { }
+        /// <param name="itemIdentifier">The ItemIdentifier to adjust.</param>
+        /// <param name="amount">The amount of ItemIdentifier to adjust.</param>
+        protected virtual void OnAdjustItemIdentifierAmount(IItemIdentifier itemIdentifier, int amount) { }
     }
 }

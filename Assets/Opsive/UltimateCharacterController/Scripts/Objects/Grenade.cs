@@ -4,12 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.SurfaceSystem;
-
 namespace Opsive.UltimateCharacterController.Objects
 {
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.SurfaceSystem;
+    using Opsive.UltimateCharacterController.Traits.Damage;
+    using UnityEngine;
+
     /// <summary>
     /// The Projectile component moves a Destructible object along the specified path. Can apply damage at the collision point.
     /// </summary>
@@ -58,6 +60,7 @@ namespace Opsive.UltimateCharacterController.Objects
         /// </summary>
         /// <param name="velocity">The velocity to apply.</param>
         /// <param name="torque">The torque to apply.</param>
+        /// <param name="damageProcessor">Processes the damage dealt to a Damage Target.</param>
         /// <param name="damageAmount">The amount of damage to apply to the hit object.</param>
         /// <param name="impactForce">The amount of force to apply to the hit object.</param>
         /// <param name="impactForceFrames">The number of frames to add the force to.</param>
@@ -67,10 +70,10 @@ namespace Opsive.UltimateCharacterController.Objects
         /// <param name="surfaceImpact">A reference to the Surface Impact triggered when the object hits an object.</param>
         /// <param name="originator">The object that instantiated the trajectory object.</param>
         /// <param name="originatorCollisionCheck">Should a collision check against the originator be performed?</param>
-        public virtual void Initialize(Vector3 velocity, Vector3 torque, float damageAmount, float impactForce, int impactForceFrames, LayerMask impactLayers,
+        public virtual void Initialize(Vector3 velocity, Vector3 torque,  DamageProcessor damageProcessor, float damageAmount, float impactForce, int impactForceFrames, LayerMask impactLayers,
                                      string impactStateName, float impactStateDisableTimer, SurfaceImpact surfaceImpact, GameObject originator, bool originatorCollisionCheck)
         {
-            InitializeDestructibleProperties(damageAmount, impactForce, impactForceFrames, impactLayers, impactStateName, impactStateDisableTimer, surfaceImpact);
+            InitializeDestructibleProperties(damageProcessor, damageAmount, impactForce, impactForceFrames, impactLayers, impactStateName, impactStateDisableTimer, surfaceImpact);
 
             base.Initialize(velocity, torque, originator, originatorCollisionCheck);
         }
@@ -81,10 +84,10 @@ namespace Opsive.UltimateCharacterController.Objects
         /// <param name="originator">The object that instantiated the trajectory object.</param>
         public void StartCooking(GameObject originator)
         {
-            m_Originator = originator;
+            SetOriginator(originator, Vector3.up);
 
             // The grenade should destruct after a specified amount of time.
-            m_ScheduledDeactivation = Scheduler.Schedule(m_Lifespan, Deactivate);
+            m_ScheduledDeactivation = SchedulerBase.Schedule(m_Lifespan, Deactivate);
         }
 
         /// <summary>
@@ -111,7 +114,8 @@ namespace Opsive.UltimateCharacterController.Objects
         /// </summary>
         protected void Deactivate()
         {
-            Scheduler.Cancel(m_ScheduledDeactivation);
+            SchedulerBase.Cancel(m_ScheduledDeactivation);
+            m_ScheduledDeactivation = null;
 
             InitializeComponentReferences(); // The grenade may explode before Awake is called.
 

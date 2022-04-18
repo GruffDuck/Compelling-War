@@ -4,24 +4,27 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.Abilities.Items;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Inventory;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-using Opsive.UltimateCharacterController.Networking.Game;
-#endif
-using Opsive.UltimateCharacterController.Objects;
-using Opsive.UltimateCharacterController.SurfaceSystem;
-using Opsive.UltimateCharacterController.Utility;
-#if ULTIMATE_CHARACTER_CONTROLLER_VR
-using Opsive.UltimateCharacterController.VR;
-#endif
-
 namespace Opsive.UltimateCharacterController.Items.Actions
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Inventory;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.Abilities.Items;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+    using Opsive.UltimateCharacterController.Networking.Game;
+#endif
+    using Opsive.UltimateCharacterController.Objects;
+    using Opsive.UltimateCharacterController.SurfaceSystem;
+    using Opsive.UltimateCharacterController.Traits.Damage;
+    using Opsive.UltimateCharacterController.Utility;
+#if ULTIMATE_CHARACTER_CONTROLLER_VR
+    using Opsive.UltimateCharacterController.VR;
+#endif
+    using UnityEngine;
+
     /// <summary>
     /// Any item that can be thrown, such as a grenade or baseball. The GameObject that the ThrowableItem attaches to is not the actual object that is thrown - the ThrownObject field
     /// specifies this instead.
@@ -30,8 +33,6 @@ namespace Opsive.UltimateCharacterController.Items.Actions
     {
         [Tooltip("The object that is thrown.")]
         [SerializeField] protected GameObject m_ThrownObject;
-        [Tooltip("The ItemType that is consumed by the item.")]
-        [SerializeField] protected ItemType m_ConsumableItemType;
         [Tooltip("Should the visible object be disabled?")]
         [SerializeField] protected bool m_DisableVisibleObject;
         [Tooltip("Specifies if the item should wait for the OnAnimatorActivateThrowableObject animation event or wait for the specified duration before activating the throwable object.")]
@@ -46,6 +47,8 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [SerializeField] protected int m_ThrownLayer = LayerManager.Default;
         [Tooltip("The amount of time after the object has been thrown to change the layer.")]
         [SerializeField] protected float m_LayerChangeDelay = 0.1f;
+        [Tooltip("Processes the damage dealt to a Damage Target.")]
+        [SerializeField] protected DamageProcessor m_DamageProcessor;
         [Tooltip("The amount of damage applied to the object hit by the thrown object.")]
         [SerializeField] protected float m_DamageAmount = 10;
         [Tooltip("The layers that the thrown object can collide with.")]
@@ -60,6 +63,8 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [SerializeField] protected string m_ImpactStateName;
         [Tooltip("The number of seconds until the impact state is disabled. A value of -1 will require the state to be disabled manually.")]
         [SerializeField] protected float m_ImpactStateDisableTimer = 10;
+        [Tooltip("Should the throwable item be able to be used no matter the inventory count?")]
+        [SerializeField] protected bool m_InfiniteUse;
         [Tooltip("Specifies if the item should wait for the OnAnimatorReequipThrowableItem animation event or wait for the specified duration before requipping.")]
         [SerializeField] protected AnimationEventTrigger m_ReequipEvent = new AnimationEventTrigger(false, 0.5f);
         [Tooltip("The value of the Item Substate Animator parameter when the item is being reequipped.")]
@@ -70,11 +75,12 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [SerializeField] protected Vector3 m_TrajectoryOffset;
 
         public GameObject ThrownObject { get { return m_ThrownObject; } set { m_ThrownObject = value; } }
-        public ItemType ConsumableItemType { get { return m_ConsumableItemType; } set { m_ConsumableItemType = value; } }
         public bool DisableVisibleObject { get { return m_DisableVisibleObject; } set {
                 m_DisableVisibleObject = value;
-                m_Item.SetVisibleObjectActive(m_Item.VisibleObjectActive);
-                EnableObjectMeshRenderers(CanActivateVisibleObject());
+                if (m_Item != null) {
+                    m_Item.SetVisibleObjectActive(m_Item.VisibleObjectActive, m_Inventory.GetItemIdentifierAmount(m_Item.ItemIdentifier) > 0);
+                    EnableObjectMeshRenderers(CanActivateVisibleObject());
+                }
             }
         }
         public AnimationEventTrigger ActivateThrowableObjectEvent { get { return m_ActivateThrowableObjectEvent; } set { m_ActivateThrowableObjectEvent = value; } }
@@ -91,6 +97,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         public int ThrownLayer { get { return m_ThrownLayer; } set { m_ThrownLayer = value; } }
         public float LayerChangeDelay { get { return m_LayerChangeDelay; } set { m_LayerChangeDelay = value; } }
         public Vector3 Velocity { get { return m_Velocity; } set { m_Velocity = value; } }
+        public DamageProcessor DamageProcessor { get { return m_DamageProcessor; } set { m_DamageProcessor = value; } }
         public float DamageAmount { get { return m_DamageAmount; } set { m_DamageAmount = value; } }
         public LayerMask ImpactLayers { get { return m_ImpactLayers; } set { m_ImpactLayers = value; } }
         public SurfaceImpact SurfaceImpact { get { return m_SurfaceImpact; } set { m_SurfaceImpact = value; } }
@@ -98,6 +105,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         public int ImpactForceFrames { get { return m_ImpactForceFrames; } set { m_ImpactForceFrames = value; } }
         public string ImpactStateName { get { return m_ImpactStateName; } set { m_ImpactStateName = value; } }
         public float ImpactStateDisableTimer { get { return m_ImpactStateDisableTimer; } set { m_ImpactStateDisableTimer = value; } }
+        public bool InfiniteUse { get { return m_InfiniteUse; } set { m_InfiniteUse = value; } }
         public AnimationEventTrigger ReequipEvent { get { return m_ReequipEvent; } set { m_ReequipEvent = value; } }
         public int ReequipItemSubstateParameterValue { get { return m_ReequipItemSubstateParameterValue; } set { m_ReequipItemSubstateParameterValue = value; } }
         public bool ShowTrajectoryOnAim
@@ -116,10 +124,11 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         private TrajectoryObject m_TrajectoryObject;
         protected UltimateCharacterLocomotion m_CharacterLocomotion;
         protected Transform m_CharacterTransform;
+
         private GameObject m_Object;
         private Transform m_ObjectTransform;
-        private MeshRenderer[] m_FirstPersonObjectMeshRenderers;
-        private MeshRenderer[] m_ThirdPersonObjectMeshRenderers;
+        private Renderer[] m_FirstPersonObjectRenderers;
+        private Renderer[] m_ThirdPersonObjectRenderers;
         private IThrowableItemPerspectiveProperties m_ThrowableItemPerpectiveProperties;
         private GameObject m_InstantiatedThrownObject;
         protected TrajectoryObject m_InstantiatedTrajectoryObject;
@@ -128,11 +137,13 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         private IVRThrowableItem m_VRThrowableItem;
 #endif
 
+        private bool m_Initialized;
         private bool m_Aiming;
         protected bool m_Throwing;
         private bool m_Thrown;
         private bool m_Reequipping;
         private bool m_Reequipped;
+        private int m_ReequipFrame;
         private bool m_ActivateVisibleObject;
         private ScheduledEventBase m_ReequipEventBase;
         private bool m_NextItemSet;
@@ -153,7 +164,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
 
             if (m_ThrownObject != null && m_TrajectoryObject != null) {
                 // The object has to be instantiated for GetComponent to work.
-                var instantiatedThrownObject = ObjectPool.Instantiate(m_ThrownObject);
+                var instantiatedThrownObject = ObjectPoolBase.Instantiate(m_ThrownObject);
                 var trajectoryCollider = instantiatedThrownObject.GetComponent<Collider>();
                 if (trajectoryCollider != null) {
                     // Only sphere and capsules are supported.
@@ -172,26 +183,20 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                         capsuleCollider.direction = trajectoryCapsuleCollider.direction;
                         capsuleCollider.enabled = false;
                     } else {
-                        Debug.LogError("Error: The collider of type " + trajectoryCollider.GetType() + " is not supported on the trajectory object " + m_ThrownObject.name);
+                        Debug.LogError($"Error: The collider of type {trajectoryCollider.GetType()} is not supported on the trajectory object " + m_ThrownObject.name);
                     }
                     m_GameObject.layer = LayerManager.SubCharacter;
                 }
-                ObjectPool.Destroy(instantiatedThrownObject);
+                ObjectPoolBase.Destroy(instantiatedThrownObject);
             }
             m_ThrowableItemPerpectiveProperties = m_ActivePerspectiveProperties as IThrowableItemPerspectiveProperties;
 
-            // A consumed ItemType must be specified. If no ItemType is specified then the item's ItemType will be used.
-            // The consumed ItemType is used by the inventory to determine the amount of items remain.
-            if (m_ConsumableItemType == null) {
-                m_ConsumableItemType = m_Item.ItemType;
-            }
-
             if (m_ShowTrajectoryOnAim && m_TrajectoryObject == null) {
-                Debug.LogError("Error: A TrajectoryObject must be added to the " + m_GameObject.name + " GameObject in order for the trajectory to be shown.");
+                Debug.LogError($"Error: A TrajectoryObject must be added to the {m_GameObject.name} GameObject in order for the trajectory to be shown.");
             }
 
             if (m_ThrownObject == null) {
-                Debug.LogError("Error: A ThrownObject must be assigned to the " + m_GameObject.name + " GameObject.");
+                Debug.LogError($"Error: A ThrownObject must be assigned to the {m_GameObject.name} GameObject.");
             }
 
             EventHandler.RegisterEvent<bool, bool>(m_Character, "OnAimAbilityStart", OnAim);
@@ -210,24 +215,25 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             if (firstPersonPerspectiveItem != null) {
                 var visibleObject = firstPersonPerspectiveItem.GetVisibleObject();
                 if (visibleObject != null) {
-                    m_FirstPersonObjectMeshRenderers = visibleObject.GetComponentsInChildren<MeshRenderer>(true);
+                    m_FirstPersonObjectRenderers = visibleObject.GetComponentsInChildren<Renderer>(true);
                 }
             }
             var thirdPersonPerspectiveItem = m_Item.ThirdPersonPerspectiveItem;
             if (thirdPersonPerspectiveItem != null) {
                 var visibleObject = thirdPersonPerspectiveItem.GetVisibleObject();
                 if (visibleObject != null) {
-                    m_ThirdPersonObjectMeshRenderers = visibleObject.GetComponentsInChildren<MeshRenderer>(true);
+                    m_ThirdPersonObjectRenderers = visibleObject.GetComponentsInChildren<Renderer>(true);
                 }
             }
             if (m_ThrowableItemPerpectiveProperties == null) {
                 m_ThrowableItemPerpectiveProperties = m_ActivePerspectiveProperties as IThrowableItemPerspectiveProperties;
 
                 if (m_ThrowableItemPerpectiveProperties == null) {
-                    Debug.LogError("Error: The First/Third Person Throwable Item Properties component cannot be found for the Item " + name + "." +
-                                   "Ensure the component exists and the component's Action ID matches the Action ID of the Item (" + m_ID + ")");
+                    Debug.LogError($"Error: The First/Third Person Throwable Item Properties component cannot be found for the Item {name}." +
+                                   $"Ensure the component exists and the component's Action ID matches the Action ID of the Item ({m_ID}).");
                 }
             }
+            m_Initialized = true;
             EnableObjectMeshRenderers(!m_Throwing && CanActivateVisibleObject());
         }
 
@@ -237,28 +243,28 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <param name="enable">Should the renderers be enabled?</param>
         public void EnableObjectMeshRenderers(bool enable)
         {
-            var meshRenderers = m_CharacterLocomotion.FirstPersonPerspective ? m_FirstPersonObjectMeshRenderers : m_ThirdPersonObjectMeshRenderers;
-            if (meshRenderers != null) {
-                for (int i = 0; i < meshRenderers.Length; ++i) {
-                    meshRenderers[i].enabled = enable;
+            var renderers = m_CharacterLocomotion.FirstPersonPerspective ? m_FirstPersonObjectRenderers : m_ThirdPersonObjectRenderers;
+            if (renderers != null) {
+                for (int i = 0; i < renderers.Length; ++i) {
+                    renderers[i].enabled = enable;
                 }
             }
         }
 
         /// <summary>
-        /// Returns the ItemType which can be used by the item.
+        /// Returns the ItemIdentifier which can be used by the item.
         /// </summary>
-        /// <returns>The ItemType which can be used by the item.</returns>
-        public override ItemType GetConsumableItemType()
+        /// <returns>The ItemIdentifier which can be used by the item.</returns>
+        public override IItemIdentifier GetConsumableItemIdentifier()
         {
-            return m_ConsumableItemType;
+            return m_Item.ItemIdentifier;
         }
 
         /// <summary>
-        /// Returns the amout of UsableItemType which has been consumed by the UsableItem.
+        /// Returns the amout of UsableItemIdentifier which has been consumed by the UsableItem.
         /// </summary>
-        /// <returns>The amount consumed of the UsableItemType.</returns>
-        public override float GetConsumableItemTypeCount()
+        /// <returns>The amount consumed of the UsableItemIdentifier.</returns>
+        public override int GetConsumableItemIdentifierAmount()
         {
             return -1;
         }
@@ -286,7 +292,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <returns>True if the visible object can be activated.</returns>
         public override bool CanActivateVisibleObject()
         {
-            return !m_DisableVisibleObject || m_ActivateVisibleObject;
+            return !m_Initialized || !m_DisableVisibleObject || m_ActivateVisibleObject;
         }
 
         /// <summary>
@@ -312,7 +318,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         {
             if (m_Aiming && m_ShowTrajectoryOnAim && !m_Throwing && !m_Reequipping && !m_NextItemSet && m_TrajectoryObject != null) {
                 var trajectoryTransform = m_ThrowableItemPerpectiveProperties.TrajectoryLocation != null ? m_ThrowableItemPerpectiveProperties.TrajectoryLocation : m_CharacterTransform;
-                var lookDirection = m_LookSource.LookDirection(trajectoryTransform.TransformPoint(m_TrajectoryOffset), false, m_ImpactLayers, true);
+                var lookDirection = m_LookSource.LookDirection(trajectoryTransform.TransformPoint(m_TrajectoryOffset), false, m_ImpactLayers, true, true);
                 var velocity = MathUtility.TransformDirection(m_Velocity, Quaternion.LookRotation(lookDirection, m_CharacterLocomotion.Up));
                 // Prevent the item from being thrown behind the character. This can happen if the character is looking straight up and there is a positive
                 // y velocity. Gravity will cause the thrown object to go in the opposite direction.
@@ -327,7 +333,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <summary>
         /// The Aim ability has started or stopped.
         /// </summary>
-        /// <param name="start">Has the Aim ability started?</param>
+        /// <param name="aim">Has the Aim ability started?</param>
         /// <param name="inputStart">Was the ability started from input?</param>
         private void OnAim(bool aim, bool inputStart)
         {
@@ -359,12 +365,17 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             }
 
             // The item can't be used if there aren't any items left.
-            if (m_Inventory != null && m_Inventory.GetItemTypeCount(m_ConsumableItemType) == 0) {
+            if (m_Inventory != null && m_Inventory.GetItemIdentifierAmount(m_Item.ItemIdentifier) == 0) {
                 return false;
             }
 
             // The item can't be used if it hasn't been started yet, is reequipping the throwable item, or has been requipped.
             if (abilityState == UseAbilityState.Update && (!m_Throwing || m_Reequipping || m_Reequipped)) {
+                return false;
+            }
+
+            // Give the item a frame to recover from the reequip.
+            if (Time.frameCount == m_ReequipFrame) {
                 return false;
             }
 
@@ -374,15 +385,10 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <summary>
         /// Starts the item use.
         /// </summary>
-        public override void StartItemUse()
+        /// <param name="itemAbility">The item ability that is using the item.</param>
+        public override void StartItemUse(ItemAbility itemAbility)
         {
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-            if (m_NetworkInfo != null && !m_NetworkInfo.IsLocalPlayer()) {
-                return;
-            }
-#endif
-
-            base.StartItemUse();
+            base.StartItemUse(itemAbility);
             
             // An Animator Audio State Set may prevent the item from being used.
             if (!IsItemInUse()) {
@@ -395,16 +401,16 @@ namespace Opsive.UltimateCharacterController.Items.Actions
 
             // Instantiate the object that will actually be thrown.
             var location = m_ThrowableItemPerpectiveProperties.ThrowLocation;
-            m_InstantiatedThrownObject = ObjectPool.Instantiate(m_ThrownObject, location.position, location.rotation, m_ObjectTransform.parent);
+            m_InstantiatedThrownObject = ObjectPoolBase.Instantiate(m_ThrownObject, location.position, location.rotation, m_ObjectTransform.parent);
             m_InstantiatedThrownObject.transform.localScale = location.localScale;
             m_InstantiatedThrownObject.transform.SetLayerRecursively(m_StartLayer);
             m_InstantiatedTrajectoryObject = m_InstantiatedThrownObject.GetCachedComponent<TrajectoryObject>();
             if (m_InstantiatedTrajectoryObject == null) {
-                Debug.LogError("Error: " + m_TrajectoryObject.name + " must contain the TrajectoryObject component.");
+                Debug.LogError($"Error: {m_TrajectoryObject.name} must contain the TrajectoryObject component.");
                 return;
             }
             if (m_InstantiatedTrajectoryObject is Destructible) {
-                (m_InstantiatedTrajectoryObject as Destructible).InitializeDestructibleProperties(m_DamageAmount, m_ImpactForce, m_ImpactForceFrames,
+                (m_InstantiatedTrajectoryObject as Destructible).InitializeDestructibleProperties(m_DamageProcessor, m_DamageAmount, m_ImpactForce, m_ImpactForceFrames,
                                                                 m_ImpactLayers, m_ImpactStateName, m_ImpactStateDisableTimer, m_SurfaceImpact);
             }
             // The trajectory object will be enabled when the object is thrown.
@@ -417,12 +423,12 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             if (m_DisableVisibleObject) {
                 m_InstantiatedThrownObject.SetActive(false);
                 m_ActivateVisibleObject = false;
-                m_Item.SetVisibleObjectActive(false);
+                m_Item.SetVisibleObjectActive(false, true);
 
                 if (m_ActivateThrowableObjectEvent.WaitForAnimationEvent) {
                     EventHandler.RegisterEvent(m_Character, "OnAnimatorActivateThrowableObject", ActivateThrowableObject);
                 } else {
-                    Scheduler.ScheduleFixed(m_ActivateThrowableObjectEvent.Duration, ActivateThrowableObject);
+                    SchedulerBase.ScheduleFixed(m_ActivateThrowableObjectEvent.Duration, ActivateThrowableObject);
                 }
             }
         }
@@ -435,7 +441,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             m_InstantiatedThrownObject.SetActive(true);
             m_ActivateVisibleObject = true;
             if (!m_Item.IsActive()) {
-                m_Item.SetVisibleObjectActive(true);
+                m_Item.SetVisibleObjectActive(true, true);
             }
             EventHandler.UnregisterEvent(m_Character, "OnAnimatorActivateThrowableObject", ActivateThrowableObject);
         }
@@ -473,11 +479,8 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             }
 #endif
             ThrowItem();
-            m_Thrown = true;
-            // Optionally change the layer after the object has been thrown. This allows the object to change from the first person Overlay layer
-            // to the Default layer after it has cleared the character's hands.
-            if (m_StartLayer != m_ThrownLayer) {
-                Scheduler.ScheduleFixed(m_LayerChangeDelay, ChangeThrownLayer, m_InstantiatedThrownObject);
+            if (m_Inventory != null && !m_InfiniteUse) {
+                m_Inventory.AdjustItemIdentifierAmount(m_Item.ItemIdentifier, -1);
             }
         }
 
@@ -486,54 +489,67 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// </summary>
         public void ThrowItem()
         {
-            // m_InstantiatedThrownObject will be null for remote players on the network.
-            if (m_InstantiatedThrownObject != null) {
-                m_InstantiatedThrownObject.transform.parent = null;
-                // The collider was previously disabled. Enable it again when it is thrown.
-                var collider = m_InstantiatedThrownObject.GetCachedComponent<Collider>();
-                collider.enabled = true;
+            if (m_Thrown || m_InstantiatedThrownObject == null) {
+                return;
+            }
+            m_Thrown = true;
 
-                // When the item is used the trajectory object should start moving on its own.
-                if (m_InstantiatedTrajectoryObject != null) {
-                    // The throwable item may be on the other side of an object (especially in the case of separate arms for the first person perspective). Perform a linecast
-                    // to ensure the throwable item doesn't move through any objects.
-                    if (!m_CharacterLocomotion.ActiveMovementType.UseIndependentLook(false) &&
-                                    Physics.Linecast(m_CharacterLocomotion.LookSource.LookPosition(), m_InstantiatedTrajectoryObject.transform.position, out m_RaycastHit,
-                                                        m_ImpactLayers, QueryTriggerInteraction.Ignore)) {
-                        m_InstantiatedTrajectoryObject.transform.position = m_RaycastHit.point;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+            // The object has been thrown. If the ItemAction is on the server then that object should be spawned on the network.
+            // Non-server actions should disable the mesh renderers so the object can take its place. The mesh renderers will be enabled again in a separate call.
+            if (m_NetworkInfo != null) {
+                EnableObjectMeshRenderers(false);
+                if (!m_NetworkInfo.IsServer()) {
+                    if (m_InstantiatedThrownObject != null) {
+                        ObjectPoolBase.Destroy(m_InstantiatedThrownObject);
+                        m_InstantiatedThrownObject = null;
                     }
-
-                    var trajectoryTransform = m_ThrowableItemPerpectiveProperties.TrajectoryLocation != null ? m_ThrowableItemPerpectiveProperties.TrajectoryLocation : m_CharacterTransform;
-                    var lookDirection = m_LookSource.LookDirection(trajectoryTransform.TransformPoint(m_TrajectoryOffset), false, m_ImpactLayers, true);
-#if ULTIMATE_CHARACTER_CONTROLLER_VR
-                    if (m_VRThrowableItem != null && m_CharacterLocomotion.FirstPersonPerspective) {
-                        m_Velocity = m_VRThrowableItem.GetVelocity();
-                    }
-#endif
-                    var velocity = MathUtility.TransformDirection(m_Velocity, Quaternion.LookRotation(lookDirection, m_CharacterLocomotion.Up));
-                    // Prevent the item from being thrown behind the character. This can happen if the character is looking straight up and there is a positive
-                    // y velocity. Gravity will cause the thrown object to go in the opposite direction.
-                    if (Vector3.Dot(velocity.normalized, m_CharacterTransform.forward) < 0 && m_CharacterTransform.InverseTransformDirection(velocity.normalized).y > 0) {
-                        velocity = m_CharacterTransform.up * velocity.magnitude;
-                    }
-                    m_InstantiatedTrajectoryObject.Initialize(velocity + (m_CharacterTransform.forward * m_CharacterLocomotion.LocalVelocity.z), Vector3.zero, m_Character, false);
+                    return;
                 }
             }
+#endif
+
+            m_InstantiatedThrownObject.transform.parent = null;
+            // The collider was previously disabled. Enable it again when it is thrown.
+            var thrownCollider = m_InstantiatedThrownObject.GetCachedComponent<Collider>();
+            thrownCollider.enabled = true;
+
+            // When the item is used the trajectory object should start moving on its own.
+            // The throwable item may be on the other side of an object (especially in the case of separate arms for the first person perspective). Perform a linecast
+            // to ensure the throwable item doesn't move through any objects.
+            var collisionEnabled = m_CharacterLocomotion.CollisionLayerEnabled;
+            m_CharacterLocomotion.EnableColliderCollisionLayer(false);
+            if (!m_CharacterLocomotion.ActiveMovementType.UseIndependentLook(false) &&
+                            Physics.Linecast(m_CharacterLocomotion.LookSource.LookPosition(true), m_InstantiatedTrajectoryObject.transform.position, out m_RaycastHit,
+                                                m_ImpactLayers, QueryTriggerInteraction.Ignore)) {
+                m_InstantiatedTrajectoryObject.transform.position = m_RaycastHit.point;
+            }
+            m_CharacterLocomotion.EnableColliderCollisionLayer(collisionEnabled);
+
+            var trajectoryTransform = m_ThrowableItemPerpectiveProperties.TrajectoryLocation != null ? m_ThrowableItemPerpectiveProperties.TrajectoryLocation : m_CharacterTransform;
+            var lookDirection = m_LookSource.LookDirection(trajectoryTransform.TransformPoint(m_TrajectoryOffset), false, m_ImpactLayers, true, true);
+#if ULTIMATE_CHARACTER_CONTROLLER_VR
+            if (m_VRThrowableItem != null && m_CharacterLocomotion.FirstPersonPerspective) {
+                m_Velocity = m_VRThrowableItem.GetVelocity();
+            }
+#endif
+            var velocity = MathUtility.TransformDirection(m_Velocity, Quaternion.LookRotation(lookDirection, m_CharacterLocomotion.Up));
+            // Prevent the item from being thrown behind the character. This can happen if the character is looking straight up and there is a positive
+            // y velocity. Gravity will cause the thrown object to go in the opposite direction.
+            if (Vector3.Dot(velocity.normalized, m_CharacterTransform.forward) < 0 && m_CharacterTransform.InverseTransformDirection(velocity.normalized).y > 0) {
+                velocity = m_CharacterTransform.up * velocity.magnitude;
+            }
+            m_InstantiatedTrajectoryObject.Initialize(m_CharacterLocomotion.Alive ? (velocity + (m_CharacterTransform.forward * m_CharacterLocomotion.LocalVelocity.z)) : Vector3.zero, Vector3.zero, m_Character, false);
 
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             if (m_NetworkInfo != null) {
-                // The object has been thrown. If the ItemAction is local then that object should be spawned on the network.
-                // Non-local actions should disable the mesh renderers so the object can take its place. The mesh renderers will be enabled again in a separate call.
-                if (m_NetworkInfo.IsLocalPlayer()) {
-                    NetworkObjectPool.NetworkSpawn(m_ThrownObject, m_InstantiatedThrownObject);
-                } else {
-                    EnableObjectMeshRenderers(false);
-                }
+                NetworkObjectPool.NetworkSpawn(m_ThrownObject, m_InstantiatedThrownObject, true);
             }
 #endif
-
-            if (m_Inventory != null) {
-                m_Inventory.UseItem(m_ConsumableItemType, 1);
+            // Optionally change the layer after the object has been thrown. This allows the object to change from the first person Overlay layer
+            // to the Default layer after it has cleared the character's hands.
+            if (m_StartLayer != m_ThrownLayer) {
+                SchedulerBase.ScheduleFixed(m_LayerChangeDelay, ChangeThrownLayer, m_InstantiatedThrownObject);
             }
         }
 
@@ -557,10 +573,10 @@ namespace Opsive.UltimateCharacterController.Items.Actions
 
             // The item can be reequipped with an animation event or timer. The item should not be reequipped if it is disabled - the starting throw animation will
             // reequip a disabled item.
-            if (!m_DisableVisibleObject && m_Inventory.GetItemTypeCount(m_ConsumableItemType) > 0) {
+            if (!m_DisableVisibleObject && m_Inventory != null && m_Inventory.GetItemIdentifierAmount(m_Item.ItemIdentifier) > 0) {
                 m_Reequipping = true;
                 if (!m_ReequipEvent.WaitForAnimationEvent) {
-                    m_ReequipEventBase = Scheduler.ScheduleFixed(m_ReequipEvent.Duration, ReequipThrowableItem);
+                    m_ReequipEventBase = SchedulerBase.ScheduleFixed(m_ReequipEvent.Duration, ReequipThrowableItem);
                 }
             }
         }
@@ -570,7 +586,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// </summary>
         public override void TryStopItemUse()
         {
-            if (m_ThrowOnStopUse) {
+            if (m_ThrowOnStopUse && !m_Thrown) {
                 StartThrow();
             }
         }
@@ -597,17 +613,21 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             base.StopItemUse();
 
             // If there are no items remaining then the next item should be equipped. Wait until the item use is stopped so the use animation will complete.
-            if (m_Inventory != null && m_Inventory.GetItemTypeCount(m_ConsumableItemType) == 0) {
+            if (m_Inventory != null && m_Inventory.GetItemIdentifierAmount(m_Item.ItemIdentifier) == 0) {
                 EventHandler.ExecuteEvent(m_Character, "OnNextItemSet", m_Item, true);
                 m_NextItemSet = true;
             }
 
-            m_Thrown = false;
-            m_Reequipped = false;
+            // If the item is stopped before it is thrown then the character may have died. The item should be released.
+            if (!m_Thrown) {
+                ThrowItem();
+            }
+            m_Throwing = m_Thrown = false;
+            m_Reequipping = m_Reequipped = false;
             m_ActivateVisibleObject = false;
             m_InstantiatedThrownObject = null;
             if (m_DisableVisibleObject) {
-                m_Item.SetVisibleObjectActive(false);
+                m_Item.SetVisibleObjectActive(false, true);
             }
         }
 
@@ -620,13 +640,14 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 return;
             }
 
-            Scheduler.Cancel(m_ReequipEventBase);
+            SchedulerBase.Cancel(m_ReequipEventBase);
             m_ReequipEventBase = null;
             m_Reequipping = false;
             m_Reequipped = true;
+            m_ReequipFrame = Time.frameCount;
 
             // The item shouldn't be reequipped if it is out of ammo.
-            if (m_Inventory != null && m_Inventory.GetItemTypeCount(m_ConsumableItemType) == 0) {
+            if (m_Inventory != null && m_Inventory.GetItemIdentifierAmount(m_Item.ItemIdentifier) == 0) {
                 return;
             }
 
@@ -677,15 +698,14 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 if (m_InstantiatedThrownObject != null) {
                     EnableObjectMeshRenderers(m_InstantiatedThrownObject.activeSelf);
                 } else {
-                    EnableObjectMeshRenderers(!m_Thrown);
+                    EnableObjectMeshRenderers(!m_Thrown && !m_DisableVisibleObject);
                 }
                 if (m_Throwing && !m_Thrown) {
                     // Setup the thrown object if the item is in the process of being thrown.
                     var thrownObjectTransform = m_InstantiatedThrownObject.transform;
                     thrownObjectTransform.parent = m_ObjectTransform.parent;
                     var location = m_ThrowableItemPerpectiveProperties.ThrowLocation;
-                    thrownObjectTransform.position = location.position;
-                    thrownObjectTransform.rotation = location.rotation;
+                    thrownObjectTransform.SetPositionAndRotation(location.position, location.rotation);
                     thrownObjectTransform.localScale = location.localScale;
                     m_InstantiatedThrownObject.transform.SetLayerRecursively(m_StartLayer);
                 }

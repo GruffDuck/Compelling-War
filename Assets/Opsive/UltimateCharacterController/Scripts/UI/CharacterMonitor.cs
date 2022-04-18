@@ -4,13 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.UI
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.StateSystem;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// The CameraMonitor component allows for UI elements to mapped to a specific character (allowing for split screen and coop).
     /// </summary>
@@ -18,8 +19,11 @@ namespace Opsive.UltimateCharacterController.UI
     {
         [Tooltip("The character that uses the UI represents. Can be null.")]
         [SerializeField] protected GameObject m_Character;
+        [Tooltip("Is the UI visible?")]
+        [SerializeField] protected bool m_Visible = true;
 
         public GameObject Character { get { return m_Character; } set { OnAttachCharacter(value); } }
+        public bool Visible { get { return m_Visible; } set { m_Visible = value; ShowUI(m_ShowUI); } }
 
         protected bool m_ShowUI = true;
         protected GameObject m_CameraGameObject;
@@ -31,17 +35,7 @@ namespace Opsive.UltimateCharacterController.UI
         {
             base.Awake();
 
-            var camera = UnityEngineUtility.FindCamera(m_Character);
-            if (camera != null) {
-                m_CameraGameObject = camera.gameObject;
-                if (m_Character == null) {
-                    m_Character = m_CameraGameObject.GetCachedComponent<Camera.CameraController>().Character;
-                }
-                EventHandler.RegisterEvent<GameObject>(m_CameraGameObject, "OnCameraAttachCharacter", OnAttachCharacter);
-            }
-
-            // Start disabled - attaching the character will enabe the component.
-            enabled = false;
+            AssignCamera();
 
             if (m_Character != null) {
                 var character = m_Character;
@@ -77,13 +71,44 @@ namespace Opsive.UltimateCharacterController.UI
         }
 
         /// <summary>
+        /// Assigns the camera to the UI Monitor.
+        /// </summary>
+        private void AssignCamera()
+        {
+            var foundCamera = Shared.Camera.CameraUtility.FindCamera(m_Character);
+            if (foundCamera != null) {
+                m_CameraGameObject = foundCamera.gameObject;
+                if (m_Character == null) {
+                    m_Character = m_CameraGameObject.GetCachedComponent<UltimateCharacterController.Camera.CameraController>().Character;
+                }
+                EventHandler.RegisterEvent<GameObject>(m_CameraGameObject, "OnCameraAttachCharacter", OnAttachCharacter);
+            }
+        }
+
+        /// <summary>
+        /// Starts the UI.
+        /// </summary>
+        protected virtual void Start()
+        {
+            // If the camera GameObject is null then the camera may have been spawned after Awake.
+            if (m_CameraGameObject == null) {
+                AssignCamera();
+            }
+
+            // Disable the UI if it shouldn't be shown.
+            if (!CanShowUI()) {
+                enabled = false;
+            }
+        }
+
+        /// <summary>
         /// Shows or hides the UI.
         /// </summary>
         /// <param name="show">Should the UI be shown?</param>
-        private void ShowUI(bool show)
+        protected virtual void ShowUI(bool show)
         {
             m_ShowUI = show;
-            gameObject.SetActive(show && CanShowUI());
+            gameObject.SetActive(CanShowUI());
         }
 
         /// <summary>
@@ -92,7 +117,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <returns>True if the UI can be shown.</returns>
         protected virtual bool CanShowUI()
         {
-            return true;
+            return m_ShowUI && m_Visible && m_Character != null;
         }
 
         /// <summary>

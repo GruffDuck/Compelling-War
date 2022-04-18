@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.SceneManagement;
-
 namespace Opsive.UltimateCharacterController.Networking.Game
 {
+    using UnityEngine;
+    using UnityEngine.SceneManagement;
+
     /// <summary>
     /// Bridge component between the networking spawning system and the ObjectPool.
     /// </summary>
@@ -39,52 +39,18 @@ namespace Opsive.UltimateCharacterController.Networking.Game
         }
 
         /// <summary>
-        /// Spawns the object on the network.
-        /// </summary>
-        /// <param name="original">The prefab of the object to spawn.</param>
-        /// <returns>The instantiated object.</returns>
-        public static GameObject Spawn(GameObject original)
-        {
-            return s_Instance.SpawnInternal(original, Vector3.zero, Quaternion.identity);
-        }
-
-        /// <summary>
-        /// Spawns the object on the network.
-        /// </summary>
-        /// <param name="original">The prefab of the object to spawn.</param>
-        /// <param name="position">The position of the spawned object.</param>
-        /// <param name="rotation">The rotation of the spawned object.</param>
-        /// <returns>The instantiated object.</returns>
-        public static GameObject Spawn(GameObject original, Vector3 position, Quaternion rotation)
-        {
-            if (s_Instance == null) {
-                Debug.LogError("Error: Unable to spawn object - the Network Object Pool doesn't exist.");
-                return null;
-            }
-            return s_Instance.SpawnInternal(original, position, rotation);
-        }
-        
-        /// <summary>
-        /// Internal method which spawns the object on the network.
-        /// </summary>
-        /// <param name="original">The prefab of the object to spawn.</param>
-        /// <param name="position">The position of the spawned object.</param>
-        /// <param name="rotation">The rotation of the spawned object.</param>
-        /// <returns>The instantiated object.</returns>
-        protected abstract GameObject SpawnInternal(GameObject original, Vector3 position, Quaternion rotation);
-
-        /// <summary>
         /// Spawns the object over the network. This does not instantiate a new object on the local client.
         /// </summary>
         /// <param name="original">The object that the object was instantiated from.</param>
         /// <param name="instanceObject">The object that was instantiated from the original object.</param>
-        public static void NetworkSpawn(GameObject original, GameObject instanceObject)
+        /// <param name="sceneObject">Is the object owned by the scene? If fales it will be owned by the character.</param>
+        public static void NetworkSpawn(GameObject original, GameObject instanceObject, bool sceneObject)
         {
             if (s_Instance == null) {
                 Debug.LogError("Error: Unable to spawn object - the Network Object Pool doesn't exist.");
                 return;
             }
-            s_Instance.NetworkSpawnInternal(original, instanceObject);
+            s_Instance.NetworkSpawnInternal(original, instanceObject, sceneObject);
         }
 
         /// <summary>
@@ -92,7 +58,8 @@ namespace Opsive.UltimateCharacterController.Networking.Game
         /// </summary>
         /// <param name="original">The object that the object was instantiated from.</param>
         /// <param name="instanceObject">The object that was instantiated from the original object.</param>
-        protected abstract void NetworkSpawnInternal(GameObject original, GameObject instanceObject);
+        /// <param name="sceneObject">Is the object owned by the scene? If fales it will be owned by the character.</param>
+        protected abstract void NetworkSpawnInternal(GameObject original, GameObject instanceObject, bool sceneObject);
 
         /// <summary>
         /// Destroys the object instance on the network.
@@ -151,7 +118,6 @@ namespace Opsive.UltimateCharacterController.Networking.Game
             SceneManager.sceneUnloaded += SceneUnloaded;
         }
 
-#if UNITY_2019_3_OR_NEWER
         /// <summary>
         /// Reset the static variables for domain reloading.
         /// </summary>
@@ -160,6 +126,5 @@ namespace Opsive.UltimateCharacterController.Networking.Game
         {
             s_Instance = null;
         }
-#endif
     }
 }

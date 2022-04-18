@@ -4,15 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Traits;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Objects
 {
+    using Opsive.Shared.Game;
+    using Opsive.Shared.StateSystem;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Traits;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// The MovingPlatform component will move an object from one point to another. GameObjects with the Moving Platform component should be on the MovingPlatform layer.
     /// </summary>
@@ -27,7 +28,7 @@ namespace Opsive.UltimateCharacterController.Objects
         {
             [Tooltip("The transform the waypoint that the platform should traverse.")]
             [SerializeField] private Transform m_Transform;
-            [Tooltip("The amount of time that the platform should stay at the current waypoint before moving to the next waypoint")]
+            [Tooltip("The amount of time that the platform should stay at the current waypoint before moving to the next waypoint.")]
             [SerializeField] private float m_Delay;
             [Tooltip("The state that should be triggered when the platform is moving towards it.")]
             [SerializeField] private string m_State;
@@ -91,6 +92,8 @@ namespace Opsive.UltimateCharacterController.Objects
             CustomRotate    // Rotates according to the rotation speed.
         }
 
+        [Tooltip("Specifies the location that the object should be updated.")]
+        [SerializeField] protected KinematicObjectManager.UpdateLocation m_UpdateLocation = KinematicObjectManager.UpdateLocation.FixedUpdate;
         [Tooltip("The waypoints to traverse.")]
         [SerializeField] protected Waypoint[] m_Waypoints;
         [Tooltip("Specifies the direction that the platform should traverse.")]
@@ -109,14 +112,16 @@ namespace Opsive.UltimateCharacterController.Objects
         [SerializeField] protected float m_RotationEaseAmount = 0.1f;
         [Tooltip("If using the CustomRotate RotationInterpolationMode, specifies the rotation speed.")]
         [SerializeField] protected Vector3 m_CustomRotationSpeed;
-        [Tooltip("The maximum angle that the platform can rotation. Set to -1 to have no max angle.")]
+        [Tooltip("The maximum angle that the platform can rotate. Set to -1 to have no max angle.")]
         [SerializeField] protected float m_MaxRotationDeltaAngle = -1;
+        [Tooltip("The layer of the character that can activate the moving platform.")]
+        [SerializeField] protected LayerMask m_CharacterTriggerLayer = 1 << LayerManager.Character;
         [Tooltip("The state name that should activate when the character enters the platform trigger.")]
         [SerializeField] protected string m_CharacterTriggerState;
         [Tooltip("Should the platform be enabled when interacted with?")]
         [SerializeField] protected bool m_EnableOnInteract;
         [Tooltip("Should the directions be changed if the character interacts with the platform while it is moving?")]
-        [SerializeField] protected bool m_ChangeDirectionsOnInteract = false;
+        [SerializeField] protected bool m_ChangeDirectionsOnInteract;
 #if UNITY_EDITOR
         [Tooltip("The color to draw the editor gizmo in (editor only).")]
         [SerializeField] protected Color m_GizmoColor = new Color(0, 0, 1, 0.3f);
@@ -124,6 +129,7 @@ namespace Opsive.UltimateCharacterController.Objects
         [SerializeField] protected bool m_DrawDebugLabels;
 #endif
 
+        public KinematicObjectManager.UpdateLocation UpdateLocation { get { return m_UpdateLocation; } }
         [NonSerialized] public Waypoint[] Waypoints { get { return m_Waypoints; } set { m_Waypoints = value; } }
         [NonSerialized] public PathDirection Direction { get { return m_Direction; } set { m_Direction = value; } }
         public PathMovementType MovementType { get { return m_MovementType; } set { m_MovementType = value; } } 
@@ -133,6 +139,7 @@ namespace Opsive.UltimateCharacterController.Objects
         public RotateInterpolationMode RotationInterpolation { get { return m_RotationInterpolation; } set { m_RotationInterpolation = value; } }
         public float RotationEaseAmount { get { return m_RotationEaseAmount; } set { m_RotationEaseAmount = value; } }
         public Vector3 CustomRotationSpeed { get { return m_CustomRotationSpeed; } set { m_CustomRotationSpeed = value; } }
+        public LayerMask CharacterTriggerLayer { get { return m_CharacterTriggerLayer; } set { m_CharacterTriggerLayer = value; } }
         public string CharacterTriggerState { get { return m_CharacterTriggerState; } set { m_CharacterTriggerState = value; } }
         public bool EnableOnInteract { get { return m_EnableOnInteract; } set { m_EnableOnInteract = value; } }
         public bool ChangeDirectionsOnInteract { get { return m_ChangeDirectionsOnInteract; } set { m_ChangeDirectionsOnInteract = value; } }
@@ -162,6 +169,7 @@ namespace Opsive.UltimateCharacterController.Objects
 
         public int NextWaypoint { get { return m_NextWaypoint; } }
         public int KinematicObjectIndex { get { return m_KinematicObjectIndex; } set { m_KinematicObjectIndex = value; } }
+        public int ActiveCharacterCount { get { return m_ActiveCharacterCount; } }
 
         /// <summary>
         /// Cache the component references and initialize the default values.
@@ -174,7 +182,7 @@ namespace Opsive.UltimateCharacterController.Objects
             // Sanity check in the editor:
             for (int i = 0; i < m_Waypoints.Length; ++i) {
                 if (m_Waypoints[i].Transform == null) {
-                    Debug.LogError("Error: Moving Platform " + gameObject.name + " has a null waypoint. This platform will be disabled.");
+                    Debug.LogError($"Error: Moving Platform {gameObject.name} has a null waypoint. This platform will be disabled.");
                     enabled = false;
                     return;
                 }
@@ -194,7 +202,7 @@ namespace Opsive.UltimateCharacterController.Objects
 
             // The GameObject must be on the MovingPlatform layer.
             if (m_GameObject.layer != LayerManager.MovingPlatform) {
-                Debug.LogWarning("Warning: " + m_GameObject.name + " is a moving platform not using the MovingPlatform layer. Please change this layer.");
+                Debug.LogWarning($"Warning: {m_GameObject.name} is a moving platform not using the MovingPlatform layer. Please change this layer.", m_GameObject);
                 m_GameObject.layer = LayerManager.MovingPlatform;
             }
 
@@ -229,8 +237,12 @@ namespace Opsive.UltimateCharacterController.Objects
         /// <summary>
         /// Update the platform movement and rotation.
         /// </summary>
-        public void Move()
+        public virtual void Move()
         {
+            if (Time.timeScale == 0) {
+                return;
+            }
+
             // Updates the path to the next waypoint if necessary.
             UpdatePath();
 
@@ -258,7 +270,7 @@ namespace Opsive.UltimateCharacterController.Objects
         private void UpdatePath()
         {
             if (GetRemainingDistance() < 0.01f && m_NextWaypointEvent == null && (m_MovementType != PathMovementType.Target || m_NextWaypoint != m_TargetWaypoint)) {
-                m_NextWaypointEvent = Scheduler.ScheduleFixed(m_Waypoints[m_NextWaypoint].Delay, UpdateWaypoint);
+                m_NextWaypointEvent = SchedulerBase.ScheduleFixed(m_Waypoints[m_NextWaypoint].Delay, UpdateWaypoint);
             }
         }
 
@@ -272,6 +284,7 @@ namespace Opsive.UltimateCharacterController.Objects
                 UpdateState();
             }
             m_PreviousWaypoint = m_NextWaypoint;
+            m_NextWaypointEvent = null;
 
             switch (m_MovementType) {
                 case PathMovementType.Target:
@@ -322,7 +335,7 @@ namespace Opsive.UltimateCharacterController.Objects
         /// Returns the distance to the next waypoint.
         /// </summary>
         /// <returns>The distance to the next waypoint.</returns>
-        private float GetRemainingDistance()
+        protected float GetRemainingDistance()
         {
             if (m_Waypoints.Length == 0) {
                 return float.MaxValue;
@@ -374,7 +387,7 @@ namespace Opsive.UltimateCharacterController.Objects
         {
             switch (m_RotationInterpolation) {
                 case RotateInterpolationMode.SyncToMovement:
-                    if (m_NextWaypointEvent == null) {
+                    if (m_NextWaypointEvent == null && m_NextWaypointDistance > 0) {
                         m_MoveRotation = Quaternion.Lerp(m_OriginalRotation, m_TargetRotation, 1.0f - (GetRemainingDistance() / m_NextWaypointDistance));
                     }
                     break;
@@ -437,7 +450,7 @@ namespace Opsive.UltimateCharacterController.Objects
             m_Transform.position = m_MovePosition;
 
             // Progress the move time and also store the updated metrics.
-            m_MoveTime += m_MovementSpeed * 0.01f * Time.fixedDeltaTime;
+            m_MoveTime += m_MovementSpeed * 0.01f * Time.deltaTime;
         }
 
         /// <summary>
@@ -470,13 +483,7 @@ namespace Opsive.UltimateCharacterController.Objects
         /// <param name="other">The object that entered the trigger.</param>
         private void OnTriggerEnter(Collider other)
         {
-            // Characters will have a CharacterLayerManager.
-            var layerManager = other.gameObject.GetCachedParentComponent<CharacterLayerManager>();
-            if (layerManager == null) {
-                return;
-            }
-
-            if (!MathUtility.InLayerMask(other.gameObject.layer, layerManager.CharacterLayer)) {
+            if (!MathUtility.InLayerMask(other.gameObject.layer, m_CharacterTriggerLayer)) {
                 return;
             }
 
@@ -500,13 +507,7 @@ namespace Opsive.UltimateCharacterController.Objects
                 return;
             }
 
-            // Characters will have a CharacterLayerManager.
-            var layerManager = other.gameObject.GetCachedParentComponent<CharacterLayerManager>();
-            if (layerManager == null) {
-                return;
-            }
-
-            if (!MathUtility.InLayerMask(other.gameObject.layer, layerManager.CharacterLayer)) {
+            if (!MathUtility.InLayerMask(other.gameObject.layer, m_CharacterTriggerLayer)) {
                 return;
             }
 
@@ -522,6 +523,10 @@ namespace Opsive.UltimateCharacterController.Objects
         /// </summary>
         protected virtual void OnDisable()
         {
+            if (m_NextWaypointEvent != null) {
+                SchedulerBase.Cancel(m_NextWaypointEvent);
+                m_NextWaypointEvent = null;
+            }
             KinematicObjectManager.UnregisterKinematicObject(m_KinematicObjectIndex);
         }
     }

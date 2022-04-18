@@ -4,16 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.UI;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Inventory;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.UI
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Inventory;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Items.Actions;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+    using UnityEngine.UI;
+
     /// <summary>
     /// The ItemMonitor will update the UI for the character's items.
     /// </summary>
@@ -31,11 +31,13 @@ namespace Opsive.UltimateCharacterController.UI
         [Tooltip("The action ID that the UI represents.")]
         [SerializeField] protected int m_ItemActionID;
 
+        public Image ItemIcon { get { return m_ItemIcon; } }
+
         private GameObject m_GameObject;
 
         private RectTransform m_ItemRectTransform;
         private Item m_EquippedItem;
-        private ItemType m_ConsumableItemType;
+        private IItemIdentifier m_ConsumableItemIdentifier;
 
         /// <summary>
         /// Initialize the default values.
@@ -50,9 +52,6 @@ namespace Opsive.UltimateCharacterController.UI
             }
             m_ItemRectTransform = m_ItemIcon.GetComponent<RectTransform>();
             m_ItemIcon.sprite = null;
-
-            // Wait until an item has been equipped to activate.
-            m_GameObject.SetActive(false);
         }
 
         /// <summary>
@@ -63,6 +62,8 @@ namespace Opsive.UltimateCharacterController.UI
         {
             if (m_Character != null) {
                 EventHandler.UnregisterEvent<Item, int>(m_Character, "OnAbilityWillEquipItem", OnEquipItem);
+                EventHandler.UnregisterEvent<Item, int>(m_Character, "OnAbilityUnequipItemComplete", OnUnequipItem);
+                EventHandler.UnregisterEvent<Item, int>(m_Character, "OnInventoryRemoveItem", OnUnequipItem);
                 ResetMonitor();
             }
 
@@ -72,10 +73,13 @@ namespace Opsive.UltimateCharacterController.UI
                 return;
             }
             
+            gameObject.SetActive(CanShowUI());
             EventHandler.RegisterEvent<Item, int>(m_Character, "OnAbilityWillEquipItem", OnEquipItem);
+            EventHandler.RegisterEvent<Item, int>(m_Character, "OnAbilityUnequipItemComplete", OnUnequipItem);
+            EventHandler.RegisterEvent<Item, int>(m_Character, "OnInventoryRemoveItem", OnUnequipItem);
             // An item may already be equipped.
             for (int i = 0; i < m_CharacterInventory.SlotCount; ++i) {
-                var item = m_CharacterInventory.GetItem(i);
+                var item = m_CharacterInventory.GetActiveItem(i);
                 if (item != null) {
                     OnEquipItem(item, i);
                 }
@@ -83,19 +87,19 @@ namespace Opsive.UltimateCharacterController.UI
         }
 
         /// <summary>
-        /// An ItemType has been picked up within the inventory.
+        /// An ItemIdentifier has been picked up within the inventory.
         /// </summary>
-        /// <param name="itemType">The ItemType that has been picked up.</param>
-        /// <param name="count">The amount of item picked up.</param>
+        /// <param name="itemIdentifier">The ItemIdentifier that has been picked up.</param>
+        /// <param name="amount">The amount of item picked up.</param>
         /// <param name="immediatePickup">Was the item be picked up immediately?</param>
         /// <param name="forceEquip">Should the item be force equipped?</param>
-        protected override void OnPickupItemType(ItemType itemType, float count, bool immediatePickup, bool forceEquip)
+        protected override void OnPickupItemIdentifier(IItemIdentifier itemIdentifier, int amount, bool immediatePickup, bool forceEquip)
         {
-            if (itemType != m_ConsumableItemType) {
+            if (itemIdentifier != m_ConsumableItemIdentifier) {
                 return;
             }
 
-            var countString = m_CharacterInventory.GetItemTypeCount(m_ConsumableItemType).ToString();
+            var countString = m_CharacterInventory.GetItemIdentifierAmount(m_ConsumableItemIdentifier).ToString();
             if (m_PrimaryCount.enabled) {
                 m_PrimaryCount.text = countString;
             } else {
@@ -106,7 +110,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <summary>
         /// An item has been equipped.
         /// </summary>
-        /// <param name="itemType">The equipped item.</param>
+        /// <param name="item">The equipped item.</param>
         /// <param name="slotID">The slot that the item now occupies.</param>
         private void OnEquipItem(Item item, int slotID)
         {
@@ -117,7 +121,7 @@ namespace Opsive.UltimateCharacterController.UI
             m_EquippedItem = item;
             m_ItemIcon.sprite = item.Icon;
             UnityEngineUtility.SizeSprite(m_ItemIcon.sprite, m_ItemRectTransform);
-            m_GameObject.SetActive(m_ShowUI && m_ItemIcon.sprite != null);
+            m_GameObject.SetActive(CanShowUI());
 
             // Multiple item actions can be attached to the same item.
             ItemAction itemAction = null;
@@ -127,16 +131,16 @@ namespace Opsive.UltimateCharacterController.UI
 
             if (itemAction is IUsableItem) {
                 var usableItem = itemAction as IUsableItem;
-                if ((m_ConsumableItemType = usableItem.GetConsumableItemType()) != null) {
-                    var consumableItemTypeCount = usableItem.GetConsumableItemTypeCount();
-                    // If the count is -1 then only the loaded should be shown. This is useful in cases like the grenade where there is only one count.
-                    if (consumableItemTypeCount != -1) {
-                        m_LoadedCount.text = usableItem.GetConsumableItemTypeCount().ToString();
-                        m_UnloadedCount.text = m_CharacterInventory.GetItemTypeCount(usableItem.GetConsumableItemType()).ToString();
+                if ((m_ConsumableItemIdentifier = usableItem.GetConsumableItemIdentifier()) != null) {
+                    var consumableItemIdentifierAmount = usableItem.GetConsumableItemIdentifierAmount();
+                    // If the count is -1 then only the loaded should be shown.
+                    if (consumableItemIdentifierAmount != -1) {
+                        m_LoadedCount.text = usableItem.GetConsumableItemIdentifierAmount().ToString();
+                        m_UnloadedCount.text = m_CharacterInventory.GetItemIdentifierAmount(usableItem.GetConsumableItemIdentifier()).ToString();
                         m_LoadedCount.enabled = m_UnloadedCount.enabled = true;
                         m_PrimaryCount.enabled = false;
                     } else {
-                        m_PrimaryCount.text = m_CharacterInventory.GetItemTypeCount(usableItem.GetConsumableItemType()).ToString();
+                        m_PrimaryCount.text = m_CharacterInventory.GetItemIdentifierAmount(usableItem.GetConsumableItemIdentifier()).ToString();
                         m_PrimaryCount.enabled = true;
                         m_LoadedCount.enabled = m_UnloadedCount.enabled = false;
                     }
@@ -177,7 +181,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <param name="dominantItem">True if the item is now a dominant item.</param>
         protected override void OnUpdateDominantItem(Item item, bool dominantItem)
         {
-            if ((m_EquippedItem != null && item != m_EquippedItem) || m_CharacterInventory.GetItemTypeCount(item.ItemType) == 0 || m_CharacterInventory.GetItem(item.SlotID) != item) {
+            if ((m_EquippedItem != null && item != m_EquippedItem) || m_CharacterInventory.GetItemIdentifierAmount(item.ItemIdentifier) == 0 || m_CharacterInventory.GetActiveItem(item.SlotID) != item) {
                 return;
             }
 
@@ -189,48 +193,48 @@ namespace Opsive.UltimateCharacterController.UI
         }
 
         /// <summary>
-        /// The specified consumable ItemType has been used.
+        /// The specified consumable ItemIdentifier has been used.
         /// </summary>
         /// <param name="item">The Item that has been used.</param>
-        /// <param name="itemType">The ItemType that has been used.</param>
-        /// <param name="count">The remaining amount of the specified ItemType.</param>
-        protected override void OnUseConsumableItemType(Item item, ItemType itemType, float count)
+        /// <param name="itemIdentifier">The ItemIdentifier that has been used.</param>
+        /// <param name="amount">The remaining amount of the specified ItemIdentifier.</param>
+        protected override void OnUseConsumableItemIdentifier(Item item, IItemIdentifier itemIdentifier, int amount)
         {
-            if (item.UIMonitorID != m_ID || itemType != m_ConsumableItemType) {
+            if (item.UIMonitorID != m_ID || itemIdentifier != m_ConsumableItemIdentifier) {
                 return;
             }
 
-            m_LoadedCount.text = count.ToString();
+            m_LoadedCount.text = amount.ToString();
         }
 
         /// <summary>
-        /// The specified ItemType has been used.
+        /// The specified ItemIdentifier amount has been adjusted.
         /// </summary>
-        /// <param name="itemType">The ItemType that has been used.</param>
-        /// <param name="count">The remaining amount of the specified ItemType.</param>
-        protected override void OnUseItemType(ItemType itemType, float count)
+        /// <param name="itemIdentifier">The ItemIdentifier to adjust.</param>
+        /// <param name="amount">The amount of ItemIdentifier to adjust.</param>
+        protected override void OnAdjustItemIdentifierAmount(IItemIdentifier itemIdentifier, int amount)
         {
-            if (itemType != m_ConsumableItemType) {
+            if (itemIdentifier != m_ConsumableItemIdentifier) {
                 return;
             }
 
             // The primary count will be disabled if the item has both a loaded and unloaded count.
             if (m_PrimaryCount.enabled) {
-                m_PrimaryCount.text = count.ToString();
+                m_PrimaryCount.text = amount.ToString();
             } else {
-                m_UnloadedCount.text = count.ToString();
+                m_UnloadedCount.text = amount.ToString();
             }
         }
 
         /// <summary>
         /// An item has been unequipped.
         /// </summary>
-        /// <param name="itemType">The unequipped item.</param>
+        /// <param name="item">The unequipped item.</param>
         /// <param name="slotID">The slot that the item previously occupied.</param>
-        protected override void OnUnequipItem(Item item, int slotID)
+        private void OnUnequipItem(Item item, int slotID)
         {
             Item equippedItem = null;
-            if (!item.DominantItem || item.UIMonitorID != m_ID || ((equippedItem = m_CharacterInventory.GetItem(slotID)) != null && equippedItem.DominantItem && equippedItem != item)) {
+            if (!item.DominantItem || item.UIMonitorID != m_ID || ((equippedItem = m_CharacterInventory.GetActiveItem(slotID)) != null && equippedItem.DominantItem && equippedItem != item)) {
                 return;
             }
 
@@ -243,7 +247,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <returns>True if the UI can be shown.</returns>
         protected override bool CanShowUI()
         {
-            return m_EquippedItem != null && m_ItemIcon.sprite != null;
+            return base.CanShowUI() && m_EquippedItem != null && m_ItemIcon.sprite != null;
         }
 
         /// <summary>
@@ -252,7 +256,7 @@ namespace Opsive.UltimateCharacterController.UI
         private void ResetMonitor()
         {
             m_EquippedItem = null;
-            m_ConsumableItemType = null;
+            m_ConsumableItemIdentifier = null;
             m_GameObject.SetActive(false);
         }
     }

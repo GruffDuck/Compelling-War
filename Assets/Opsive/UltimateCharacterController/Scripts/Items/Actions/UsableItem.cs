@@ -4,17 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.Abilities.Items;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Inventory;
-using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
-using Opsive.UltimateCharacterController.Traits;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Items.Actions
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Inventory;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.Abilities;
+    using Opsive.UltimateCharacterController.Character.Abilities.Items;
+    using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
+    using Opsive.UltimateCharacterController.Traits;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Base class for any item that can be used.
     /// </summary>
@@ -39,9 +41,9 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [Tooltip("The amount of extra time it takes for the ability to stop after use.")]
         [SerializeField] protected float m_StopUseAbilityDelay = 1f;
         [Tooltip("Specifies if the item should wait for the OnAnimatorItemUse animation event or wait for the specified duration before being used.")]
-        [SerializeField] protected AnimationEventTrigger m_UseEvent = new AnimationEventTrigger(true, 0.2f);
+        [SerializeField] protected AnimationSlotEventTrigger m_UseEvent = new AnimationSlotEventTrigger(true, 0.2f);
         [Tooltip("Specifies if the item should wait for the OnAnimatorItemUseComplete animation event or wait for the specified duration before completing the use.")]
-        [SerializeField] protected AnimationEventTrigger m_UseCompleteEvent = new AnimationEventTrigger(false, 0.05f);
+        [SerializeField] protected AnimationSlotEventTrigger m_UseCompleteEvent = new AnimationSlotEventTrigger(false, 0.05f);
         [Tooltip("Does the item require root motion position during use?")]
         [SerializeField] protected bool m_ForceRootMotionPosition;
         [Tooltip("Does the item require root motion rotation during use?")]
@@ -57,7 +59,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [Tooltip("The amount to adjust the Character Use Attribute by when the item is used.")]
         [SerializeField] protected float m_CharacterUseAttributeAmount;
         [Tooltip("Should the audio play when the item starts to be used? If false it will be played when the item is used.")]
-        [SerializeField] protected bool m_PlayAudioOnStartUse = false;
+        [SerializeField] protected bool m_PlayAudioOnStartUse;
         [Tooltip("Specifies the animator and audio state that should be triggered when the item is used.")]
         [SerializeField] protected AnimatorAudioStateSet m_UseAnimatorAudioStateSet = new AnimatorAudioStateSet(2);
 
@@ -65,8 +67,8 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         public bool CanEquipEmptyItem { get { return m_CanEquipEmptyItem; } set { m_CanEquipEmptyItem = value; } }
         public bool FaceTarget { get { return m_FaceTarget; } set { m_FaceTarget = value; } }
         public float StopUseAbilityDelay { get { return m_StopUseAbilityDelay; } set { m_StopUseAbilityDelay = value; } }
-        public AnimationEventTrigger UseEvent { get { return m_UseEvent; } set { m_UseEvent = value; } }
-        public AnimationEventTrigger UseCompleteEvent { get { return m_UseCompleteEvent; } set { m_UseCompleteEvent = value; } }
+        public AnimationSlotEventTrigger UseEvent { get { return m_UseEvent; } set { m_UseEvent = value; } }
+        public AnimationSlotEventTrigger UseCompleteEvent { get { return m_UseCompleteEvent; } set { m_UseCompleteEvent = value; } }
         public bool ForceRootMotionPosition { get { return m_ForceRootMotionPosition; } set { m_ForceRootMotionPosition = value; } }
         public bool ForceRootMotionRotation { get { return m_ForceRootMotionRotation; } set { m_ForceRootMotionRotation = value; } }
         public string UseAttributeName
@@ -106,11 +108,13 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         public AnimatorAudioStateSet UseAnimatorAudioStateSet { get { return m_UseAnimatorAudioStateSet; } set { m_UseAnimatorAudioStateSet = value; } }
 
         protected ILookSource m_LookSource;
+        [System.NonSerialized] private UltimateCharacterLocomotion m_CharacterLocomotion;
         private AttributeManager m_AttributeManager;
         private AttributeManager m_CharacterUseAttributeManager;
-        private Attribute m_UseAttribute;
-        private Attribute m_CharacterUseAttribute;
+        protected Attribute m_UseAttribute;
+        protected Attribute m_CharacterUseAttribute;
         protected float m_NextAllowedUseTime;
+        private float m_LastUseTime;
         private bool m_InUse;
 
         /// <summary>
@@ -121,10 +125,10 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             base.Awake();
 
             // The item may have been added at runtime in which case the look source has already been populated.
-            var characterLocomotion = m_Character.GetCachedComponent<UltimateCharacterLocomotion>();
-            m_LookSource = characterLocomotion.LookSource;
+            m_CharacterLocomotion = m_Character.GetCachedComponent<UltimateCharacterLocomotion>();
+            m_LookSource = m_CharacterLocomotion.LookSource;
 
-            m_UseAnimatorAudioStateSet.DeserializeAnimatorAudioStateSelector(m_Item, characterLocomotion);
+            m_UseAnimatorAudioStateSet.DeserializeAnimatorAudioStateSelector(m_Item, m_CharacterLocomotion);
             m_UseAnimatorAudioStateSet.Awake(m_Item.gameObject);
 
             m_AttributeManager = GetComponent<AttributeManager>();
@@ -154,27 +158,33 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         }
 
         /// <summary>
-        /// Returns the ItemType which can be used by the item.
+        /// Set the ItemIdentifier which can be consumed by the item.
         /// </summary>
-        /// <returns>The ItemType which can be used by the item.</returns>
-        public virtual ItemType GetConsumableItemType() { return null; }
+        /// <param name="itemIdentifier">The new ItemIdentifier which can be consumed by the item.</param>
+        public virtual void SetConsumableItemIdentifier(IItemIdentifier itemIdentifier) { }
 
         /// <summary>
-        /// Returns the amount of UsableItemType which has been consumed by the UsableItem.
+        /// Returns the ItemIdentifier which can be used by the item.
         /// </summary>
-        /// <returns>The amount consumed of the UsableItemType.</returns>
-        public virtual float GetConsumableItemTypeCount() { return 0; }
+        /// <returns>The ItemIdentifier which can be used by the item.</returns>
+        public virtual IItemIdentifier GetConsumableItemIdentifier() { return null; }
 
         /// <summary>
-        /// Sets the UsableItemType amount on the UsableItem.
+        /// Returns the amount of UsableItemIdentifier which has been consumed by the UsableItem.
         /// </summary>
-        /// <param name="count">The amount to set the UsableItemType to.</param>
-        public virtual void SetConsumableItemTypeCount(float count) { }
+        /// <returns>The amount consumed of the UsableItemIdentifier.</returns>
+        public virtual int GetConsumableItemIdentifierAmount() { return 0; }
 
         /// <summary>
-        /// Removes the amount of UsableItemType which has been consumed by the UsableItem.
+        /// Sets the UsableItemIdentifier amount on the UsableItem.
         /// </summary>
-        public virtual void RemoveConsumableItemTypeCount() { }
+        /// <param name="amount">The amount to set the UsableItemIdentifier to.</param>
+        public virtual void SetConsumableItemIdentifierAmount(int amount) { }
+
+        /// <summary>
+        /// Removes the amount of UsableItemIdentifier which has been consumed by the UsableItem.
+        /// </summary>
+        public virtual void RemoveConsumableItemIdentifierAmount() { }
 
         /// <summary>
         /// Can the item be used?
@@ -184,14 +194,29 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <returns>True if the item can be used.</returns>
         public virtual bool CanUseItem(ItemAbility itemAbility, UseAbilityState abilityState)
         {
+            return CanUseItem(itemAbility, abilityState, true);
+        }
+
+        /// <summary>
+        /// Can the item be used?
+        /// </summary>
+        /// <param name="itemAbility">The itemAbility that is trying to use the item.</param>
+        /// <param name="abilityState">The state of the Use ability when calling CanUseItem.</param>
+        /// <param name="checkAttributes">Should the use attributes be checked?</param>
+        /// <returns>True if the item can be used.</returns>
+        protected bool CanUseItem(ItemAbility itemAbility, UseAbilityState abilityState, bool checkAttributes)
+        {
             // Prevent the item from being used too soon.
             if (Time.time < m_NextAllowedUseTime) {
                 return false;
             }
 
             // The attribute may prevent the item from being used (such as if the character doesn't have enough stamina to use the item).
-            if ((m_UseAttribute != null && !m_UseAttribute.IsValid(-m_UseAttributeAmount)) || 
-                (m_CharacterUseAttribute != null && !m_CharacterUseAttribute.IsValid(-m_CharacterUseAttributeAmount))) {
+            if (checkAttributes && InvalidUseAttributes()) {
+                // The item can no longer be used. Stop the ability.
+                if (abilityState != UseAbilityState.Start) {
+                    itemAbility.StopAbility();
+                }
                 return false;
             }
 
@@ -199,10 +224,29 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         }
 
         /// <summary>
+        /// Are the use attributes invalid?
+        /// </summary>
+        /// <returns>True if the use attributes are valid.</returns>
+        protected bool InvalidUseAttributes()
+        {
+            return (m_UseAttribute != null && !m_UseAttribute.IsValid(-m_UseAttributeAmount)) ||
+                (m_CharacterUseAttribute != null && !m_CharacterUseAttribute.IsValid(-m_CharacterUseAttributeAmount));
+        }
+
+        /// <summary>
+        /// Can the ability be started?
+        /// </summary>
+        /// <param name="ability">The ability that is trying to start.</param>
+        /// <returns>True if the ability can be started.</returns>
+        public virtual bool CanStartAbility(Ability ability) { return true; }
+
+        /// <summary>
         /// Starts the item use.
         /// </summary>
-        public virtual void StartItemUse()
+        /// <param name="useAbility">The item ability that is using the item.</param>
+        public virtual void StartItemUse(ItemAbility useAbility)
         {
+            m_LastUseTime = Time.time;
             // The use AnimatorAudioState is starting.
             m_UseAnimatorAudioStateSet.StartStopStateSelection(true);
             m_InUse = m_UseAnimatorAudioStateSet.NextState();
@@ -220,7 +264,9 @@ namespace Opsive.UltimateCharacterController.Items.Actions
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             if (m_NetworkInfo == null || m_NetworkInfo.IsLocalPlayer()) {
 #endif
-                m_NextAllowedUseTime = Time.time + m_UseRate;
+                m_NextAllowedUseTime = Time.time + (m_UseRate / m_CharacterLocomotion.TimeScale) - 
+                                            Mathf.Max(Time.time - m_LastUseTime - (m_UseRate / m_CharacterLocomotion.TimeScale), 0); // Account for being able to use quicker than the framerate.
+                m_LastUseTime = Time.time;
                 if (m_UseAttribute != null) {
                     m_UseAttribute.Value -= m_UseAttributeAmount;
                 }
@@ -304,10 +350,10 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 return;
             }
 
-            // Remove the item from the inventory before dropping it. This will ensure the dropped prefab does not contain any ItemType count so the
+            // Remove the item from the inventory before dropping it. This will ensure the dropped prefab does not contain any ItemIdentifier amount so the
             // item can't be picked up again.
-            m_Inventory.RemoveItem(m_Item.ItemType, m_Item.SlotID, false);
-            m_Item.Drop(true);
+            m_Inventory.RemoveItem(m_Item.ItemIdentifier, m_Item.SlotID, int.MaxValue, false);
+            m_Item.Drop(int.MaxValue, true);
         }
 
         /// <summary>

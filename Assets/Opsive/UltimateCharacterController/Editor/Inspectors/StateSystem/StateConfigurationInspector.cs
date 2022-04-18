@@ -4,16 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.Shared.Editor.Inspectors.Utility;
+    using Opsive.Shared.StateSystem;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.StateSystem;
+    using System;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Custom inspector for the StateConfiguration component.
     /// </summary>
@@ -43,7 +46,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Creates a new StateConfiguration.
         /// </summary>
-        [MenuItem("Assets/Create/Ultimate Character Controller/State Configuration")]
+        [MenuItem("Assets/Create/Opsive/Ultimate Character Controller/State Configuration")]
         public static void CreateStateConfiguration()
         {
             var path = EditorUtility.SaveFilePanel("Save State Configuration", InspectorUtility.GetSaveFilePath(), "StateConfiguration.asset", "asset");
@@ -187,10 +190,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             var selectedProfile = (m_StateConfiguration.Profiles != null && selectedProfileIndex < m_StateConfiguration.Profiles.Length) ? m_StateConfiguration.Profiles[selectedProfileIndex] : null;
             GUI.enabled = selectedProfile != null;
             GUILayout.EndHorizontal();
-            var name = EditorGUILayout.TextField("Name", selectedProfile != null ? selectedProfile.Name : string.Empty);
+            var selectedProfileName = EditorGUILayout.TextField("Name", selectedProfile != null ? selectedProfile.Name : string.Empty);
             if (selectedProfile != null) {
-                if (IsUniqueProfileName(name)) {
-                    selectedProfile.Name = name;
+                if (IsUniqueProfileName(selectedProfileName)) {
+                    selectedProfile.Name = selectedProfileName;
                 }
             }
             var profileType = (StateConfiguration.Profile.ProfileType)EditorGUILayout.EnumPopup("Profile Type", selectedProfile != null ? selectedProfile.Type : StateConfiguration.Profile.ProfileType.Character);
@@ -213,7 +216,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             GUI.enabled = true;
 
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -224,7 +227,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <param name="gameObject">The GameObject to copy the profiles from.</param>
         private void CopyFromGameObject(GameObject gameObject)
         {
-            var stateList = new List<UltimateCharacterController.StateSystem.State>();
+            var stateList = new List<Opsive.Shared.StateSystem.State>();
             var stateBehaviors = gameObject.GetComponents<StateBehavior>();
             for (int i = 0; i < stateBehaviors.Length; ++i) {
                 AddStatesFromObject(stateBehaviors[i], stateList);
@@ -300,11 +303,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Returns the states added to the specified object.
         /// </summary>
-        /// <param name="obj">The object to get the states from/</param>
+        /// <param name="obj">The object to get the states from.</param>
+        /// <param name="stateList">The list of states.</param>
         /// <returns>The states added to the specified object.</returns>
-        private void AddStatesFromObject(object obj, List<UltimateCharacterController.StateSystem.State> stateList)
+        private void AddStatesFromObject(object obj, List<Opsive.Shared.StateSystem.State> stateList)
         {
-            UltimateCharacterController.StateSystem.State[] states = null;
+            Opsive.Shared.StateSystem.State[] states = null;
             if (obj is StateBehavior) {
                 states = (obj as StateBehavior).States;
             } else if (obj is StateObject) {
@@ -325,10 +329,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 
             if (m_CopyType == CopyType.All || m_CopyType == CopyType.Default) {
                 // The default state has to be persisted.
-                var preset = PersistablePreset.CreatePreset(obj, UltimateCharacterController.Utility.MemberVisibility.AllPublic);
+                var preset = PersistablePreset.CreatePreset(obj, MemberVisibility.AllPublic);
                 preset.name = obj.GetType().Name;
                 AssetDatabase.AddObjectToAsset(preset, m_StateConfiguration);
-                stateList.Add(new UltimateCharacterController.StateSystem.State("Default" + preset.name, preset, null));
+                stateList.Add(new Opsive.Shared.StateSystem.State("Default" + preset.name, preset, null));
             }
         }
 
@@ -337,7 +341,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// </summary>
         /// <param name="gameObject">The GameObject that the states were added from.</param>
         /// <param name="stateList">A list of states to add.</param>
-        private void AddStatesToProfile(GameObject gameObject, List<UltimateCharacterController.StateSystem.State> stateList)
+        private void AddStatesToProfile(GameObject gameObject, List<Opsive.Shared.StateSystem.State> stateList)
         {
             if (stateList.Count == 0) {
                 return;
@@ -394,16 +398,16 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Is the profile name unique compared to the other profiles?
         /// </summary>
-        private bool IsUniqueProfileName(string name)
+        private bool IsUniqueProfileName(string profileName)
         {
             // A blank string is not unique.
-            if (string.IsNullOrEmpty(name)) {
+            if (string.IsNullOrEmpty(profileName)) {
                 return false;
             }
 
             // A name is not unique if it is equal to any other state name.
             for (int i = 0; i < m_StateConfiguration.Profiles.Length; ++i) {
-                if (m_StateConfiguration.Profiles[i].Name == name) {
+                if (m_StateConfiguration.Profiles[i].Name == profileName) {
                     return false;
                 }
             }
@@ -467,13 +471,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             if (preset != stateElement.Preset) {
                 // If the preset is just set then ensure the state name doesn't conflict with any other state name.
                 stateElement.Preset = preset;
-                var name = stateElement.Name;
+                var elementName = stateElement.Name;
                 var count = 1;
-                while (!IsUniqueStateName(profile.StateElements, stateElement, name)) {
-                    name = stateElement.Name + " " + count;
+                while (!IsUniqueStateName(profile.StateElements, stateElement, elementName)) {
+                    elementName = stateElement.Name + " " + count;
                     count++;
                 }
-                stateElement.Name = name;
+                stateElement.Name = elementName;
                 m_StateConfiguration.ResetInitialization();
             }
 
@@ -495,9 +499,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
                         continue;
                     }
 
-                    string name;
+                    string currentName;
                     // The current state cannot block itself.
-                    if ((name = currentState.Name) == stateName) {
+                    if ((currentName = currentState.Name) == stateName) {
                         continue;
                     }
                     // The selected state cannot block the current state if the current state blocks the selected state.
@@ -519,7 +523,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 
                     // The current state can block the selected state. Add the name to the popup and determine if the state is selected. A mask is used
                     // to allow multiple selected states.
-                    allStates.Add(name);
+                    allStates.Add(currentName);
                     if (blockList != null) {
                         for (int j = 0; j < blockList.Length; ++j) {
                             if (allStates[allStates.Count - 1] == blockList[j]) {
@@ -555,7 +559,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Is the state name unique compared to the other states?
         /// </summary>
-        private bool IsUniqueStateName(StateConfiguration.Profile.StateElement[] states, StateConfiguration.Profile.StateElement state, string name)
+        private bool IsUniqueStateName(StateConfiguration.Profile.StateElement[] states, StateConfiguration.Profile.StateElement state, string stateName)
         {
             // A preset is required in order to match the object type.
             if (state.Preset == null) {
@@ -563,7 +567,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             }
 
             // A blank string is not unique.
-            if (string.IsNullOrEmpty(name)) {
+            if (string.IsNullOrEmpty(stateName)) {
                 return false;
             }
 
@@ -577,7 +581,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
                 if (states[i] == state) {
                     continue;
                 }
-                if (states[i].Name == name) {
+                if (states[i].Name == stateName) {
                     return false;
                 }
             }
@@ -601,7 +605,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             m_StateReorderableList.displayAdd = true;
             m_StateReorderableList.displayRemove = true;
             m_StateConfiguration.ResetInitialization();
-            InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
             EditorUtility.SetDirty(target);
         }
 
@@ -624,7 +628,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             list.index = list.index - 1;
             m_StateReorderableList.displayRemove = stateList.Count > 0;
             m_StateConfiguration.ResetInitialization();
-            InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
             EditorUtility.SetDirty(target);
             AssetDatabase.SaveAssets();
         }

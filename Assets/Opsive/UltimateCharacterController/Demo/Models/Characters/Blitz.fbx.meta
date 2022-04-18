@@ -1,9 +1,7 @@
 fileFormatVersion: 2
 guid: a938dd9a513d2b244828f312ed5e6235
-timeCreated: 1474903012
-licenseType: Store
 ModelImporter:
-  serializedVersion: 19
+  serializedVersion: 23
   fileIDToRecycleName:
     100000: Accessories
     100002: //RootNode
@@ -301,6 +299,50 @@ ModelImporter:
     100586: VIS-thigh_pole_ik_L
     100588: VIS-thigh_pole_ik_R
     100590: VIS-thigh_R1_pole_ik
+    100592: DEF-reigns.L
+    100594: DEF-reigns.R
+    100596: ORG-foot.L
+    100598: ORG-foot.L1
+    100600: ORG-foot.R
+    100602: ORG-foot.R1
+    100604: ORG-shin.L
+    100606: ORG-shin.L1
+    100608: ORG-shin.R
+    100610: ORG-shin.R1
+    100612: ORG-shoulder.L
+    100614: ORG-shoulder.R
+    100616: ORG-thigh.L
+    100618: ORG-thigh.L1
+    100620: ORG-thigh.R
+    100622: ORG-thigh.R1
+    100624: ORG-toe.L
+    100626: ORG-toe.L1
+    100628: ORG-toe.R
+    100630: ORG-toe.R1
+    100632: reigns1.L
+    100634: reigns1.R
+    100636: reigns10.L
+    100638: reigns10.R
+    100640: reigns11.L
+    100642: reigns11.R
+    100644: reigns12.L
+    100646: reigns12.R
+    100648: reigns2.L
+    100650: reigns2.R
+    100652: reigns3.L
+    100654: reigns3.R
+    100656: reigns4.L
+    100658: reigns4.R
+    100660: reigns5.L
+    100662: reigns5.R
+    100664: reigns6.L
+    100666: reigns6.R
+    100668: reigns7.L
+    100670: reigns7.R
+    100672: reigns8.L
+    100674: reigns8.R
+    100676: reigns9.L
+    100678: reigns9.R
     400000: Accessories
     400002: //RootNode
     400004: Blitz
@@ -597,6 +639,50 @@ ModelImporter:
     400586: VIS-thigh_pole_ik_L
     400588: VIS-thigh_pole_ik_R
     400590: VIS-thigh_R1_pole_ik
+    400592: DEF-reigns.L
+    400594: DEF-reigns.R
+    400596: ORG-foot.L
+    400598: ORG-foot.L1
+    400600: ORG-foot.R
+    400602: ORG-foot.R1
+    400604: ORG-shin.L
+    400606: ORG-shin.L1
+    400608: ORG-shin.R
+    400610: ORG-shin.R1
+    400612: ORG-shoulder.L
+    400614: ORG-shoulder.R
+    400616: ORG-thigh.L
+    400618: ORG-thigh.L1
+    400620: ORG-thigh.R
+    400622: ORG-thigh.R1
+    400624: ORG-toe.L
+    400626: ORG-toe.L1
+    400628: ORG-toe.R
+    400630: ORG-toe.R1
+    400632: reigns1.L
+    400634: reigns1.R
+    400636: reigns10.L
+    400638: reigns10.R
+    400640: reigns11.L
+    400642: reigns11.R
+    400644: reigns12.L
+    400646: reigns12.R
+    400648: reigns2.L
+    400650: reigns2.R
+    400652: reigns3.L
+    400654: reigns3.R
+    400656: reigns4.L
+    400658: reigns4.R
+    400660: reigns5.L
+    400662: reigns5.R
+    400664: reigns6.L
+    400666: reigns6.R
+    400668: reigns7.L
+    400670: reigns7.R
+    400672: reigns8.L
+    400674: reigns8.R
+    400676: reigns9.L
+    400678: reigns9.R
     4300000: Mane
     4300002: Accessories
     4300004: Blitz
@@ -604,10 +690,12 @@ ModelImporter:
     13700000: Accessories
     13700002: Blitz
     13700004: Mane
+  externalObjects: {}
   materials:
     importMaterials: 0
     materialName: 0
     materialSearch: 1
+    materialLocation: 0
   animations:
     legacyGenerateAnimations: 4
     bakeSimulation: 0
@@ -620,35 +708,50 @@ ModelImporter:
     animationImportWarnings: 
     animationRetargetingWarnings: 
     animationDoRetargetingWarnings: 0
+    importAnimatedCustomProperties: 0
+    importConstraints: 0
     animationCompression: 1
     animationRotationError: 0.5
     animationPositionError: 0.5
     animationScaleError: 0.5
     animationWrapMode: 0
     extraExposedTransformPaths: []
+    extraUserProperties: []
     clipAnimations: []
     isReadable: 1
   meshes:
     lODScreenPercentages: []
-    globalScale: 100
+    globalScale: 1
     meshCompression: 0
     addColliders: 0
+    useSRGBMaterialColor: 1
+    importVisibility: 0
     importBlendShapes: 1
+    importCameras: 0
+    importLights: 0
     swapUVChannels: 0
     generateSecondaryUV: 0
     useFileUnits: 1
     optimizeMeshForGPU: 1
     keepQuads: 0
     weldVertices: 1
+    preserveHierarchy: 0
+    indexFormat: 1
     secondaryUVAngleDistortion: 8
     secondaryUVAreaDistortion: 15.000001
     secondaryUVHardAngle: 88
     secondaryUVPackMargin: 4
     useFileScale: 1
+    previousCalculatedGlobalScale: 100
+    hasPreviousCalculatedGlobalScale: 1
   tangentSpace:
     normalSmoothAngle: 60
     normalImportMode: 0
     tangentImportMode: 3
+    normalCalculationMode: 0
+    legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 1
+    blendShapeNormalImportMode: 1
+    normalSmoothingSource: 0
   importAnimation: 0
   copyAvatar: 0
   humanDescription:
@@ -663,7 +766,6 @@ ModelImporter:
     legStretch: 0.05
     feetSpacing: 0
     rootMotionBoneName: 
-    rootMotionBoneRotation: {x: 0, y: 0, z: 0, w: 1}
     hasTranslationDoF: 0
     hasExtraRoot: 0
     skeletonHasParents: 0

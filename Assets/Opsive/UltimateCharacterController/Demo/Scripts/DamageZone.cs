@@ -4,14 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Traits;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Demo
 {
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Traits;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Continuously applies damage to the character while the character is within the trigger.
     /// </summary>
@@ -57,7 +58,7 @@ namespace Opsive.UltimateCharacterController.Demo
 
             m_Health = health;
             m_HealthTransform = health.transform;
-            m_ScheduledDamageEvent = Scheduler.Schedule(m_InitialDamageDelay, Damage);
+            m_ScheduledDamageEvent = SchedulerBase.Schedule(m_InitialDamageDelay, Damage);
         }
 
         /// <summary>
@@ -69,7 +70,7 @@ namespace Opsive.UltimateCharacterController.Demo
 
             // Apply the damage again if the object still has health remaining.
             if (m_Health.Value > 0) {
-                m_ScheduledDamageEvent = Scheduler.Schedule(m_DamageInterval, Damage);
+                m_ScheduledDamageEvent = SchedulerBase.Schedule(m_DamageInterval, Damage);
             }
         }
 
@@ -87,7 +88,7 @@ namespace Opsive.UltimateCharacterController.Demo
             var health = other.GetComponentInParent<Health>();
             if (health == m_Health) {
                 // The object has left the trigger - stop applying damage.
-                Scheduler.Cancel(m_ScheduledDamageEvent);
+                SchedulerBase.Cancel(m_ScheduledDamageEvent);
                 m_Health = null;
             }
         }
@@ -102,7 +103,8 @@ namespace Opsive.UltimateCharacterController.Demo
                 var color = Color.red;
                 color.a = 0.5f;
                 Gizmos.color = color;
-                Gizmos.DrawMesh(meshCollider.sharedMesh, meshCollider.transform.position, meshCollider.transform.rotation);
+                var meshTransform = meshCollider.transform;
+                Gizmos.DrawMesh(meshCollider.sharedMesh, meshTransform.position, meshTransform.rotation);
             }
         }
     }

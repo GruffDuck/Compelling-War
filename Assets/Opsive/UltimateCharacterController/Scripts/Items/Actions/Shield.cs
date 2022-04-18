@@ -4,15 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
-using Opsive.UltimateCharacterController.Traits;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Items.Actions
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
+    using Opsive.UltimateCharacterController.Traits;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// The Shield will absorb damage applied to the character. It has its own strength factor so when too much damage has been taken it will no longer be effective.
     /// </summary>
@@ -29,7 +30,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [Tooltip("Specifies the animator and audio state for when the shield is impacted by another object.")]
         [SerializeField] protected AnimatorAudioStateSet m_ImpactAnimatorAudioStateSet = new AnimatorAudioStateSet();
         [Tooltip("Specifies if the item should wait for the OnAnimatorItemImpactComplete animation event or wait for the specified duration before completing the impact.")]
-        [SerializeField] protected AnimationEventTrigger m_ImpactCompleteEvent = new AnimationEventTrigger(false, 0.2f);
+        [SerializeField] protected AnimationSlotEventTrigger m_ImpactCompleteEvent = new AnimationSlotEventTrigger(false, 0.2f);
         [Tooltip("The name of the shield's durability attribute. When the durability reaches 0 the shield will not absorb any damage.")]
         [SerializeField] protected string m_DurabilityAttributeName = "Durability";
         [Tooltip("Should the item be dropped from the character when the durability is depleted?")]
@@ -40,7 +41,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         public bool AbsorbExplosions { get { return m_AbsorbExplosions; } set { m_AbsorbExplosions = value; } }
         public bool ApplyImpact { get { return m_ApplyImpact; } set { m_ApplyImpact = value; } }
         public AnimatorAudioStateSet ImpactAnimatorAudioStateSet { get { return m_ImpactAnimatorAudioStateSet; } set { m_ImpactAnimatorAudioStateSet = value; } }
-        public AnimationEventTrigger ImpactCompleteEvent { get { return m_ImpactCompleteEvent; } set { m_ImpactCompleteEvent = value; } }
+        public AnimationSlotEventTrigger ImpactCompleteEvent { get { return m_ImpactCompleteEvent; } set { m_ImpactCompleteEvent = value; } }
         public string DurabilityAttributeName
         {
             get { return m_DurabilityAttributeName; }
@@ -133,13 +134,21 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             }
 
             // If the shield's durability is depleted then the entire damage amount should be applied to the character.
-            if (m_DurabilityAttribute.Value == 0) {
+            if (m_DurabilityAttribute.Value == m_DurabilityAttribute.MinValue) {
                 return amount;
             }
 
             // Damage the shield and amount of damage which be applied to the character.
             var damageAmount = Mathf.Min(amount * m_AbsorptionFactor, m_DurabilityAttribute.Value);
             m_DurabilityAttribute.Value -= damageAmount;
+
+            // The shield may be dropped if the damage reaches the minimum value.
+            if (m_DurabilityAttribute.Value == m_DurabilityAttribute.MinValue && m_DropWhenDurabilityDepleted) {
+                m_Inventory.RemoveItem(m_Item.ItemIdentifier, m_Item.SlotID, 1, false);
+                m_Item.Drop(0, true);
+            }
+
+            // The remaining damage should be applied to the character.
             return amount - damageAmount;
         }
 
@@ -155,11 +164,11 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <summary>
         /// The Aim ability has started or stopped.
         /// </summary>
-        /// <param name="start">Has the Aim ability started?</param>
+        /// <param name="aim">Has the Aim ability started?</param>
         /// <param name="inputStart">Was the ability started from input?</param>
         private void OnAim(bool aim, bool inputStart)
         {
-            if (!inputStart) {
+            if (!inputStart && !(m_Item.CharacterLocomotion.LookSource is LocalLookSource)) {
                 return;
             }
             m_Aiming = aim;
@@ -174,10 +183,10 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 return;
             }
 
-            // Remove the item from the inventory before dropping it. This will ensure the dropped prefab does not contain any ItemType count so the
+            // Remove the item from the inventory before dropping it. This will ensure the dropped prefab does not contain any ItemIdentifier amount so the
             // item can't be picked up again.
-            m_Inventory.RemoveItem(m_Item.ItemType, m_Item.SlotID, false);
-            m_Item.Drop(true);
+            m_Inventory.RemoveItem(m_Item.ItemIdentifier, m_Item.SlotID, 1, false);
+            m_Item.Drop(0, true);
         }
 
         /// <summary>
