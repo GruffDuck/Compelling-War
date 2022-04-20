@@ -4,16 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character.Abilities.Items;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Inventory;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Utility;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Inventory;
+    using Opsive.UltimateCharacterController.Character.Abilities.Items;
+    using Opsive.UltimateCharacterController.Inventory;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Utility;
+    using System.Collections.Generic;
+    using UnityEngine;
+
     /// <summary>
     /// Verifies that the items are equipped or unequipped according to the AllowEquippedSlotsMask.
     /// </summary>
@@ -26,9 +28,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         private bool m_Equip;
         private Ability m_StartingAbility;
         private bool m_UnequippedItems;
-        private ItemSetManager m_ItemSetManager;
+        private ItemSetManagerBase m_ItemSetManager;
         private bool m_CanToggleItem = true;
-        private bool m_Active;
         private bool m_CanStopAbility;
         private HashSet<ItemAbility> m_ActiveEquipUnequipAbilities = new HashSet<ItemAbility>();
 
@@ -51,7 +52,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 Enabled = false;
                 return;
             }
-            m_ItemSetManager = m_GameObject.GetCachedComponent<ItemSetManager>();
+            m_ItemSetManager = m_GameObject.GetCachedComponent<ItemSetManagerBase>();
             m_StartingItemSetIndex = new int[m_EquipUnequipAbilities.Length];
             m_TargetItemSetIndex = new int[m_EquipUnequipAbilities.Length];
 
@@ -66,7 +67,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// <returns>True if the ability started.</returns>
         public bool TryToggleItem(Ability ability, bool activate)
         {
-            if (!Enabled || !m_CanToggleItem || ability is PickupItem) {
+            if (!Enabled || !m_CanToggleItem || ability is Pickup || ability == null) {
                 return false;
             }
 
@@ -79,26 +80,33 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 }
                 m_StartingAbility = null;
                 return true;
-            } else if ((m_StartingAbility != null && m_StartingAbility != ability) || (m_Active && activate)) {
-                // No need to run again if the ability is already working on toggling the item equip.
+            } else if (m_StartingAbility != null && ((!activate && m_StartingAbility != ability) || (activate && !m_Equip && m_StartingAbility == ability))) {
+                // Do not change the equip status if the ability is stopping and is not the starting ability, or the ability is already active and is unequipping.
                 return false;
             }
 
+            var startPossible = false;
             var start = false;
             var equip = false;
+            var unequippedItems = m_UnequippedItems;
             var allowEquippedSlotMask = 0;
             // If the ability is activated then the current set of items may need to be unequipped.
-            if (activate && (ability.AllowEquippedSlotsMask != -1 || (ability.AllowItemTypes != null && ability.AllowItemTypes.Length > 0))) {
+            if (activate && (ability.AllowEquippedSlotsMask != -1 || (ability.AllowItemDefinitions != null && ability.AllowItemDefinitions.Length > 0))) {
+                startPossible = true;
                 // A mask can specify if the item should be equipped.
                 if (ability.AllowEquippedSlotsMask != -1) {
+                    if (IsActive) {
+                        // If the ability is already active it should clean up and force the completion of the previous unequip.
+                        StartEquipUnequip(true);
+                    }
                     // The ability may not need to activate if the not allowed equipped items are already not equipped.
                     var currentEquippedSlots = 0;
                     Item item;
                     for (int i = 0; i < m_Inventory.SlotCount; ++i) {
-                        if ((item = m_Inventory.GetItem(i)) != null) {
+                        if ((item = m_Inventory.GetActiveItem(i)) != null) {
                             // If the current ItemSet is the defualt ItemSet then the current item can be considered unequipped. This for example will allow the body item
                             // (for puncing/kicking) to be active even if the ability says no item should be active.
-                            if (IsDefaultItemType(item.ItemType)) {
+                            if (IsDefaultItemIdentifier(item.ItemIdentifier)) {
                                 continue;
                             }
                             currentEquippedSlots |= 1 << i;
@@ -107,51 +115,52 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
 
                     if (currentEquippedSlots != 0 && !MathUtility.InLayerMask(currentEquippedSlots, 1 << ability.AllowEquippedSlotsMask)) {
                         start = true;
-                        m_UnequippedItems = true;
+                        unequippedItems = true;
                         allowEquippedSlotMask = ability.AllowEquippedSlotsMask;
                     } else {
-                        m_UnequippedItems = false;
+                        unequippedItems = false;
                     }
                 }
 
                 // An array can specify if the item can be equipped.
-                if (!m_UnequippedItems && ability.AllowItemTypes != null && ability.AllowItemTypes.Length > 0) {
+                if (!unequippedItems && ability.AllowItemDefinitions != null && ability.AllowItemDefinitions.Length > 0) {
                     Item item;
                     for (int i = 0; i < m_Inventory.SlotCount; ++i) {
-                        if ((item = m_Inventory.GetItem(i)) != null) {
+                        if ((item = m_Inventory.GetActiveItem(i)) != null) {
                             // The equipped item is a defualt item - it can be considered unequipped.
-                            if (IsDefaultItemType(item.ItemType)) {
+                            if (IsDefaultItemIdentifier(item.ItemIdentifier)) {
                                 continue;
                             }
 
                             // The item should be unequipped if it doesn't match any of the allow item types.
                             var unequip = true;
-                            for (int j = 0; j < ability.AllowItemTypes.Length; ++j) {
-                                if (ability.AllowItemTypes[j] == null) {
+                            for (int j = 0; j < ability.AllowItemDefinitions.Length; ++j) {
+                                if (ability.AllowItemDefinitions[j] == null) {
                                     continue;
                                 }
-                                if (item.ItemType == ability.AllowItemTypes[j]) {
+                                if (item.ItemIdentifier.GetItemDefinition() == ability.AllowItemDefinitions[j]) {
                                     allowEquippedSlotMask |= 1 << i;
                                     unequip = false;
                                     break;
                                 }
                             }
-                            if (!m_UnequippedItems && unequip) {
+                            if (!unequippedItems && unequip) {
                                 start = true;
-                                m_UnequippedItems = true;
+                                unequippedItems = true;
                             }
                         }
                     }
                 }
                 // If slots were unequipped when the ability started then they should be equipped when the ability stops.
-            } else if (!activate && ability.ReequipSlots && m_UnequippedItems) {
+            } else if (!activate && ability.ReequipSlots && unequippedItems) {
                 start = true;
                 equip = true;
             }
 
             if (start) {
                 m_Equip = equip;
-                if (ability is MoveTowards) {
+                m_UnequippedItems = unequippedItems;
+                if (ability is MoveTowards && (ability as MoveTowards).OnArriveAbility != null) {
                     ability = (ability as MoveTowards).OnArriveAbility;
                 }
 
@@ -173,32 +182,74 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
 
                 // Active should only be true if the ability is equipping and the original ability is reequipping the slots. If the ability is not
                 // reequipping slots then the Item Equip Verifier will not be run again after it is complete.
-                m_Active = !m_Equip && ability.ReequipSlots;
                 m_StartingAbility = ability;
-                StartAbility();
+
+                if (IsActive) {
+                    // The ability is not an ability that can start multiple times.
+                    StartEquipUnequip(false);
+                } else {
+                    StartAbility();
+                }
+            } else if (startPossible && activate && IsActive && m_StartingAbility != null && m_StartingAbility != ability) {
+                // The ability is already active. A new ability is taking over for the start.
+                m_Equip = equip;
+                m_UnequippedItems = true;
+
+                m_AllowEquippedSlotsMask = allowEquippedSlotMask;
+                m_AllowPositionalInput = ability.AllowPositionalInput;
+                m_AllowRotationalInput = ability.AllowRotationalInput;
+                m_StartingAbility = ability;
+
+                // The original item set should be reverted.
+                for (int i = 0; i < m_EquipUnequipAbilities.Length; ++i) {
+                    m_EquipUnequipAbilities[i].StartEquipUnequip(m_TargetItemSetIndex[i]);
+                }
+
             }
             return start;
         }
 
         /// <summary>
-        /// Is the specified ItemType the default ItemType within the ItemSetManager?
+        /// Is the specified ItemIdentifier the default ItemIdentifier within the ItemSetManager?
         /// </summary>
-        /// <param name="itemType">The ItemType to determine if it is the default ItemType.</param>
-        /// <returns>True if the specified ItemType is the default ItemType.</returns>
-        private bool IsDefaultItemType(ItemType itemType)
+        /// <param name="itemIdentifier">The ItemIdentifier to determine if it is the default ItemIdentifier.</param>
+        /// <returns>True if the specified ItemIdentifier is the default ItemIdentifier.</returns>
+        private bool IsDefaultItemIdentifier(IItemIdentifier itemIdentifier)
         {
             if (m_ItemSetManager != null) {
-                for (int j = 0; j < itemType.CategoryIndices.Length; ++j) {
-                    var categoryIndex = itemType.CategoryIndices[j];
-                    var activeItemSetIndex = m_ItemSetManager.ActiveItemSetIndex[categoryIndex];
-                    if (m_ItemSetManager.CategoryItemSets[categoryIndex].DefaultItemSetIndex != activeItemSetIndex) {
-                        return false;
-                    }
-                }
-            } else {
+                return m_ItemSetManager.IsDefaultItemCategory(itemIdentifier.GetItemDefinition());
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Called when another ability is attempting to start and the current ability is active.
+        /// Returns true or false depending on if the new ability should be blocked from starting.
+        /// </summary>
+        /// <param name="startingAbility">The ability that is starting.</param>
+        /// <returns>True if the ability should be blocked.</returns>
+        public override bool ShouldBlockAbilityStart(Ability startingAbility)
+        {
+            // StartingAbility will be null on remote clients.
+            if (m_StartingAbility == null || startingAbility is EquipUnequip) {
                 return false;
             }
-            return true;
+            return m_StartingAbility.ShouldBlockAbilityStart(startingAbility) || m_StartingAbility.Index < startingAbility.Index;
+        }
+
+        /// <summary>
+        /// Called when the current ability is attempting to start and another ability is active.
+        /// Returns true or false depending on if the active ability should be stopped.
+        /// </summary>
+        /// <param name="activeAbility">The ability that is currently active.</param>
+        /// <returns>True if the ability should be stopped.</returns>
+        public override bool ShouldStopActiveAbility(Ability activeAbility)
+        {
+            // StartingAbility will be null on remote clients.
+            if (m_StartingAbility == null) {
+                return false;
+            }
+            return m_StartingAbility.ShouldStopActiveAbility(activeAbility) || m_StartingAbility.Index < activeAbility.Index;
         }
 
         /// <summary>
@@ -213,31 +264,40 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             // The original ability may be null on the network.
             if (m_StartingAbility != null) {
                 m_CanStopAbility = !m_Equip && m_StartingAbility.ImmediateUnequip;
-                for (int i = 0; i < m_EquipUnequipAbilities.Length; ++i) {
-                    if (m_Equip) {
-                        // Don't equip if the character has since changed which item set is equipped.
-                        if (m_ItemSetManager.ActiveItemSetIndex[m_EquipUnequipAbilities[i].ItemSetCategoryIndex] != m_TargetItemSetIndex[i]) {
-                            continue;
-                        }
-                        m_EquipUnequipAbilities[i].StartEquipUnequip(m_StartingItemSetIndex[i]);
-                    } else {
-                        var targetItemSetIndex = m_ItemSetManager.GetTargetItemSetIndex(m_EquipUnequipAbilities[i].ItemSetCategoryIndex, m_AllowEquippedSlotsMask);
-                        var activeItemSetIndex = m_ItemSetManager.ActiveItemSetIndex[m_EquipUnequipAbilities[i].ItemSetCategoryIndex];
-                        m_StartingItemSetIndex[i] = activeItemSetIndex;
-                        if (targetItemSetIndex != activeItemSetIndex) {
-                            m_TargetItemSetIndex[i] = targetItemSetIndex;
-                            m_EquipUnequipAbilities[i].StartEquipUnequip(targetItemSetIndex, false, m_StartingAbility.ImmediateUnequip);
-                        } else {
-                            m_TargetItemSetIndex[i] = -1;
-                        }
-                    }
-                }
+                StartEquipUnequip(false);
             }
             m_CanStopAbility = true;
 
             // If the count is still zero then all of the items were unequipped in a single frame.
             if (m_ActiveEquipUnequipAbilities.Count == 0) {
                 ItemToggled();
+            }
+        }
+
+        /// <summary>
+        /// Calls the StartEquipUnequip method on the EquipUnequip ability.
+        /// </summary>
+        /// <param name="immediateEquipUnequip">Should the items be equipped or unequipped immediately?</param>
+        private void StartEquipUnequip(bool immediateEquipUnequip)
+        {
+            for (int i = 0; i < m_EquipUnequipAbilities.Length; ++i) {
+                if (m_Equip) {
+                    // Don't equip if the character has since changed which item set is equipped.
+                    if (m_ItemSetManager.ActiveItemSetIndex[m_EquipUnequipAbilities[i].ItemSetCategoryIndex] != m_TargetItemSetIndex[i]) {
+                        continue;
+                    }
+                    m_EquipUnequipAbilities[i].StartEquipUnequip(m_StartingItemSetIndex[i], true, immediateEquipUnequip);
+                } else {
+                    var targetItemSetIndex = m_ItemSetManager.GetTargetItemSetIndex(m_EquipUnequipAbilities[i].ItemSetCategoryIndex, m_AllowEquippedSlotsMask);
+                    var activeItemSetIndex = m_ItemSetManager.ActiveItemSetIndex[m_EquipUnequipAbilities[i].ItemSetCategoryIndex];
+                    m_StartingItemSetIndex[i] = activeItemSetIndex;
+                    if (targetItemSetIndex != activeItemSetIndex) {
+                        m_TargetItemSetIndex[i] = targetItemSetIndex;
+                        m_EquipUnequipAbilities[i].StartEquipUnequip(targetItemSetIndex, true, m_StartingAbility.ImmediateUnequip || immediateEquipUnequip);
+                    } else {
+                        m_TargetItemSetIndex[i] = -1;
+                    }
+                }
             }
         }
 
@@ -319,7 +379,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         public void Reset()
         {
             m_StartingAbility = null;
-            m_Active = false;
             m_UnequippedItems = false;
         }
 

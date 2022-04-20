@@ -4,14 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character
 {
+    using Opsive.Shared.Utility;
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.StateSystem;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Rotates and sets the CapsuleCollider height so it always matches the same relative location/size of the character.
     /// </summary>
@@ -76,7 +77,7 @@ namespace Opsive.UltimateCharacterController.Character
         public Vector3 CenterOffset { get { return m_CenterOffset; }
             set {
                 if (m_ColliderOffsetEvent != null) {
-                    Scheduler.Cancel(m_ColliderOffsetEvent);
+                    SchedulerBase.Cancel(m_ColliderOffsetEvent);
                     m_ColliderOffsetEvent = null;
                 }
                 AdjustCenterOffset(value);
@@ -274,8 +275,10 @@ namespace Opsive.UltimateCharacterController.Character
             var delta = targetOffset - m_CenterOffset;
             m_CapsuleCollider.center += delta;
             m_CapsuleCollider.height += delta.y / 2;
+            m_ColliderOffsetEvent = null;
 
             if (!m_CharacterLocomotion.UsingHorizontalCollisionDetection) {
+                m_CenterOffset = targetOffset;
                 return;
             }
 
@@ -288,7 +291,7 @@ namespace Opsive.UltimateCharacterController.Character
                                     m_OverlapColliders, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore) > 0) {
                 m_CapsuleCollider.center -= delta;
                 m_CapsuleCollider.height -= delta.y / 2;
-                m_ColliderOffsetEvent = Scheduler.Schedule(Time.fixedDeltaTime, AdjustCenterOffset, targetOffset);
+                m_ColliderOffsetEvent = SchedulerBase.Schedule(Time.fixedDeltaTime, AdjustCenterOffset, targetOffset);
             } else {
                 m_CenterOffset = targetOffset;
             }
@@ -331,7 +334,7 @@ namespace Opsive.UltimateCharacterController.Character
         /// </summary>
         private void OnDestroy()
         {
-            Scheduler.Cancel(m_ColliderOffsetEvent);
+            SchedulerBase.Cancel(m_ColliderOffsetEvent);
 
             EventHandler.UnregisterEvent(m_CharacterGameObject, "OnAnimatorSnapped", Initialize);
             EventHandler.UnregisterEvent<float>(m_CharacterGameObject, "OnHeightChangeAdjustHeight", AdjustCapsuleColliderHeight);

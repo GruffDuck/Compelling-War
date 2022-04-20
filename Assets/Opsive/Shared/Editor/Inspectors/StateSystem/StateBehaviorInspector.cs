@@ -1,28 +1,28 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using System;
-using System.Reflection;
-using System.Collections.Generic;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Utility;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
-namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
+namespace Opsive.Shared.Editor.Inspectors.StateSystem
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.Shared.StateSystem;
+    using Opsive.Shared.Utility;
+    using System;
+    using System.Reflection;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Contains the base inspector logic for every component which is derived from BaseComponent.
     /// </summary>
     [CustomEditor(typeof(StateBehavior), true)]
     public class StateBehaviorInspector : InspectorBase
     {
-        private const string c_EditorPrefsSelectedIndexKey = "Opsive.UltimateCharacterController.Editor.Inspectors.SelectedStateIndex";
+        private const string c_EditorPrefsSelectedIndexKey = "Opsive.Shared.Editor.Inspectors.SelectedStateIndex";
         private string SelectedIndexKey { get { return c_EditorPrefsSelectedIndexKey + "." + target.GetType() + "." + target.name; } }
 
         private ReorderableList m_ReorderableStateList;
@@ -52,7 +52,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             var foldoutIndex = 0;
             for (int i = 0; i < allFields.Count; ++i) {
                 // Do not show HideInInspector fields.
-                if (UnityEngineUtility.HasAttribute(allFields[i], typeof(HideInInspector))) {
+                if (TypeUtility.GetAttribute(allFields[i], typeof(HideInInspector)) != null) {
                     continue;
                 }
                 
@@ -120,7 +120,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             }
 
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
                 StateInspector.UpdateDefaultStateValues((target as StateBehavior).States);
             }
@@ -145,7 +145,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             StateInspector.OnStateListDraw(target, (target as StateBehavior).States, PropertyFromName("m_States"), rect, index);
 
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -169,7 +169,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             stateComponent.States = StateInspector.AddExistingPreset(stateComponent.GetType(), stateComponent.States, m_ReorderableStateList, SelectedIndexKey);
 
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -184,7 +184,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             var stateComponent = target as StateBehavior;
             stateComponent.States = StateInspector.CreatePreset(target, stateComponent.States, m_ReorderableStateList, SelectedIndexKey);
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -201,7 +201,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 
             if (EditorGUI.EndChangeCheck()) {
                 EditorPrefs.SetInt(SelectedIndexKey, list.index);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -217,7 +217,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             stateComponent.States = StateInspector.OnStateListRemove(stateComponent.States, PropertyFromName("m_States"), SelectedIndexKey, list);
 
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }

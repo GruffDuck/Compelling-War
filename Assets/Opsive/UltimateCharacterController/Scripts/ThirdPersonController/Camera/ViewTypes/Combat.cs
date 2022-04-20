@@ -4,18 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character.Abilities;
-using Opsive.UltimateCharacterController.Events;
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTypes
 {
+    using Opsive.Shared.Events;
+    using Opsive.UltimateCharacterController.Character.Abilities;
+    using UnityEngine;
+
     /// <summary>
     /// The Combat View Type will inherit the functionality from the Third Person View Type while keeping the camera rotated to the same local yaw value
     /// as the character.
     /// </summary>
     [UltimateCharacterController.Camera.ViewTypes.RecommendedMovementType(typeof(Character.MovementTypes.Combat))]
-    [UltimateCharacterController.StateSystem.AddState("Zoom", "edafe89541fb59d4dba60703f5b1574a")]
+    [UltimateCharacterController.Camera.ViewTypes.RecommendedMovementType(typeof(Character.MovementTypes.FourLegged))]
+    [Shared.StateSystem.AddState("Zoom", "edafe89541fb59d4dba60703f5b1574a")]
     public class Combat : ThirdPerson
     {
         private bool m_RotateWithCharacter;

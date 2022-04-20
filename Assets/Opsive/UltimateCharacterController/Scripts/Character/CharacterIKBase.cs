@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.StateSystem;
-using System;
-
 namespace Opsive.UltimateCharacterController.Character
 {
+    using Opsive.Shared.StateSystem;
+    using System;
+    using UnityEngine;
+
     /// <summary>
     /// Base class for applying IK on the character. Allows other IK solutions to easily be used instead of Unity's IK system.
     /// </summary>
@@ -40,6 +40,19 @@ namespace Opsive.UltimateCharacterController.Character
         /// </summary>
         /// <param name="fixedUpdate">Is the IK being updated within the FixedUpdate loop?</param>
         public abstract void Move(bool fixedUpdate);
+
+        /// <summary>
+        /// Sets the target that the character should look at.
+        /// </summary>
+        /// <param name="active">Should the character look at the target position?</param>
+        /// <param name="position">The position that the character should look at.</param>
+        public abstract void SetLookAtPosition(bool active, Vector3 position);
+
+        /// <summary>
+        /// Returns the default position that the character should look at.
+        /// </summary>
+        /// <returns>The default position that the character should look at.</returns>
+        public abstract Vector3 GetDefaultLookAtPosition();
 
         /// <summary>
         /// Specifies the location of the left or right hand IK target and IK hint target.

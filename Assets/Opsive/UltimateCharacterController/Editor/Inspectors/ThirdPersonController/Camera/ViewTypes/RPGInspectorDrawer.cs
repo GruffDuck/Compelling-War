@@ -4,13 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTypes;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonController.Camera.ViewTypes
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTypes;
+    using UnityEditor;
+    using UnityEngine;
+
     /// <summary>
     /// Draws a custom inspector for the RPG View Type.
     /// </summary>
@@ -26,7 +27,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
         {
             base.OnInspectorGUI(target, parent);
 
-            if (InspectorUtility.Foldout(target, "RPG")) {
+            if (Opsive.Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "RPG")) {
                 EditorGUI.indentLevel++;
                 InspectorUtility.DrawField(target, "m_YawSnapDamping");
                 InspectorUtility.DrawField(target, "m_AllowFreeMovement");

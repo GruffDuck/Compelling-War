@@ -3,8 +3,9 @@
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
@@ -13,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Data:
     m_ObjectType: Opsive.UltimateCharacterController.Items.Item
-    m_ValueHashes: 3d259b4867ae675d80ce8a07ae8b2f8ad923c7cac90a8319622da28369226272d0f60f30afa5f46fc2dee3d5aa3e78f4
+    m_ValueHashes: 3d259b4867ae675d80ce8a07ae8b2f8ad923c7cac90a8319622da28369226272d0f60f30afa5f46f70c98bfb9868e71a
     m_ValuePositions: 000000000400000005000000060000000700000008000000090000000a0000000b0000000c0000000c0000000d000000
     m_Values: 000000000000000000000000009a99193e
     m_UnityObjects: []
-    m_Version: 2.0
+    m_Version: 3.1

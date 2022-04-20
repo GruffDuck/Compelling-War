@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Game;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using Opsive.Shared.Game;
+    using UnityEngine;
+
     /// <summary>
     /// Plays a random idle animation based off of the AbilityFloatData animator parameter.
     /// </summary>
@@ -74,6 +74,9 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             DetermineAbilityFloatDataValue();
         }
 
+        /// <summary>
+        /// Determines the next AbilityFloatData value.
+        /// </summary>
         private void DetermineAbilityFloatDataValue()
         {
             if (m_RandomValue) {
@@ -84,7 +87,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             m_CharacterLocomotion.UpdateAbilityAnimatorParameters();
 
             // A new value should be chosen between the min and max duration.
-            m_FloatChangeEvent = Scheduler.ScheduleFixed(Random.Range(m_MinDuration, m_MaxDuration), DetermineAbilityFloatDataValue);
+            m_FloatChangeEvent = SchedulerBase.ScheduleFixed(Random.Range(m_MinDuration, m_MaxDuration), DetermineAbilityFloatDataValue);
         }
 
         /// <summary>
@@ -108,7 +111,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             m_CanStartTime = -1;
 
             // DetermineAbilityFloatDataValue no longer needs to be called.
-            Scheduler.Cancel(m_FloatChangeEvent);
+            SchedulerBase.Cancel(m_FloatChangeEvent);
             m_FloatChangeEvent = null;
         }
     }

@@ -4,13 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Enables or disables the ragdoll colliders. Can be started when the character dies.
     /// </summary>
@@ -18,6 +20,9 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
     [DefaultState("Death")]
     [DefaultAllowPositionalInput(false)]
     [DefaultAllowRotationalInput(false)]
+    [DefaultUseGravity(AbilityBoolOverride.False)]
+    [DefaultDetectHorizontalCollisions(AbilityBoolOverride.False)]
+    [DefaultDetectVerticalCollisions(AbilityBoolOverride.False)]
     public class Ragdoll : Ability
     {
         [Tooltip("Should the ability start when the character dies?")]
@@ -39,7 +44,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         public Vector3 CameraRotationalForce { get { return m_CameraRotationalForce; } set { m_CameraRotationalForce = value; } }
         
         private Rigidbody[] m_Rigidbodies;
-        private CollisionDetectionMode[] m_RigidbodyCollisionDetectionMode;
         private GameObject[] m_RigidbodyGameObjects;
 
         private Vector3 m_Force;
@@ -65,7 +69,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             // The character's Rigidbody should be ignored.
             var index = 0;
             m_Rigidbodies = new Rigidbody[rigidbodies.Length - 1];
-            m_RigidbodyCollisionDetectionMode = new CollisionDetectionMode[m_Rigidbodies.Length];
             m_RigidbodyGameObjects = new GameObject[m_Rigidbodies.Length];
             for (int i = 0; i < rigidbodies.Length; ++i) {
                 if (rigidbodies[i] == characterRigidbody) {
@@ -73,7 +76,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 }
 
                 m_Rigidbodies[index] = rigidbodies[i];
-                m_RigidbodyCollisionDetectionMode[index] = rigidbodies[i].collisionDetectionMode;
                 m_RigidbodyGameObjects[index] = rigidbodies[i].gameObject;
                 index++;
             }
@@ -93,7 +95,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
 
             EventHandler.ExecuteEvent(m_GameObject, "OnCameraRotationalForce", m_CameraRotationalForce * (m_FromDeath ? m_Force.magnitude : 1));
 
-            Scheduler.ScheduleFixed(m_StartDelay, EnableRagdoll, true, m_Force, m_Position);
+            SchedulerBase.ScheduleFixed(m_StartDelay, EnableRagdoll, true, m_Force, m_Position);
 
             m_FromDeath = false;
         }
@@ -121,16 +123,12 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
 
             // Add the ragdoll force.
             for (int i = 0; i < m_Rigidbodies.Length; ++i) {
-                m_Rigidbodies[i].useGravity = enable;
-                // The collision detection mode may have changed.
-                if (!enable) {
-                    m_RigidbodyCollisionDetectionMode[i] = m_Rigidbodies[i].collisionDetectionMode;
-                }
-                m_Rigidbodies[i].collisionDetectionMode = enable ? m_RigidbodyCollisionDetectionMode[i] : CollisionDetectionMode.Discrete;
+                m_Rigidbodies[i].useGravity = m_CharacterLocomotion.UseGravity;
+                m_Rigidbodies[i].collisionDetectionMode = enable ? CollisionDetectionMode.ContinuousSpeculative : CollisionDetectionMode.Discrete;
                 m_Rigidbodies[i].isKinematic = !enable;
                 m_Rigidbodies[i].constraints = (enable ? RigidbodyConstraints.None : RigidbodyConstraints.FreezeAll);
                 m_RigidbodyGameObjects[i].layer = enable ? m_RagdollLayer : m_InactiveRagdollLayer;
-                if (enable) {
+                if (enable && force.sqrMagnitude > 0) {
                     m_Rigidbodies[i].AddForceAtPosition(force, position, ForceMode.Force);
                 }
             }
@@ -186,7 +184,9 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             base.AbilityStopped(force);
 
             // Snap the animator back into position.
-            EventHandler.ExecuteEvent(m_GameObject, "OnCharacterSnapAnimator");
+            if (m_CharacterLocomotion.Alive) {
+                EventHandler.ExecuteEvent(m_GameObject, "OnCharacterSnapAnimator");
+            }
         }
 
         /// <summary>
@@ -216,10 +216,10 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
             // Save the rigidbody values so they can be sent across the network.
             for (int i = 0; i < m_Rigidbodies.Length; ++i) {
-                m_StartData[(i * 3)] = m_Rigidbodies[i].position;
-                m_StartData[(i * 3) + 1] = m_Rigidbodies[i].rotation;
-                m_StartData[(i * 3) + 2] = m_Rigidbodies[i].velocity;
-                m_StartData[(i * 3) + 3] = m_Rigidbodies[i].angularVelocity;
+                m_StartData[(i * 4)] = m_Rigidbodies[i].position;
+                m_StartData[(i * 4) + 1] = m_Rigidbodies[i].rotation;
+                m_StartData[(i * 4) + 2] = m_Rigidbodies[i].velocity;
+                m_StartData[(i * 4) + 3] = m_Rigidbodies[i].angularVelocity;
             }
             return m_StartData; 
         }
@@ -230,16 +230,17 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// <param name="startData">The data required to start the ability.</param>
         public override void SetNetworkStartData(object[] startData)
         {
+            m_StartData = startData;
             m_Force = Vector3.zero;
             m_Position = Vector3.zero;
             m_CharacterLocomotion.TryStartAbility(this, true, true);
 
             // Restore the rigidbody momentum.
             for (int i = 0; i < m_Rigidbodies.Length; ++i) {
-                m_Rigidbodies[i].position = (Vector3)m_StartData[(i * 3)];
-                m_Rigidbodies[i].rotation = (Quaternion)m_StartData[(i * 3) + 1];
-                m_Rigidbodies[i].velocity = (Vector3)m_StartData[(i * 3) + 2];
-                m_Rigidbodies[i].angularVelocity = (Vector3)m_StartData[(i * 3) + 3];
+                m_Rigidbodies[i].position = (Vector3)m_StartData[(i * 4)];
+                m_Rigidbodies[i].rotation = (Quaternion)m_StartData[(i * 4) + 1];
+                m_Rigidbodies[i].velocity = (Vector3)m_StartData[(i * 4) + 2];
+                m_Rigidbodies[i].angularVelocity = (Vector3)m_StartData[(i * 4) + 3];
             }
         }
 #endif

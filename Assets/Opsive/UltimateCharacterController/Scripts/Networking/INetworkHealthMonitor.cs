@@ -4,10 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.Networking.Traits
 {
+    using UnityEngine;
+    using Opsive.UltimateCharacterController.Traits.Damage;
+
     /// <summary>
     /// Defines an object that can take damage over the network using the Health component.
     /// </summary>
@@ -22,9 +23,9 @@ namespace Opsive.UltimateCharacterController.Networking.Traits
         /// <param name="forceMagnitude">The magnitude of the force that is applied to the object.</param>
         /// <param name="frames">The number of frames to add the force to.</param>
         /// <param name="radius">The radius of the explosive damage. If 0 then a non-explosive force will be used.</param>
-        /// <param name="attacker">The GameObject that did the damage.</param>
+        /// <param name="originator">The object that did the damage.</param>
         /// <param name="hitCollider">The Collider that was hit.</param>
-        void OnDamage(float amount, Vector3 position, Vector3 direction, float forceMagnitude, int frames, float radius, GameObject attacker, Collider hitCollider);
+        void OnDamage(float amount, Vector3 position, Vector3 direction, float forceMagnitude, int frames, float radius, IDamageOriginator originator, Collider hitCollider);
 
         /// <summary>
         /// The object is no longer alive.

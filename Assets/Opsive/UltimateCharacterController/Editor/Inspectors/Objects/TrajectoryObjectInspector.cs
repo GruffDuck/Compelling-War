@@ -4,19 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Objects;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+    using Opsive.UltimateCharacterController.Objects;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Custom inspector for the TrajectoryObject component.
     /// </summary>
-    [CustomEditor(typeof(TrajectoryObject))]
+    [CustomEditor(typeof(TrajectoryObject), true)]
     public class TrajectoryObjectInspector : InspectorBase
     {
         private TrajectoryObject m_TrajectoryObject;
@@ -63,10 +63,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
                 EditorGUILayout.PropertyField(PropertyFromName("m_ImpactLayers"));
                 EditorGUILayout.PropertyField(PropertyFromName("m_SurfaceImpact"));
                 EditorGUILayout.PropertyField(PropertyFromName("m_ForceMultiplier"));
-                EditorGUILayout.PropertyField(PropertyFromName("m_BounceMode"));
-                if (PropertyFromName("m_BounceMode").enumValueIndex != (int)TrajectoryObject.BounceMode.None) {
-                    EditorGUILayout.PropertyField(PropertyFromName("m_BounceMultiplier"));
-                } else {
+                var collisionModeProperty = PropertyFromName("m_CollisionMode");
+                EditorGUILayout.PropertyField(collisionModeProperty);
+                if (collisionModeProperty.enumValueIndex != (int)TrajectoryObject.CollisionMode.Collide && 
+                    collisionModeProperty.enumValueIndex != (int)TrajectoryObject.CollisionMode.Ignore) {
+                    EditorGUILayout.PropertyField(PropertyFromName("m_ReflectMultiplier"));
+                } else if (collisionModeProperty.enumValueIndex == (int)TrajectoryObject.CollisionMode.Collide) {
                     if (target is Destructible) {
                         EditorGUILayout.PropertyField(PropertyFromName("m_StickyLayers"), true);
                     }
@@ -76,7 +78,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
 
             if (Foldout("Audio")) {
                 EditorGUI.indentLevel++;
-                m_ReorderableActiveAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_TrajectoryObject.ActiveAudioClipSet, PropertyFromName("m_ActiveAudioClipSet"), m_ReorderableActiveAudioClipsList, OnActiveAudioClipDraw, OnActiveAudioClipListAdd, OnActiveAudioClipListRemove);
+                m_ReorderableActiveAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_TrajectoryObject.ActiveAudioClipSet, m_ReorderableActiveAudioClipsList, OnActiveAudioClipDraw, OnActiveAudioClipListAdd, OnActiveAudioClipListRemove);
                 EditorGUI.indentLevel--;
             }
 
@@ -89,7 +91,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
             }
 
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Value Change");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Value Change");
                 serializedObject.ApplyModifiedProperties();
             }
         }

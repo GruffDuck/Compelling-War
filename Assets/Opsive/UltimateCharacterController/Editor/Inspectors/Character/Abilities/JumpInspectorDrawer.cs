@@ -4,15 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Character.Abilities;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abilities
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.Character.Abilities;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Draws a custom inspector for the Jump Ability.
     /// </summary>
@@ -20,7 +21,24 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
     public class JumpInspectorDrawer : AbilityInspectorDrawer
     {
         private Jump m_Jump;
-        private ReorderableList m_ReorderableRepeatedJumpAudioClipsList;
+        private ReorderableList m_ReorderableAirborneJumpAudioClipsList;
+
+        /// <summary>
+        /// The ability has been added to the Ultimate Character Locomotion. Perform any initialization.
+        /// </summary>
+        /// <param name="ability">The ability that has been added.</param>
+        /// <param name="parent">The parent of the added ability.</param>
+        public override void AbilityAdded(Ability ability, Object parent)
+        {
+            base.AbilityAdded(ability, parent);
+
+            // The character should jump immediately if there is no animator.
+            var characterLocomotion = parent as UltimateCharacterController.Character.UltimateCharacterLocomotion;
+            var animator = characterLocomotion.GetComponent<Animator>();
+            if (animator == null) {
+                (ability as Jump).JumpEvent = new UltimateCharacterController.Utility.AnimationEventTrigger(false, 0);
+            }
+        }
 
         /// <summary>
         /// Draws the fields related to the inspector drawer.
@@ -33,22 +51,24 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
 
             InspectorUtility.DrawField(target, "m_MinCeilingJumpHeight");
             InspectorUtility.DrawField(target, "m_GroundedGracePeriod");
+            InspectorUtility.DrawField(target, "m_PreventSlopeLimitJump");
             InspectorUtility.DrawField(target, "m_Force");
             InspectorUtility.DrawField(target, "m_SidewaysForceMultiplier");
             InspectorUtility.DrawField(target, "m_BackwardsForceMultiplier");
             InspectorUtility.DrawField(target, "m_Frames");
+            InspectorUtility.DrawField(target, "m_ForceDamping");
             InspectorUtility.DrawField(target, "m_JumpEvent");
             InspectorUtility.DrawField(target, "m_JumpSurfaceImpact");
             InspectorUtility.DrawField(target, "m_ForceHold");
             InspectorUtility.DrawField(target, "m_ForceDampingHold");
-            InspectorUtility.DrawField(target, "m_MaxRepeatedJumpCount");
-            if (m_Jump.MaxRepeatedJumpCount > 0) {
+            InspectorUtility.DrawField(target, "m_MaxAirborneJumpCount");
+            if (m_Jump.MaxAirborneJumpCount != 0) {
                 EditorGUI.indentLevel++;
-                InspectorUtility.DrawField(target, "m_RepeatedJumpForce");
-                InspectorUtility.DrawField(target, "m_RepeatedJumpFrames");
-                if (InspectorUtility.Foldout(target, "Repeated Jump Audio")) {
+                InspectorUtility.DrawField(target, "m_AirborneJumpForce");
+                InspectorUtility.DrawField(target, "m_AirborneJumpFrames");
+                if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Airborne Jump Audio")) {
                     EditorGUI.indentLevel++;
-                    m_ReorderableRepeatedJumpAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Jump.RepeatedJumpAudioClipSet, null, m_ReorderableRepeatedJumpAudioClipsList, OnRepeatedJumpAudioClipDraw, OnRepeatedJumpAudioClipListAdd, OnRepeatedJumpAudioClipListRemove);
+                    m_ReorderableAirborneJumpAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Jump.AirborneJumpAudioClipSet, m_ReorderableAirborneJumpAudioClipsList, OnAirborneJumpAudioClipDraw, OnAirborneJumpAudioClipListAdd, OnAirborneJumpAudioClipListRemove);
                     EditorGUI.indentLevel--;
                 }
                 EditorGUI.indentLevel--;
@@ -60,26 +80,26 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
         /// <summary>
         /// Draws the AudioClip element.
         /// </summary>
-        private void OnRepeatedJumpAudioClipDraw(Rect rect, int index, bool isActive, bool isFocused)
+        private void OnAirborneJumpAudioClipDraw(Rect rect, int index, bool isActive, bool isFocused)
         {
-            AudioClipSetInspector.OnAudioClipDraw(m_ReorderableRepeatedJumpAudioClipsList, rect, index, m_Jump.RepeatedJumpAudioClipSet, null);
+            AudioClipSetInspector.OnAudioClipDraw(m_ReorderableAirborneJumpAudioClipsList, rect, index, m_Jump.AirborneJumpAudioClipSet, null);
         }
 
         /// <summary>
         /// Adds a new AudioClip element to the AudioClipSet.
         /// </summary>
-        private void OnRepeatedJumpAudioClipListAdd(ReorderableList list)
+        private void OnAirborneJumpAudioClipListAdd(ReorderableList list)
         {
-            AudioClipSetInspector.OnAudioClipListAdd(list, m_Jump.RepeatedJumpAudioClipSet, null);
+            AudioClipSetInspector.OnAudioClipListAdd(list, m_Jump.AirborneJumpAudioClipSet, null);
         }
 
         /// <summary>
         /// Remove the AudioClip element at the list index.
         /// </summary>
-        private void OnRepeatedJumpAudioClipListRemove(ReorderableList list)
+        private void OnAirborneJumpAudioClipListRemove(ReorderableList list)
         {
-            AudioClipSetInspector.OnAudioClipListRemove(list, m_Jump.RepeatedJumpAudioClipSet, null);
-            m_Jump.RepeatedJumpAudioClipSet.AudioClips = (AudioClip[])list.list;
+            AudioClipSetInspector.OnAudioClipListRemove(list, m_Jump.AirborneJumpAudioClipSet, null);
+            m_Jump.AirborneJumpAudioClipSet.AudioClips = (AudioClip[])list.list;
         }
     }
 }

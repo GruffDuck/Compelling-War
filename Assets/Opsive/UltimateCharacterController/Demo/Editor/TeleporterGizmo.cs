@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using Opsive.UltimateCharacterController.Demo.Objects;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Demo
 {
+    using Opsive.UltimateCharacterController.Demo.Objects;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using UnityEditor;
+    using UnityEngine;
+
     /// <summary>
     /// Shows a custom gizmo for the Teleporter component.
     /// </summary>
@@ -25,17 +25,17 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Demo
             var boxCollider = teleporter.GetComponent<BoxCollider>();
             if (boxCollider != null) {
                 Gizmos.color = teleporter.GizmoColor;
-                var transform = teleporter.transform;
-                Gizmos.matrix = Matrix4x4.TRS(transform.position, transform.rotation, transform.lossyScale);
-                Gizmos.DrawCube(boxCollider.center, Vector3.Scale(boxCollider.size, boxCollider.transform.localScale));
+                var teleporterTransform = teleporter.transform;
+                Gizmos.matrix = Matrix4x4.TRS(teleporterTransform.position, teleporterTransform.rotation, teleporterTransform.lossyScale);
+                var localScale = teleporterTransform.localScale;
+                Gizmos.DrawCube(boxCollider.center, Vector3.Scale(boxCollider.size, localScale));
 
                 Gizmos.color = InspectorUtility.GetContrastColor(teleporter.GizmoColor);
-                Gizmos.DrawWireCube(boxCollider.center, Vector3.Scale(boxCollider.size, boxCollider.transform.localScale));
+                Gizmos.DrawWireCube(boxCollider.center, Vector3.Scale(boxCollider.size, localScale));
             }
 
             if (teleporter.Destination != null) {
                 Gizmos.color = teleporter.GizmoColor;
-                var transform = teleporter.transform;
                 Gizmos.matrix = Matrix4x4.TRS(teleporter.Destination.position, teleporter.Destination.rotation, teleporter.Destination.lossyScale);
                 Gizmos.DrawSphere(Vector3.zero, 0.2f);
 

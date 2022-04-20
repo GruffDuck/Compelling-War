@@ -4,34 +4,38 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Items;
+    using UnityEngine;
+
     /// <summary>
     /// Component which represents the item object actually rendererd.
     /// </summary>
     public class ThirdPersonPerspectiveItem : PerspectiveItem
     {
-        [Tooltip("Should the Object object be spawned based on the character's humanoid bone?")]
-        [SerializeField] protected bool m_UseParentHumanoidBone = true;
-        [Tooltip("If using the humanoid bone, specifies which bone to use.")]
-        [SerializeField] protected HumanBodyBones m_ParentHumanoidBone = HumanBodyBones.RightHand;
         [Tooltip("The location of the non-dominant hand which should be placed by the IK implementation.")]
         [SerializeField] protected Transform m_NonDominantHandIKTarget;
+        [Tooltip("The ID of the ObjectIdentifier component belong to the Transform that specifies the location of the non-dominant hand. This ID will be used when hand IK Target is null and the the ID is not -1.")]
+        [SerializeField] protected int m_NonDominantHandIKTargetID = -1;
         [Tooltip("The location of the non-dominant hand hint which should be placed by the IK implementation.")]
         [SerializeField] protected Transform m_NonDominantHandIKTargetHint;
+        [Tooltip("The ID of the ObjectIdentifier component belong to the Transform that specifies the location of the non-dominant hand hint. This ID will be used when hand IK Target Hint is null and the the ID is not -1.")]
+        [SerializeField] protected int m_NonDominantHandIKTargetHintID = -1;
         [Tooltip("The transform that the item should be holstered to when unequipped.")]
         [SerializeField] protected Transform m_HolsterTarget;
-        [Tooltip("The ID of the ObjectIdentifier component that the item should be holstered to when unequipped. This id will be used when holster target is null and the the ID is -1.")]
+        [Tooltip("The ID of the ObjectIdentifier component that the item should be holstered to when unequipped. This ID will be used when holster target is null and the the ID is not -1.")]
         [SerializeField] protected int m_HolsterID = -1;
 
         [NonSerialized] public Transform NonDominantHandIKTarget { get { return m_NonDominantHandIKTarget; } set { m_NonDominantHandIKTarget = value; } }
+        [NonSerialized] public int NonDominantHandIKTargetID { get { return m_NonDominantHandIKTargetID; } set { m_NonDominantHandIKTargetID = value; } }
         [NonSerialized] public Transform NonDominantHandIKTargetHint { get { return m_NonDominantHandIKTargetHint; } set { m_NonDominantHandIKTargetHint = value; } }
+        [NonSerialized] public int NonDominantHandIKTargetHintID { get { return m_NonDominantHandIKTargetHintID; } set { m_NonDominantHandIKTargetHintID = value; } }
+        [NonSerialized] public Transform HolsterTarget { get { return m_HolsterTarget; } set { m_HolsterTarget = value; } }
 
         private CharacterIKBase m_CharacterIK;
         private Transform m_ParentBone;
@@ -50,6 +54,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
         /// <returns>True if the item was initialized successfully.</returns>
         public override bool Initialize(GameObject character)
         {
+            if (m_Initialized) { return true; }
+
             if (!base.Initialize(character)) {
                 return false;
             }
@@ -62,6 +68,20 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
                 m_StartLocalPosition = m_ObjectTransform.localPosition;
                 m_StartLocalRotation = m_ObjectTransform.localRotation;
                 m_ParentBone = m_StartParentTransform.parent; // Represents the bone that the item is equipped to.
+            }
+
+            // If the non-dominant hand IK ID isn't -1 then the Hand IK Target reference will contain the Transform that the item should be attached to.
+            if ((m_NonDominantHandIKTarget == null && m_NonDominantHandIKTargetID != -1) || 
+                (m_NonDominantHandIKTargetHint == null && m_NonDominantHandIKTargetHintID != -1)) {
+                var objectIDs = m_Character.GetComponentsInChildren<Objects.ObjectIdentifier>();
+                for (int i = 0; i < objectIDs.Length; ++i) {
+                    if (m_NonDominantHandIKTargetID == objectIDs[i].ID) {
+                        m_NonDominantHandIKTarget = objectIDs[i].transform;
+                    }
+                    if (m_NonDominantHandIKTargetHintID == objectIDs[i].ID) {
+                        m_NonDominantHandIKTargetHint = objectIDs[i].transform;
+                    }
+                }
             }
 
             // If the holster ID isn't -1 then the HolsterTarget reference will contain the Transform that the item should be attached to.
@@ -95,28 +115,11 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
         protected override Transform GetSpawnParent(GameObject character, int slotID, bool parentToItemSlotID)
         {
             Transform parent = null;
-            // If using a humanoid bone then use the character's Animator to find the bone and then get the ItemPlacement component from that bone.
-            if (m_UseParentHumanoidBone) {
-                var characterAnimator = character.GetCachedComponent<Animator>();
-                if (characterAnimator != null) {
-                    parent = characterAnimator.GetBoneTransform(m_ParentHumanoidBone);
-                    if (parent != null) {
-                        var itemSlot = parent.GetComponentInChildren<ItemSlot>(true);
-                        if (itemSlot != null) {
-                            parent = itemSlot.transform;
-                        }
-                    }
-                }
-            }
-
-            // Fallback to using the ItemSlot ID.
-            if (parent == null) {
-                var itemSlots = character.GetComponentsInChildren<ItemSlot>(true);
-                for (int i = 0; i < itemSlots.Length; ++i) {
-                    if (itemSlots[i].ID == slotID) {
-                        parent = itemSlots[i].transform;
-                        break;
-                    }
+            var itemSlots = character.GetComponentsInChildren<ItemSlot>(true);
+            for (int i = 0; i < itemSlots.Length; ++i) {
+                if (itemSlots[i].ID == slotID) {
+                    parent = itemSlots[i].transform;
+                    break;
                 }
             }
 
@@ -126,7 +129,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
         /// <summary>
         /// Is the VisibleItem active?
         /// </summary>
-        /// <returns>True if the VisibleItem is active.</param>
+        /// <returns>True if the VisibleItem is active.</returns>
         public override bool IsActive()
         {
             // If a holster target is specified then the VisibleItem will never completely deactivate. Determine if it is active by the Transform parent.
@@ -144,10 +147,11 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
         /// Activates or deactivates the VisibleItem.
         /// </summary>
         /// <param name="active">Should the VisibleItem be activated?</param>
-        public override void SetActive(bool active)
+        /// <param name="hasItem">Does the inventory contain the item?</param>
+        public override void SetActive(bool active, bool hasItem)
         {
             // If a holster target is specified then deactivating the VisibleItem will mean setting the parent transform of the object to that holster target.
-            if (m_HolsterTarget != null) {
+            if (m_HolsterTarget != null && hasItem) {
                 if (active) {
                     m_ObjectTransform.parent = m_StartParentTransform;
                     m_ObjectTransform.localPosition = m_StartLocalPosition;
@@ -157,9 +161,13 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
                     m_ObjectTransform.localPosition = Vector3.zero;
                     m_ObjectTransform.localRotation = Quaternion.identity;
                 }
+                // If the item is holstered it should always be active when it exists in the inventory.
+                if (m_Object != null) {
+                    base.SetActive(true, true);
+                }
             } else if (m_Object != null) {
                 // Allow the base object to activate or deactivate the actual object.
-                base.SetActive(active);
+                base.SetActive(active, hasItem);
             }
 
             // When the item activates or deactivates it should specify the IK target of the non-dominant hand (if any).
@@ -179,9 +187,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
 
             // The object should always be active if it is holstered.
             if (m_HolsterTarget != null) {
-                m_Object.SetActive(true);
-
-                // The holster target will be disabled until the character picks up the item.
                 m_HolsterTarget.gameObject.SetActive(true);
             }
         }
@@ -194,11 +199,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
             base.Remove();
 
             m_PickedUp = false;
-
-            // The object should always be active if it is holstered.
-            if (m_HolsterTarget != null) {
-                m_HolsterTarget.gameObject.SetActive(false);
-            }
         }
 
         /// <summary>
@@ -224,6 +224,20 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
             if (m_HolsterTarget != null && m_PickedUp) {
                 m_HolsterTarget.gameObject.SetActive(true);
             }
+        }
+
+        /// <summary>
+        /// Resets the PerspectiveItem back to the initial values.
+        /// </summary>
+        public override void ResetInitialization()
+        {
+            if (!m_Initialized) {
+                return;
+            }
+
+            base.ResetInitialization();
+
+            OnDestroy();
         }
 
         /// <summary>

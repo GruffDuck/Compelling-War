@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-
 namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
 {
+    using Opsive.UltimateCharacterController.Character;
+    using UnityEngine;
+
     /// <summary>
     /// Specifies the location that the ability should use when determining where to move the limb to. This component should be attached to the target limb location.
     /// </summary>
@@ -17,7 +17,7 @@ namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
         [Tooltip("The IK limb that should be positioned.")]
         [SerializeField] protected CharacterIKBase.IKGoal m_Goal;
         [Tooltip("The amount of time that the ability should wait before setting the IK goal.")]
-        [SerializeField] protected float m_Delay = 0;
+        [SerializeField] protected float m_Delay;
         [Tooltip("The time it takes for the limb to reach the target. A positive value is required.")]
         [SerializeField] protected float m_InterpolationDuration = 0.2f;
         [Tooltip("The amount of time after the IK goal is set that the limb should be in the IK location. This value should be greater than the interpolation duration.")]

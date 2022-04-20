@@ -4,26 +4,25 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Utility;
-using System;
-
 namespace Opsive.UltimateCharacterController.Camera.ViewTypes
 {
+    using Opsive.Shared.Game;
+    using Opsive.Shared.StateSystem;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Utility;
+    using System;
+    using UnityEngine;
+
     /// <summary>
     /// Base class for the objects which describe how the camera moves.
     /// </summary>
+    [UnityEngine.Scripting.Preserve]
     public abstract class ViewType : StateObject
     {
-        protected CameraController m_CameraController;
-        protected Transform m_Transform;
-        protected GameObject m_GameObject;
-        protected GameObject m_Character;
-        protected Transform m_CharacterTransform;
-        protected UltimateCharacterLocomotion m_CharacterLocomotion;
-        protected CharacterLayerManager m_CharacterLayerManager;
+        [Tooltip("The field of view of the camera.")]
+        [SerializeField] protected float m_FieldOfView = 70f;
+        [Tooltip("The damping time of the field of view angle when changed.")]
+        [SerializeField] protected float m_FieldOfViewDamping = 0.2f;
 
         public abstract bool FirstPersonPerspective { get; }
         public abstract float Pitch { get; }
@@ -31,6 +30,18 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
         public abstract Quaternion CharacterRotation { get; }
         public abstract float LookDirectionDistance { get; }
         public virtual bool RotatePriority { get { return true; } }
+
+        protected CameraController m_CameraController;
+        protected Transform m_Transform;
+        protected GameObject m_GameObject;
+        protected Camera m_Camera;
+        protected GameObject m_Character;
+        protected Transform m_CharacterTransform;
+        protected UltimateCharacterLocomotion m_CharacterLocomotion;
+        protected CharacterLayerManager m_CharacterLayerManager;
+
+        protected float m_FieldOfViewChangeTime;
+
         public virtual GameObject GameObject { get { return m_GameObject; } }
         public virtual Transform Transform { get { return m_Transform; } }
         public virtual GameObject CameraGameObject { get { return m_GameObject; } }
@@ -47,6 +58,7 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
             m_CameraController = cameraController;
             m_Transform = cameraController.transform;
             m_GameObject = cameraController.gameObject;
+            m_Camera = m_GameObject.GetCachedComponent<Camera>();
         }
 
         /// <summary>
@@ -97,13 +109,30 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
         /// <param name="pitch">The pitch of the camera (in degrees).</param>
         /// <param name="yaw">The yaw of the camera (in degrees).</param>
         /// <param name="characterRotation">The rotation of the character.</param>
-        public virtual void ChangeViewType(bool activate, float pitch, float yaw, Quaternion characterRotation) { }
+        public virtual void ChangeViewType(bool activate, float pitch, float yaw, Quaternion characterRotation)
+        {
+            if (activate && m_Camera.fieldOfView != m_FieldOfView) {
+                m_FieldOfViewChangeTime = Time.time + m_FieldOfViewDamping / m_CharacterLocomotion.TimeScale;
+            }
+        }
 
         /// <summary>
         /// Updates the camera field of view.
         /// </summary>
         /// <param name="immediateUpdate">Should the field of view be updated immediately?</param>
-        public virtual void UpdateFieldOfView(bool immediateUpdate) { }
+        public virtual void UpdateFieldOfView(bool immediateUpdate)
+        {
+#if ULTIMATE_CHARACTER_CONTROLLER_VR
+            if (UnityEngine.XR.XRSettings.enabled) {
+                return;
+            }
+#endif
+
+            if (m_Camera.fieldOfView != m_FieldOfView) {
+                var zoom = (immediateUpdate || m_FieldOfViewDamping == 0) ? 1 : ((Time.time - m_FieldOfViewChangeTime) / (m_FieldOfViewDamping / m_CharacterLocomotion.TimeScale));
+                m_Camera.fieldOfView = Mathf.SmoothStep(m_Camera.fieldOfView, m_FieldOfView, zoom);
+            }
+        }
 
         /// <summary>
         /// Rotates the camera according to the horizontal and vertical movement values.
@@ -124,7 +153,9 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
         /// <summary>
         /// Returns the position of the look source.
         /// </summary>
-        public virtual Vector3 LookPosition() { return m_Transform.position; }
+        /// <param name="characterLookPosition">Is the character look position being retrieved?</param>
+        /// <returns>The position of the look source.</returns>
+        public virtual Vector3 LookPosition(bool characterLookPosition) { return m_Transform.position; }
 
         /// <summary>
         /// Returns the direction that the character is looking.
@@ -139,9 +170,10 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
+        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
+        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        public abstract Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil);
+        public abstract Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread);
 
         /// <summary>
         /// Adds a positional force to the ViewType.
@@ -206,7 +238,7 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
     /// <summary>
     /// Attribute which specifies the recommended movement type for the view type.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
     public class RecommendedMovementType : Attribute
     {
         private Type m_Type;

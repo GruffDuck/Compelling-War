@@ -4,17 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Objects;
-using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-using System.Collections.Generic;
+using System.Globalization;
 
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
 {
+    using Opsive.Shared.Editor.Inspectors.StateSystem;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Objects;
+    using System;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Custom inspector for the MovingPlatform component.
     /// </summary>
@@ -48,6 +50,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
 
             baseCallback += () =>
             {
+                EditorGUILayout.PropertyField(PropertyFromName("m_UpdateLocation"));
                 if (Foldout("Path")) {
                     EditorGUI.indentLevel++;
 
@@ -70,8 +73,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
 
                     var listRect = GUILayoutUtility.GetRect(0, m_WaypointReorderableList.GetHeight());
                     // Indent the list so it lines up with the rest of the content.
-                    listRect.x += InspectorUtility.IndentWidth * indentLevel;
-                    listRect.xMax -= InspectorUtility.IndentWidth * indentLevel;
+                    listRect.x += Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * indentLevel;
+                    listRect.xMax -= Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * indentLevel;
                     m_WaypointReorderableList.DoList(listRect);
                     while (EditorGUI.indentLevel < indentLevel) {
                         EditorGUI.indentLevel++;
@@ -109,6 +112,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
 
                 if (Foldout("Interaction")) {
                     EditorGUI.indentLevel++;
+                    EditorGUILayout.PropertyField(PropertyFromName("m_CharacterTriggerLayer"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_CharacterTriggerState"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_EnableOnInteract"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_ChangeDirectionsOnInteract"));
@@ -161,7 +165,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
             }
             list.list = m_Platform.Waypoints = waypoints;
             if (target != null) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
             }
         }
 
@@ -176,7 +180,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
             list.list = m_Platform.Waypoints = waypointStateList.ToArray();
             list.index = list.index - 1;
             if (target != null) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
             }
         }
 
@@ -214,7 +218,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
                         s_DebugLabelStyle.normal.textColor = InspectorUtility.GetContrastColor(movingPlatform.GizmoColor);
                     }
                     // Draw the delay in the center of the platform.
-                    Handles.Label(movingPlatform.Waypoints[i].Transform.position, movingPlatform.Waypoints[i].Delay.ToString(), s_DebugLabelStyle);
+                    Handles.Label(movingPlatform.Waypoints[i].Transform.position, movingPlatform.Waypoints[i].Delay.ToString(CultureInfo.InvariantCulture), s_DebugLabelStyle);
                 }
 
                 // Draw a line connecting the platforms.
@@ -225,7 +229,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
                     if (movingPlatform.DrawDebugLabels) {
                         // Draw a distance in the center of the line.
                         var distance = decimal.Round((decimal)Vector3.Distance(movingPlatform.Waypoints[i - 1].Transform.position, movingPlatform.Waypoints[i].Transform.position), 3);
-                        Handles.Label((movingPlatform.Waypoints[i - 1].Transform.position + movingPlatform.Waypoints[i].Transform.position) / 2, distance.ToString(), s_DebugLabelStyle);
+                        Handles.Label((movingPlatform.Waypoints[i - 1].Transform.position + movingPlatform.Waypoints[i].Transform.position) / 2, distance.ToString(CultureInfo.InvariantCulture), s_DebugLabelStyle);
                     }
                 }
             }
@@ -239,7 +243,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
                 if (movingPlatform.DrawDebugLabels) {
                     // Draw a distance in the center of the line.
                     var distance = decimal.Round((decimal)Vector3.Distance(movingPlatform.Waypoints[0].Transform.position, movingPlatform.Waypoints[movingPlatform.Waypoints.Length - 1].Transform.position), 3);
-                    Handles.Label((movingPlatform.Waypoints[0].Transform.position + movingPlatform.Waypoints[movingPlatform.Waypoints.Length - 1].Transform.position) / 2, distance.ToString(), s_DebugLabelStyle);
+                    Handles.Label((movingPlatform.Waypoints[0].Transform.position + movingPlatform.Waypoints[movingPlatform.Waypoints.Length - 1].Transform.position) / 2, distance.ToString(CultureInfo.InvariantCulture), s_DebugLabelStyle);
                 }
             } else if (movingPlatform.MovementType == MovingPlatform.PathMovementType.Target && movingPlatform.TargetWaypoint < movingPlatform.Waypoints.Length && movingPlatform.Waypoints[movingPlatform.TargetWaypoint].Transform != null) {
                 Gizmos.color = InspectorUtility.GetContrastColor(movingPlatform.GizmoColor);

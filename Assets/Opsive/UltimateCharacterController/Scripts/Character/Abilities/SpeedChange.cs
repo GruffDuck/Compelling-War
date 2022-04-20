@@ -4,15 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// The SpeedChange ability will update the controller's horizontal and forward movement values based on the multiplier. This value will then be used
     /// by the controller and Animator to change the character's speed.
     /// </summary>
-    [AllowMultipleAbilityTypes]
+    [AllowDuplicateTypes]
     [DefaultInputName("Change Speeds")]
     [DefaultStartType(AbilityStartType.ButtonDownContinuous)]
     [DefaultStopType(AbilityStopType.ButtonUp)]
@@ -25,7 +26,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         [Tooltip("The maximum value the SpeedChangeMultiplier can change the InputVector to.")]
         [SerializeField] protected float m_MaxSpeedChangeValue = 2;
         [Tooltip("Specifies the value to set the Speed Animator parameter to.")]
-        [SerializeField] protected float m_SpeedParameter = 1;
+        [SerializeField] protected float m_SpeedParameter = 2;
         [Tooltip("Does the ability require movement in order to stay active?")]
         [SerializeField] protected bool m_RequireMovement = true;
 

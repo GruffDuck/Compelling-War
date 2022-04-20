@@ -4,19 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEditor;
-using UnityEditorInternal;
-using UnityEngine;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Traits;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState;
-using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 {
+    using Shared.Editor.Inspectors.StateSystem;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Items.Actions;
+    using Opsive.UltimateCharacterController.Traits;
+    using System;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Shows a custom inspector for the Shield component.
     /// </summary>
@@ -44,6 +44,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             m_Shield = target as Shield;
             m_Item = m_Shield.GetComponent<Item>();
             m_AttributeManager = m_Shield.GetComponent<AttributeManager>();
+            Undo.undoRedoPerformed += OnUndoRedo;
         }
 
         /// <summary>
@@ -60,7 +61,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                 EditorGUILayout.PropertyField(PropertyFromName("m_AbsorptionFactor"));
                 EditorGUILayout.PropertyField(PropertyFromName("m_AbsorbExplosions"));
                 // The names will be retrieved by the Attribute Manager.
-                var attributeName = InspectorUtility.DrawAttribute(target, m_AttributeManager, (target as Shield).DurabilityAttributeName, "Durability Attribute");
+                var attributeName = InspectorUtility.DrawAttribute(m_AttributeManager, (target as Shield).DurabilityAttributeName, "Durability Attribute");
                 if (attributeName != (target as Shield).DurabilityAttributeName) {
                     PropertyFromName("m_DurabilityAttributeName").stringValue = attributeName;
                     serializedObject.ApplyModifiedProperties();
@@ -75,7 +76,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                     EditorGUI.indentLevel++;
                     EditorGUILayout.PropertyField(PropertyFromName("m_ApplyImpact"));
                     InspectorUtility.DrawAnimationEventTrigger(target, "Impact Complete Event", PropertyFromName("m_ImpactCompleteEvent"));
-                    if (Foldout("Animator Audio")) {
+                    if (Foldout("Animator Audio", "Impact")) {
                         EditorGUI.indentLevel++;
                         AnimatorAudioStateSetInspector.DrawAnimatorAudioStateSet(m_Shield, m_Shield.ImpactAnimatorAudioStateSet, "m_ImpactAnimatorAudioStateSet", true,
                                     ref m_ReorderableImpactAnimatorAudioStateSetList, OnImpactAnimatorAudioStateListDraw, OnImpactAnimatorAudioStateListSelect,
@@ -175,7 +176,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 
             StateInspector.OnStateListDraw(animatorAudioState, animatorAudioState.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 StateInspector.UpdateDefaultStateValues(animatorAudioState.States);
             }
         }
@@ -197,7 +198,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.AddExistingPreset(animatorAudioState.GetType(), animatorAudioState.States, m_ReorderableImpactAnimatorAudioStateSetStateList, GetSelectedImpactAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedImpactAnimatorAudioStateSetIndexKey)));
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableImpactAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -211,7 +212,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.CreatePreset(animatorAudioState, animatorAudioState.States, m_ReorderableImpactAnimatorAudioStateSetStateList, GetSelectedImpactAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedImpactAnimatorAudioStateSetIndexKey)));
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableImpactAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -224,7 +225,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var animatorAudioState = m_Shield.ImpactAnimatorAudioStateSet.States[EditorPrefs.GetInt(SelectedImpactAnimatorAudioStateSetIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new UltimateCharacterController.StateSystem.State[animatorAudioState.States.Length];
+            var copiedStates = new Shared.StateSystem.State[animatorAudioState.States.Length];
             Array.Copy(animatorAudioState.States, copiedStates, animatorAudioState.States.Length);
             for (int i = 0; i < animatorAudioState.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -237,23 +238,17 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.OnStateListReorder(animatorAudioState.States);
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableImpactAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
 
         /// <summary>
-        /// The ReordableList remove button has been pressed. Remove the selected state.
+        /// The inspector has been disabled.
         /// </summary>
-        private void OnImpactAnimatorAudioStateSetStateListRemove(ReorderableList list)
+        private void OnDisable()
         {
-            var animatorAudioState = m_Shield.ImpactAnimatorAudioStateSet.States[EditorPrefs.GetInt(SelectedImpactAnimatorAudioStateSetIndexKey)];
-            var states = StateInspector.OnStateListRemove(animatorAudioState.States, GetSelectedImpactAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedImpactAnimatorAudioStateSetIndexKey)), list);
-            if (animatorAudioState.States.Length != states.Length) {
-                InspectorUtility.SynchronizePropertyCount(states, m_ReorderableImpactAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
-                animatorAudioState.States = states;
-            }
+            Undo.undoRedoPerformed -= OnUndoRedo;
         }
 
         /// <summary>

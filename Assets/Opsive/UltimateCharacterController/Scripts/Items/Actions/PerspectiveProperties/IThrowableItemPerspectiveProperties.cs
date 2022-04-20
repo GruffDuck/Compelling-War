@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
-namespace Opsive.UltimateCharacterController.Items.Actions
+namespace Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties
 {
+    using UnityEngine;
+
     /// <summary>
     /// Interface for an item action that can be thrown.
     /// </summary>

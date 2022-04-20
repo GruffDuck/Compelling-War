@@ -4,16 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.MovementTypes;
-using Opsive.UltimateCharacterController.Input;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.MovementTypes
 {
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Input;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.MovementTypes;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
-    /// The TopDown MovementType can move the character relative to a top down camera.
+    /// The TopDown MovementType can move the character relative to a top down camera Controlled by TopDownAnyAngle ViewType.
     /// </summary>
     public class TopDown : MovementType
     {
@@ -21,15 +22,15 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
         [SerializeField] protected bool m_RelativeCameraMovement = true;
         [Tooltip("Should the character look in the direction of the movement?")]
         [SerializeField] protected bool m_LookInMoveDirection;
+        [Tooltip("A reference to the character's head. This value will be retrieved automatically if using a humanoid.")]
+        [SerializeField] protected Transform m_Head;
 
         public bool RelativeCameraMovement { get { return m_RelativeCameraMovement; } set { m_RelativeCameraMovement = value; } }
         public bool LookInMoveDirection { get { return m_LookInMoveDirection; } set { m_LookInMoveDirection = value; } }
+        public override bool FirstPersonPerspective { get { return false; } }
 
         private PlayerInput m_PlayerInput;
-        private UnityEngine.Camera m_Camera;
-        private Plane m_HitPlane = new Plane();
-
-        public override bool FirstPersonPerspective { get { return false; } }
+        private Animator m_Animator;
 
         /// <summary>
         /// Initializes the MovementType.
@@ -38,22 +39,15 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
         public override void Initialize(UltimateCharacterLocomotion characterLocomotion)
         {
             base.Initialize(characterLocomotion);
-
             m_PlayerInput = characterLocomotion.gameObject.GetCachedComponent<PlayerInput>();
-        }
-
-        /// <summary>
-        /// A new ILookSource object has been attached to the character.
-        /// </summary>
-        /// <param name="lookSource">The ILookSource object attached to the character.</param>
-        protected override void OnAttachLookSource(ILookSource lookSource)
-        {
-            base.OnAttachLookSource(lookSource);
-
-            if (lookSource != null) {
-                m_Camera = lookSource.GameObject.GetCachedComponent<UnityEngine.Camera>();
-            } else {
-                m_Camera = null;
+            if (m_Head == null) {
+                m_Animator = m_GameObject.GetCachedComponent<Animator>();
+                if (m_Animator != null) {
+                    m_Head = m_Animator.GetBoneTransform(HumanBodyBones.Head);
+                }
+            }
+            if (m_Head == null) {
+                m_Head = m_Transform;
             }
         }
 
@@ -69,42 +63,25 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
         {
 #if UNITY_EDITOR
             if (m_LookSource == null) {
-                Debug.LogError("Error: There is no look source attached to the character. Ensure the character has a look source attached (such as a camera).");
+                Debug.LogError($"Error: There is no look source attached to the character {m_GameObject.name}. Ensure the character has a look source attached. For player characters the look source is the Camera Controller, and AI agents use the Local Look Source.");
                 return 0;
             }
 #endif
             if (m_LookInMoveDirection) {
                 if (characterHorizontalMovement != 0 || characterForwardMovement != 0) {
-                    var inputVector = Vector3.zero;
-                    inputVector.Set(characterHorizontalMovement, 0, characterForwardMovement);
-
-                    var lookRotation = Quaternion.LookRotation(m_LookSource.Transform.rotation * inputVector.normalized);
+                    var inputVector = new Vector3(characterHorizontalMovement, 0, characterForwardMovement);
+                    // Create a new rotation instead of using the look source rotation. The look source rotation is unreliable when the camera is facing vertically down.
+                    var lookRotation = Quaternion.LookRotation(Quaternion.LookRotation(m_LookSource.Transform.up, Vector3.up) * inputVector.normalized);
                     return MathUtility.ClampInnerAngle(MathUtility.InverseTransformQuaternion(m_Transform.rotation, lookRotation).eulerAngles.y);
                 }
             } else {
-                // The character should look towards the cursor or Mouse X/Y direction.
-                if (m_PlayerInput.IsCursorVisible()) {
-                    // Cast a ray from the mouse position to an invisible plane to determine the direction that the character should look.
-                    float distance;
-                    var ray = m_Camera.ScreenPointToRay(m_PlayerInput.GetMousePosition());
-                    var characterCenter = m_Transform.position + (m_CharacterLocomotion.Up * m_CharacterLocomotion.Height / 2);
-                    m_HitPlane.SetNormalAndPosition(m_CharacterLocomotion.Up, characterCenter);
-                    if (m_HitPlane.Raycast(ray, out distance)) {
-                        var rotation = Quaternion.LookRotation((ray.GetPoint(distance) - characterCenter).normalized, m_CharacterLocomotion.Up);
-                        return MathUtility.ClampInnerAngle(MathUtility.InverseTransformQuaternion(m_Transform.rotation, rotation).eulerAngles.y);
-                    }
-                } else {
-                    // If the mouse hasn't moved then get the axis to determine a look rotation. This will be used for controllers and virtual input.
-                    var direction = Vector3.zero;
-                    direction.x = m_PlayerInput.GetAxis(m_PlayerInput.HorizontalLookInputName);
-                    direction.z = m_PlayerInput.GetAxis(m_PlayerInput.VerticalLookInputName);
-                    if (direction.sqrMagnitude > 0.1f) {
-                        var rotation = Quaternion.LookRotation(direction.normalized, m_CharacterLocomotion.Up);
-                        return MathUtility.ClampInnerAngle(MathUtility.InverseTransformQuaternion(m_Transform.rotation, rotation).eulerAngles.y);
-                    }
+                // Rotate towards the look direction. Use the head position to prevent anomalies when using the mouse.
+                var direction = m_LookSource.LookDirection(m_Head.position, true, 0, false, false);
+                if (direction.sqrMagnitude > 0.1f) {
+                    var rotation = Quaternion.LookRotation(direction.normalized, m_CharacterLocomotion.Up);
+                    return MathUtility.ClampInnerAngle(MathUtility.InverseTransformQuaternion(m_Transform.rotation, rotation).eulerAngles.y);
                 }
             }
-
             return 0;
         }
 
@@ -122,9 +99,10 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
             var rotation = m_Transform.rotation;
             // The camera may not exist (in the case of an AI agent) but if it does move relative to the camera position.
             if (m_LookSource != null) {
-                var localEuler = MathUtility.InverseTransformQuaternion(m_LookSource.Transform.rotation, Quaternion.LookRotation(Vector3.forward, m_CharacterLocomotion.Up)).eulerAngles;
+                var localEuler = MathUtility.InverseTransformQuaternion(Quaternion.LookRotation(Vector3.forward, m_CharacterLocomotion.Up), m_LookSource.Transform.rotation).eulerAngles;
                 localEuler.x = localEuler.z = 0;
-                rotation *= MathUtility.TransformQuaternion(Quaternion.Euler(localEuler), Quaternion.LookRotation(Vector3.forward, m_CharacterLocomotion.Up));
+                localEuler.y = 360 - localEuler.y;
+                rotation *= Quaternion.Euler(localEuler);
             }
             // Convert to a local input vector. Vector3s are required for the correct calculation.
             var localInputVector = Vector3.zero;
@@ -132,11 +110,10 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
             localInputVector = Quaternion.Inverse(rotation) * localInputVector;
 
             // Store the max input vector value so it can be normalized before being returned.
-            var maxInputVectorValue = Mathf.Max(Mathf.Abs(inputVector.x), Mathf.Abs(inputVector.y));
             inputVector.x = localInputVector.x;
             inputVector.y = localInputVector.z;
             // Normalize the input vector to prevent the diagonals from moving faster.
-            inputVector = inputVector.normalized * maxInputVectorValue;
+            inputVector = Vector2.ClampMagnitude(inputVector, 1f);
 
             return inputVector;
         }
@@ -149,6 +126,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
         public override bool UseIndependentLook(bool characterLookDirection)
         {
             if (m_LookInMoveDirection || base.UseIndependentLook(characterLookDirection)) {
+                return true;
             }
             return !characterLookDirection || m_PlayerInput.IsControllerConnected();
         }

@@ -1,7 +1,13 @@
-﻿using UnityEngine;
+﻿/// ---------------------------------------------
+/// Ultimate Character Controller
+/// Copyright (c) Opsive. All Rights Reserved.
+/// https://www.opsive.com
+/// ---------------------------------------------
 
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using UnityEngine;
+
     /// <summary>
     /// Moves with the specified object. See this page for more info on the setup required:
     /// https://opsive.com/support/documentation/ultimate-character-controller/character/abilities/included-abilities/move-with-object/
@@ -14,11 +20,16 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
 
         public Transform Target { get { return m_Target; }
             set {
+                var prevTarget = m_Target;
                 m_Target = value;
 
                 if (m_Target != null && m_Target.GetComponent<Game.KinematicObject>() == null) {
                     Debug.Log("Error: The target " + Target.name + " does not have the Kinematic Object component. See the Move With Object documentation for more information.");
                     m_Target = null;
+                }
+
+                if (IsActive && prevTarget != null && m_Target != prevTarget) {
+                    m_CharacterLocomotion.SetPlatform(m_Target);
                 }
             }
         }
@@ -82,7 +93,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         {
             base.AbilityStopped(force);
 
-            m_CharacterLocomotion.SetPlatform(null);
+            m_CharacterLocomotion.SetPlatform(null, false);
         }
     }
 }

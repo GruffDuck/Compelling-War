@@ -4,16 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Objects;
-using Opsive.UltimateCharacterController.Utility;
-using Opsive.UltimateCharacterController.StateSystem;
-using System;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Character
 {
+    using Opsive.Shared.Game;
+    using Opsive.Shared.StateSystem;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Objects;
+    using Opsive.UltimateCharacterController.Utility;
+    using System;
+    using System.Collections.Generic;
+    using UnityEngine;
+
     /// <summary>
     /// The CharacterLocomotion class serves as the base character controller class. It handles the base locomotion with the following features:
     /// - Movement
@@ -34,7 +36,7 @@ namespace Opsive.UltimateCharacterController.Character
     {
         // Padding value used to prevent the character's collider from overlapping the environment collider. Overlapped colliders don't work well with ray casts.
         private const float c_ColliderSpacing = 0.01f;
-        private const float c_ColliderSpacingSquared = c_ColliderSpacing * c_ColliderSpacing;
+        private const float c_ColliderSpacingCubed = c_ColliderSpacing * c_ColliderSpacing * c_ColliderSpacing * c_ColliderSpacing;
         // Padding value used to add a bit of spacing for the slope limit.
         private const float c_SlopeLimitSpacing = 0.3f;
 
@@ -50,6 +52,8 @@ namespace Opsive.UltimateCharacterController.Character
         [SerializeField] protected float m_RootMotionRotationMultiplier = 1;
         [Tooltip("The rate at which the character can rotate. Only used by non-root motion characters.")]
         [SerializeField] protected float m_MotorRotationSpeed = 10;
+        [Tooltip("Should forces be applied independent of the framerate? If false it will be applied independent of time. This is only necessary for the Update loop.")]
+        [SerializeField] protected bool m_FramerateIndependentForce;
         [Tooltip("The mass of the character.")]
         [SerializeField] protected float m_Mass = 100;
         [Tooltip("Specifies the width of the characters skin, use for ground detection.")]
@@ -63,9 +67,9 @@ namespace Opsive.UltimateCharacterController.Character
         [Tooltip("The rate at which the character's motor force decelerates while on the ground. Only used by non-root motion characters.")]
         [SerializeField] protected float m_MotorDamping = 0.27f;
         [Tooltip("The rate at which the character's motor force accelerates while in the air. Only used by non-root motion characters.")]
-        [SerializeField] protected Vector3 m_MotorAirborneAcceleration = new Vector3(0.18f, 0, 0.18f);
+        [SerializeField] protected Vector3 m_MotorAirborneAcceleration = new Vector3(0.12f, 0, 0.12f);
         [Tooltip("The rate at which the character's motor force decelerates while in the air. Only used by non-root motion characters.")]
-        [SerializeField] protected float m_MotorAirborneDamping = 0.27f; // TODO: Change to 0.01 in a later release (2.1.1).
+        [SerializeField] protected float m_MotorAirborneDamping = 0.3f;
         [Tooltip("A multiplier which is applied to the motor while moving backwards.")]
         [SerializeField] protected float m_MotorBackwardsMultiplier = 0.7f;
         [Tooltip("A (0-1) value specifying the amount of influence the previous acceleration direction has on the current velocity.")]
@@ -91,7 +95,7 @@ namespace Opsive.UltimateCharacterController.Character
         [Tooltip("The normalized direction of the gravity force.")]
         [SerializeField] protected Vector3 m_GravityDirection = new Vector3(0, -1, 0);
         [Tooltip("A amount of gravity force to apply.")]
-        [SerializeField] protected float m_GravityMagnitude = 3.92f;
+        [SerializeField] protected float m_GravityMagnitude = 5.22f;
         [Tooltip("Can the character detect horizontal collisions?")]
         [SerializeField] protected bool m_DetectHorizontalCollisions = true;
         [Tooltip("Can the character detect vertical collisions?")]
@@ -126,7 +130,7 @@ namespace Opsive.UltimateCharacterController.Character
         [SerializeField] protected Transform[] m_SmoothedBones;
 
         public float ColliderSpacing { get { return c_ColliderSpacing; } }
-        public float ColliderSpacingSquared { get { return c_ColliderSpacingSquared; } }
+        public float ColliderSpacingCubed { get { return c_ColliderSpacingCubed; } }
         public float SlopeLimitSpacing { get { return c_SlopeLimitSpacing; } }
         public bool UseRootMotionPosition { get { return m_UseRootMotionPosition; } set { m_UseRootMotionPosition = value; } }
         public float RootMotionSpeedMultiplier { get { return m_RootMotionSpeedMultiplier; } set { m_RootMotionSpeedMultiplier = value; } }
@@ -134,6 +138,7 @@ namespace Opsive.UltimateCharacterController.Character
         public bool UseRootMotionRotation { get { return m_UseRootMotionRotation; } set { m_UseRootMotionRotation = value; } }
         public float RootMotionRotationMultiplier { get { return m_RootMotionRotationMultiplier; } set { m_RootMotionRotationMultiplier = value; } }
         public float MotorRotationSpeed { get { return m_MotorRotationSpeed; } set { m_MotorRotationSpeed = value; } }
+        public bool FramerateIndependentForce { get { return m_FramerateIndependentForce; } set { m_FramerateIndependentForce = value; } }
         public float Mass { get { return m_Mass; } set { m_Mass = value; } }
         public float SkinWidth { get { return m_SkinWidth; } set { m_SkinWidth = value; } }
         public float SlopeLimit { get { return m_SlopeLimit; } set { m_SlopeLimit = value; } }
@@ -157,7 +162,7 @@ namespace Opsive.UltimateCharacterController.Character
         public float GravityMagnitude { get { return m_GravityMagnitude; } set { m_GravityMagnitude = value; } }
         public bool DetectHorizontalCollisions { get { return m_DetectHorizontalCollisions; } set { m_DetectHorizontalCollisions = value; } }
         public bool DetectVerticalCollisions { get { return m_DetectVerticalCollisions; } set { m_DetectVerticalCollisions = value; } }
-        public LayerMask ColliderLayerMask { get { return m_ColliderLayerMask; } }
+        public LayerMask ColliderLayerMask { get { return m_ColliderLayerMask; } set { m_ColliderLayerMask = value; } }
         public int MaxCollisionCount { get { return m_MaxCollisionCount; } }
         public int MaxSoftForceFrames { get { return m_MaxSoftForceFrames; } }
         public int RotationCollisionCheckCount { get { return m_RotationCollisionCheckCount; } set { m_RotationCollisionCheckCount = value; } }
@@ -174,11 +179,11 @@ namespace Opsive.UltimateCharacterController.Character
         private Rigidbody m_Rigidbody;
         protected AnimatorMonitor m_AnimatorMonitor;
         protected Collider[] m_Colliders;
-        private Collider[] m_SubColliders;
+        private Collider[] m_IgnoredColliders;
         protected int m_ColliderCount;
-        private int m_SubColliderCount;
+        private int m_IgnoredColliderCount;
         private GameObject[] m_ColliderGameObjects;
-        private GameObject[] m_SubColliderGameObjects;
+        private GameObject[] m_IgnoredColliderGameObjects;
         protected CharacterLayerManager m_CharacterLayerManager;
         private RaycastHit m_GroundRaycastHit;
         private Vector3 m_GroundRaycastOrigin;
@@ -188,7 +193,7 @@ namespace Opsive.UltimateCharacterController.Character
         private RaycastHit[] m_CombinedRaycastHits;
         private Collider[] m_OverlapColliderHit;
         private RaycastHit m_BlankRaycastHit = new RaycastHit();
-        private Ray m_SlopeRay = new Ray();
+        private Ray m_SlopeRay;
         private RaycastHit m_RaycastHit;
 
         private Vector3 m_Up;
@@ -219,17 +224,15 @@ namespace Opsive.UltimateCharacterController.Character
         private float m_SlopeFactor = 1;
 
         private Vector3 m_ExternalForce;
-        private float m_GravityAmount;
+        protected float m_GravityAmount;
         private Vector3[] m_SoftForceFrames;
-        protected UnityEngineUtility.RaycastHitComparer m_RaycastHitComparer = new UnityEngineUtility.RaycastHitComparer();
+        protected Utility.UnityEngineUtility.RaycastHitComparer m_RaycastHitComparer = new Utility.UnityEngineUtility.RaycastHitComparer();
         private Dictionary<RaycastHit, int> m_ColliderIndexMap;
         private int[] m_ColliderLayers;
-        private int[] m_SubColliderLayers;
+        private int[] m_IgnoredColliderLayers;
 
         protected Vector2 m_InputVector;
         protected Vector3 m_DeltaRotation;
-        protected float m_DeltaTime;
-        protected float m_FramerateDeltaTime;
         protected bool m_Grounded = true;
         private bool m_CollisionLayerEnabled = true;
         private bool m_AlignToGravity;
@@ -244,9 +247,15 @@ namespace Opsive.UltimateCharacterController.Character
         private Vector3 m_PlatformVelocity;
         private bool m_GroundedMovingPlatform;
         private bool m_PlatformOverride;
+        
+        protected Vector3 m_PlatformDisconnectVelocity;
+        protected Quaternion m_PlatformDisconnectTorque = Quaternion.identity;
+        private bool m_ApplyPlatformDisconnectMovement;
+        protected float m_PlatformDisconnectVelocityMaxMagnitude = 0.01f;
+        protected float m_PlatformDisconnectTorqueMaxMagnitude = 0.01f;
 
         public Collider[] Colliders { get { return m_Colliders; } }
-        public Collider[] SubColliders { get { return m_SubColliders; } }
+        public Collider[] IgnoredColliders { get { return m_IgnoredColliders; } }
         public int ColliderCount { get { return m_ColliderCount; } }
         public bool AllowUseGravity { set { m_AllowUseGravity = value; } }
         public bool ForceUseGravity { set { m_ForceUseGravity = value; } }
@@ -265,8 +274,8 @@ namespace Opsive.UltimateCharacterController.Character
         public bool AllowVerticalCollisionDetection { set { m_AllowVerticalCollisionDetection = value; } }
         public bool ForceVerticalCollisionDetection { set { m_ForceVerticalCollisionDetection = value; } }
         public bool UsingVerticalCollisionDetection { get { return (m_DetectVerticalCollisions || m_ForceVerticalCollisionDetection) && m_AllowVerticalCollisionDetection; } }
-        [Utility.NonSerialized] public Vector3 MoveDirection { get { return m_MoveDirection; } set { m_MoveDirection = value; } }
-        [Utility.NonSerialized] public Quaternion Torque { get { return m_Torque; } set { m_Torque = value; } }
+        [Shared.Utility.NonSerialized] public Vector3 MoveDirection { get { return m_MoveDirection; } set { m_MoveDirection = value; } }
+        [Shared.Utility.NonSerialized] public Quaternion Torque { get { return m_Torque; } set { m_Torque = value; } }
         public Vector3 LocomotionVelocity { get { return m_Velocity - m_PlatformVelocity; } protected set { m_Velocity = value; } }
         public Vector3 LocalLocomotionVelocity { get { return m_Transform.InverseTransformDirection(m_Velocity - m_PlatformVelocity); } }
         [Snapshot] public Vector3 Up { get { return m_Up; } protected set { m_Up = value; } }
@@ -282,15 +291,15 @@ namespace Opsive.UltimateCharacterController.Character
         public Vector3 PlatformMovement { get { return m_PlatformMovement; } }
         public Quaternion PlatformTorque { get { return m_PlatformTorque; } }
         public bool CollisionLayerEnabled { get { return m_CollisionLayerEnabled; } }
-        [Utility.NonSerialized] public bool AlignToGravity { get { return m_AlignToGravity; } set { m_AlignToGravity = value; } }
-        [Utility.NonSerialized] public bool SmoothGravityYawDelta { get { return m_SmoothGravityYawDelta; } set { m_SmoothGravityYawDelta = value; } }
-        [Utility.NonSerialized] public bool ManualMove { get { return m_ManualMove; } set { m_ManualMove = value; } }
+        [Opsive.Shared.Utility.NonSerialized] public bool AlignToGravity { get { return m_AlignToGravity; } set { m_AlignToGravity = value; } }
+        [Opsive.Shared.Utility.NonSerialized] public bool SmoothGravityYawDelta { get { return m_SmoothGravityYawDelta; } set { m_SmoothGravityYawDelta = value; } }
+        [Opsive.Shared.Utility.NonSerialized] public bool ManualMove { get { return m_ManualMove; } set { m_ManualMove = value; } }
         [Snapshot] public Vector3 PlatformVelocity { get { return m_PlatformVelocity; } set { m_PlatformVelocity = value; } }
         [Snapshot] protected float SlopeFactor { get { return m_SlopeFactor; } set { m_SlopeFactor = value; } }
 
         // The Velocity property will return the combined character locomotion and platform velocity.
         // For only the character's locmotion velocity use the LocomotionVelocity property.
-        [Utility.NonSerialized] public Vector3 Velocity { get { return m_Velocity; } set { m_Velocity = value; } }
+        [Opsive.Shared.Utility.NonSerialized] public Vector3 Velocity { get { return m_Velocity; } set { m_Velocity = value; } }
         public Vector3 LocalVelocity { get { return m_Transform.InverseTransformDirection(m_Velocity); } }
 
         [Snapshot] public Vector3 MotorThrottle { get { return m_MotorThrottle; } set { m_MotorThrottle = value; } }
@@ -316,7 +325,6 @@ namespace Opsive.UltimateCharacterController.Character
             m_PrevPosition = m_Transform.position;
             m_MotorRotation = m_PrevMotorRotation = m_Transform.rotation;
             m_GravityDirection = -m_Up;
-            m_DeltaTime = Time.fixedDeltaTime;
 
             // The Rigidbody is only used to notify Unity that the character isn't static. The Rigidbody doesn't control any movement.
             m_Rigidbody = GetComponent<Rigidbody>();
@@ -326,7 +334,7 @@ namespace Opsive.UltimateCharacterController.Character
 
             var colliders = GetComponentsInChildren<Collider>();
             m_Colliders = new Collider[colliders.Length];
-            m_SubColliders = new Collider[colliders.Length];
+            m_IgnoredColliders = new Collider[colliders.Length];
             m_CheckRotationCollision = GetComponentInChildren<CapsuleColliderPositioner>(true) != null;
             for (int i = 0; i < colliders.Length; ++i) {
                 // There are a variety of colliders which should be ignored. Only CapsuleCollider and SphereColliders are supported.
@@ -335,8 +343,8 @@ namespace Opsive.UltimateCharacterController.Character
                 }
                 // Sub colliders are parented to the character but they are not used for collision detection.
                 if (!MathUtility.InLayerMask(colliders[i].gameObject.layer, m_ColliderLayerMask) || !(colliders[i] is CapsuleCollider || colliders[i] is SphereCollider)) {
-                    m_SubColliders[m_SubColliderCount] = colliders[i];
-                    m_SubColliderCount++;
+                    m_IgnoredColliders[m_IgnoredColliderCount] = colliders[i];
+                    m_IgnoredColliderCount++;
                     continue;
                 }
                 m_Colliders[m_ColliderCount] = colliders[i];
@@ -370,29 +378,29 @@ namespace Opsive.UltimateCharacterController.Character
                 Array.Resize(ref m_Colliders, m_ColliderCount);
             }
             if (m_Colliders.Length == 0) {
-                Debug.LogWarning("Warning: The character " + name + " doesn't contain any colliders. Only capsule and sphere colliders are supported.");
+                Debug.LogWarning($"Warning: The character {name} doesn't contain any colliders. Only capsule and sphere colliders are supported.", this);
             }
-            if (m_SubColliders.Length != m_SubColliderCount) {
-                Array.Resize(ref m_SubColliders, m_SubColliderCount);
+            if (m_IgnoredColliders.Length != m_IgnoredColliderCount) {
+                Array.Resize(ref m_IgnoredColliders, m_IgnoredColliderCount);
             }
             // Cache the collider GameObjects for best performance.
             m_ColliderGameObjects = new GameObject[m_Colliders.Length];
             for (int i = 0; i < m_ColliderGameObjects.Length; ++i) {
                 m_ColliderGameObjects[i] = m_Colliders[i].gameObject;
             }
-            m_SubColliderGameObjects = new GameObject[m_SubColliders.Length];
-            for (int i = 0; i < m_SubColliderGameObjects.Length; ++i) {
-                m_SubColliderGameObjects[i] = m_SubColliders[i].gameObject;
+            m_IgnoredColliderGameObjects = new GameObject[m_IgnoredColliders.Length];
+            for (int i = 0; i < m_IgnoredColliderGameObjects.Length; ++i) {
+                m_IgnoredColliderGameObjects[i] = m_IgnoredColliders[i].gameObject;
             }
 
             m_RaycastHits = new RaycastHit[m_MaxCollisionCount];
             // If there are multiple colliders then save a mapping between the raycast hit and the collider index.
             if (m_Colliders.Length > 1) {
-                m_ColliderIndexMap = new Dictionary<RaycastHit, int>(new UnityEngineUtility.RaycastHitEqualityComparer());
+                m_ColliderIndexMap = new Dictionary<RaycastHit, int>(new Utility.UnityEngineUtility.RaycastHitEqualityComparer());
                 m_CombinedRaycastHits = new RaycastHit[m_RaycastHits.Length * m_Colliders.Length];
             }
             m_ColliderLayers = new int[m_Colliders.Length];
-            m_SubColliderLayers = new int[m_SubColliders.Length];
+            m_IgnoredColliderLayers = new int[m_IgnoredColliders.Length];
             m_OverlapColliderHit = new Collider[m_MaxCollisionCount];
             m_SoftForceFrames = new Vector3[m_MaxSoftForceFrames];
         }
@@ -409,23 +417,24 @@ namespace Opsive.UltimateCharacterController.Character
         /// Can the specified collider cause a collision when the character is rotating? The collider can cause a rotation collision when it would rotate on
         /// an axis other than the relative-y axis.
         /// </summary>
-        /// <param name="collider">The collider to check against.</param>
+        /// <param name="rotationCollider">The collider to check against.</param>
         /// <returns>True if the collider could cause a rotation collision.</returns>
-        private bool CanCauseRotationCollision(Collider collider)
+        private bool CanCauseRotationCollision(Collider rotationCollider)
         {
             Vector3 direction;
-            if (collider is CapsuleCollider) {
+            if (rotationCollider is CapsuleCollider){
                 Vector3 startEndCap, endEndCap;
-                var capsuleCollider = collider as CapsuleCollider;
+                var capsuleCollider = rotationCollider as CapsuleCollider;
+                var colliderTransform = rotationCollider.transform;
                 // The CapsuleCollider's end caps and the center position must be on the same relative-y axis.
-                direction = m_Transform.InverseTransformDirection(collider.transform.TransformPoint((collider as CapsuleCollider).center) - m_Transform.position);
+                direction = m_Transform.InverseTransformDirection(colliderTransform.TransformPoint(capsuleCollider.center) - m_Transform.position);
                 if (Mathf.Abs(direction.x) > 0.0001f || Mathf.Abs(direction.z) > 0.0001f) {
                     return true;
                 }
-                MathUtility.CapsuleColliderEndCaps(capsuleCollider, capsuleCollider.transform.position, capsuleCollider.transform.rotation, out startEndCap, out endEndCap);
+                MathUtility.CapsuleColliderEndCaps(capsuleCollider, colliderTransform.position, colliderTransform.rotation, out startEndCap, out endEndCap);
                 direction = m_Transform.InverseTransformDirection(startEndCap - endEndCap);
             } else { // SphereCollider.
-                direction = m_Transform.InverseTransformDirection(collider.transform.TransformPoint((collider as SphereCollider).center) - m_Transform.position);
+                direction = m_Transform.InverseTransformDirection(rotationCollider.transform.TransformPoint((rotationCollider as SphereCollider).center) - m_Transform.position);
             }
             if (Mathf.Abs(direction.x) > 0.0001f || Mathf.Abs(direction.z) > 0.0001f) {
                 return true;
@@ -440,10 +449,6 @@ namespace Opsive.UltimateCharacterController.Character
         {
             // Disable the colliders to prevent the grounded check from hitting the character.
             EnableColliderCollisionLayer(false);
-
-            // Start by using the fixed rate.
-            m_DeltaTime = Time.fixedDeltaTime;
-            m_FramerateDeltaTime = TimeUtility.FramerateFixedDeltaTime;
 
             // Update the grounded state so it is accurate on the first run.
             UpdateGroundState(CheckGround(), false);
@@ -460,7 +465,7 @@ namespace Opsive.UltimateCharacterController.Character
         /// </summary>
         /// <param name="horizontalMovement">-1 to 1 value specifying the amount of horizontal movement.</param>
         /// <param name="forwardMovement">-1 to 1 value specifying the amount of forward movement.</param>
-        /// <param name="targetRotation">Value specifying the amount of yaw rotation change.</param>
+        /// <param name="deltaYawRotation">Value specifying the number of degrees changed on the local yaw axis.</param>
         public virtual void Move(float horizontalMovement, float forwardMovement, float deltaYawRotation)
         {
             if (m_TimeScale == 0 || Time.deltaTime == 0) {
@@ -475,10 +480,6 @@ namespace Opsive.UltimateCharacterController.Character
             //m_InputVector.y = 1;
             //m_DeltaYawRotation = 5;
 
-            // The Move method will always be called during the fixed timestep.
-            m_DeltaTime = Time.fixedDeltaTime;
-            m_FramerateDeltaTime = TimeUtility.FramerateFixedDeltaTime;
-
             // Disable the colliders to prevent any subsequent raycasts from hitting the character.
             EnableColliderCollisionLayer(false);
 
@@ -492,7 +493,7 @@ namespace Opsive.UltimateCharacterController.Character
             UpdatePositionAndRotation(false);
 
             // Update the external forces after the movement has been applied.
-            // This should be done after the movement is applied so the full force value has been applied within UpdateMovemnet.
+            // This should be done after the movement is applied so the full force value has been applied within UpdateMovement.
             UpdateExternalForces();
 
             // Reenable the disabled colliders.
@@ -550,7 +551,7 @@ namespace Opsive.UltimateCharacterController.Character
             // Apply the resulting position changes.
             ApplyPosition();
 
-            // Rever the collision layer to the previous value.
+            // Revert the collision layer to the previous value.
             EnableColliderCollisionLayer(collisionLayerEnabled);
         }
 
@@ -564,12 +565,9 @@ namespace Opsive.UltimateCharacterController.Character
                     return;
                 }
                 // The character may have previously been on a platform and should inherit the platform movement.
-                var damping = m_MovingPlatformForceDamping * (m_TimeScale * m_FramerateDeltaTime);
-                m_PlatformMovement /= (1 + damping);
-                m_MoveDirection += m_PlatformMovement;
-
-                m_PlatformTorque = Quaternion.RotateTowards(m_PlatformTorque, Quaternion.identity, damping);
-                m_Torque *= m_PlatformTorque;
+                if (m_ApplyPlatformDisconnectMovement) {
+                    m_ApplyPlatformDisconnectMovement = !m_Grounded && UpdatePlaformDisconnectMovement();
+                }
                 return;
             }
 
@@ -598,7 +596,7 @@ namespace Opsive.UltimateCharacterController.Character
 
             // If the character doesn't stick to the moving platform and the platform slows down more than the separation velocity then the
             // moving platform momentum should be transferred to the character.
-            var platformVelocity = m_PlatformMovement / (m_TimeScale * m_DeltaTime);
+            var platformVelocity = m_PlatformMovement / (m_TimeScale * Time.deltaTime);
             if (!m_StickToMovingPlatform) {
                 if (platformVelocity.sqrMagnitude < m_PlatformVelocity.sqrMagnitude && (platformVelocity - m_PlatformVelocity).magnitude > m_MovingPlatformSeperationVelocity) {
                     AddForce(m_PlatformMovement, 1, false, true);
@@ -607,15 +605,35 @@ namespace Opsive.UltimateCharacterController.Character
             m_PlatformVelocity = platformVelocity;
 
             // Update the rotation changes.
-            m_PlatformTorque = MathUtility.InverseTransformQuaternion(m_Platform.rotation, m_PlatformRotationOffset) *
-                                Quaternion.Inverse(MathUtility.InverseTransformQuaternion(m_Platform.rotation, m_Transform.rotation * Quaternion.Inverse(m_Platform.rotation)));
+            var platformRotation = m_Platform.rotation;
+            m_PlatformTorque = MathUtility.InverseTransformQuaternion(platformRotation, m_PlatformRotationOffset) *
+                                Quaternion.Inverse(MathUtility.InverseTransformQuaternion(platformRotation, m_Transform.rotation * Quaternion.Inverse(platformRotation)));
             if (!m_AlignToGravity) {
                 // Only the local y rotation should affect the character's rotation.
-                var localPlatformTorque = MathUtility.InverseTransformQuaternion(m_Transform.rotation, m_PlatformTorque).eulerAngles;
+                var transformRotation = m_Transform.rotation;
+                var localPlatformTorque = MathUtility.InverseTransformQuaternion(transformRotation, m_PlatformTorque).eulerAngles;
                 localPlatformTorque.x = localPlatformTorque.z = 0;
-                m_PlatformTorque = MathUtility.TransformQuaternion(m_Transform.rotation, Quaternion.Euler(localPlatformTorque));
+                m_PlatformTorque = MathUtility.TransformQuaternion(transformRotation, Quaternion.Euler(localPlatformTorque));
             }
             m_Torque *= m_PlatformTorque;
+        }
+
+        /// <summary>
+        /// Updates the velocity and torque of the character/platform when the character leaves the platform.
+        /// </summary>
+        /// <returns>True if the velocity or torque disconnect values are greater than the specified max magnitude values.</returns>
+        protected virtual bool UpdatePlaformDisconnectMovement()
+        {
+            var damping = m_MovingPlatformForceDamping * (m_TimeScale * TimeUtility.FramerateDeltaTime);
+          
+            m_PlatformDisconnectVelocity /= (1 + damping);
+            m_MoveDirection += m_PlatformDisconnectVelocity* Time.deltaTime;
+
+            m_PlatformDisconnectTorque = Quaternion.RotateTowards(m_PlatformDisconnectTorque, Quaternion.identity, damping);
+            m_Torque *= m_PlatformDisconnectTorque;
+
+            return m_PlatformDisconnectVelocity.magnitude > m_PlatformDisconnectVelocityMaxMagnitude ||
+                   Quaternion.Angle(m_PlatformDisconnectTorque, Quaternion.identity) > m_PlatformDisconnectTorqueMaxMagnitude;
         }
 
         /// <summary>
@@ -635,11 +653,11 @@ namespace Opsive.UltimateCharacterController.Character
                 if (m_AlignToGravity) {
                     // When aligning to gravity the character should rotate immediately to the up direction.
                     if (m_SmoothGravityYawDelta) {
-                        m_DeltaRotation.y = Mathf.Lerp(0, MathUtility.ClampInnerAngle(m_DeltaRotation.y), m_MotorRotationSpeed * m_TimeScale * TimeUtility.FixedDeltaTimeScaled);
+                        m_DeltaRotation.y = Mathf.LerpAngle(0, MathUtility.ClampInnerAngle(m_DeltaRotation.y), m_MotorRotationSpeed * m_TimeScale * TimeUtility.DeltaTimeScaled);
                     }
                     targetRotation = rotation * Quaternion.Euler(m_DeltaRotation);
                 } else {
-                    targetRotation = Quaternion.Slerp(rotation, rotation * Quaternion.Euler(m_DeltaRotation), m_MotorRotationSpeed * m_TimeScale * TimeUtility.FixedDeltaTimeScaled);
+                    targetRotation = Quaternion.Slerp(rotation, rotation * Quaternion.Euler(m_DeltaRotation), m_MotorRotationSpeed * m_TimeScale * TimeUtility.DeltaTimeScaled);
                 }
             }
             rotationDelta = Quaternion.Inverse(rotation) * targetRotation;
@@ -754,13 +772,13 @@ namespace Opsive.UltimateCharacterController.Character
         protected virtual void ApplyRotation()
         {
             // Apply the rotation.
-            m_Transform.rotation = MathUtility.Round(m_Transform.rotation * m_Torque, 10000);
+            m_Transform.rotation = MathUtility.Round(m_Transform.rotation * m_Torque, 1000000);
             m_Up = m_Transform.up;
             m_MotorRotation = m_Transform.rotation;
             m_Torque = Quaternion.identity;
 
             if (m_Platform != null) {
-                m_PlatformRotationOffset = m_Transform.rotation * Quaternion.Inverse(m_Platform.rotation);
+                m_PlatformRotationOffset = m_MotorRotation * Quaternion.Inverse(m_Platform.rotation);
             }
         }
 
@@ -772,8 +790,8 @@ namespace Opsive.UltimateCharacterController.Character
             // Update any base movement forces.
             UpdateMotorThrottle();
 
-            var deltaTime = TimeScaleSquared * Time.timeScale * m_FramerateDeltaTime;
-            m_MoveDirection += m_ExternalForce * deltaTime + (m_MotorThrottle * (UsingRootMotionPosition ? 1 : deltaTime)) - m_GravityDirection * m_GravityAmount * deltaTime;
+            var deltaTime = m_TimeScale * Time.timeScale * (m_FramerateIndependentForce ? 1 : TimeUtility.FramerateDeltaTime);
+            m_MoveDirection += m_ExternalForce * deltaTime + ((UsingRootMotionPosition ? 1 : deltaTime) * m_TimeScale * m_MotorThrottle) - m_GravityAmount * deltaTime * m_GravityDirection;
 
             // After the character has moved update the collisions. This will prevent the character from moving through solid objects.
             DeflectHorizontalCollisions();
@@ -786,7 +804,7 @@ namespace Opsive.UltimateCharacterController.Character
         protected virtual void UpdateMotorThrottle()
         {
             if (UsingRootMotionPosition || m_LocalRootMotionForce.sqrMagnitude > 0) {
-                m_MotorThrottle = MathUtility.TransformDirection(m_LocalRootMotionForce, m_MotorRotation) * (m_Grounded ? 1 : m_RootMotionAirForceMultiplier) * m_SlopeFactor;
+                m_MotorThrottle = (m_Grounded ? 1 : m_RootMotionAirForceMultiplier) * m_SlopeFactor * MathUtility.TransformDirection(m_LocalRootMotionForce, m_MotorRotation);
             } else {
                 // Apply a multiplier if the character is moving backwards.
                 var backwardsMultiplier = 1f;
@@ -795,14 +813,13 @@ namespace Opsive.UltimateCharacterController.Character
                 }
                 // As the character changes rotation the same local motor throttle force should be applied. This is most apparent when the character is being aligned to the ground
                 // and the local y direction changes.
-                var prevMotorThrottle = m_MotorThrottle;
                 var prevLocalMotorThrottle = MathUtility.InverseTransformDirection(m_MotorThrottle, m_PrevMotorRotation) * m_PreviousAccelerationInfluence;
-                var acceleration = (m_Grounded ? m_MotorAcceleration : m_MotorAirborneAcceleration) * m_SlopeFactor * backwardsMultiplier * 0.1f;
+                var rotation = Quaternion.Slerp(m_PrevMotorRotation, m_MotorRotation, m_PreviousAccelerationInfluence);
+                var acceleration = m_SlopeFactor * backwardsMultiplier * 0.1f * (m_Grounded ? m_MotorAcceleration : m_MotorAirborneAcceleration);
                 // Convert input into motor forces. Normalize the input vector to prevent the diagonal from moving faster.
                 var normalizedInputVector = m_InputVector.normalized * Mathf.Max(Mathf.Abs(m_InputVector.x), Mathf.Abs(m_InputVector.y));
                 m_MotorThrottle = MathUtility.TransformDirection(new Vector3(prevLocalMotorThrottle.x + normalizedInputVector.x * acceleration.x,
-                                            prevLocalMotorThrottle.y, prevLocalMotorThrottle.z + normalizedInputVector.y * acceleration.z), m_MotorRotation);
-                m_MotorThrottle += prevMotorThrottle * (1 - m_PreviousAccelerationInfluence);
+                                            prevLocalMotorThrottle.y, prevLocalMotorThrottle.z + normalizedInputVector.y * acceleration.z), rotation);
                 // Dampen motor forces.
                 m_MotorThrottle /= (1 + ((m_Grounded ? m_MotorDamping : m_MotorAirborneDamping) * m_TimeScale * Time.timeScale));
             }
@@ -826,7 +843,7 @@ namespace Opsive.UltimateCharacterController.Character
             var platformIndependentMoveDirection = (m_MoveDirection - m_PlatformMovement);
             var horizontalDirection = Vector3.ProjectOnPlane(platformIndependentMoveDirection, m_Up);
             // No casts are necessary if there is no movement.
-            if (horizontalDirection.sqrMagnitude < c_ColliderSpacingSquared && Vector3.ProjectOnPlane(m_PlatformMovement, m_Up).sqrMagnitude < c_ColliderSpacingSquared) {
+            if (horizontalDirection.sqrMagnitude < c_ColliderSpacingCubed && Vector3.ProjectOnPlane(m_PlatformMovement, m_Up).sqrMagnitude < c_ColliderSpacingCubed) {
                 var localDirection = m_Transform.InverseTransformDirection(platformIndependentMoveDirection);
                 localDirection.x = localDirection.z = 0;
                 m_MoveDirection = m_Transform.TransformDirection(localDirection) + m_PlatformMovement;
@@ -842,6 +859,7 @@ namespace Opsive.UltimateCharacterController.Character
             var moveDistance = 0f;
             var hitStrength = 0f;
             var hitMoveDirection = Vector3.zero;
+            var distanceOffset = horizontalDirection.magnitude < c_ColliderSpacing ? c_ColliderSpacing * 3 : c_ColliderSpacing;
             for (int i = 0; i < hitCount; ++i) {
                 var closestRaycastHit = QuickSelect.SmallestK(m_CombinedRaycastHits, hitCount, i, m_RaycastHitComparer);
 
@@ -852,7 +870,7 @@ namespace Opsive.UltimateCharacterController.Character
                 if (closestRaycastHit.distance == 0) {
                     var offset = Vector3.zero;
                     ComputePenetration(activeCollider, closestRaycastHit.collider, horizontalDirection, false, out offset);
-                    if (offset.sqrMagnitude >= c_ColliderSpacingSquared) {
+                    if (offset.sqrMagnitude >= c_ColliderSpacingCubed) {
                         moveDistance = Mathf.Max(0, horizontalDirection.magnitude - offset.magnitude - c_ColliderSpacing);
                         platformIndependentMoveDirection = Vector3.ProjectOnPlane(horizontalDirection.normalized * moveDistance, m_Up) +
                                                 m_Up * localPlatformIndependentMoveDirection.y;
@@ -877,7 +895,7 @@ namespace Opsive.UltimateCharacterController.Character
                 // the object since the object will be moving.
                 if (m_Grounded && canStep) {
                     // Only check for slope/steps if the hit point is lower than the max step height.
-                    var groundPoint = m_Transform.InverseTransformPoint(closestRaycastHit.point);
+                    var groundPoint = m_Transform.InverseTransformPoint(closestRaycastHit.point - m_PlatformMovement);
                     if (groundPoint.y <= m_MaxStepHeight + c_ColliderSpacing) {
                         // A CapsuleCast/SphereCast normal isn't always the true normal: http://answers.unity3d.com/questions/50825/raycasthitnormal-what-does-it-really-return.html.
                         // Cast a regular raycast in order to determine the true normal.
@@ -894,7 +912,7 @@ namespace Opsive.UltimateCharacterController.Character
                         // Cast a ray directly in front of the character. If it doesn't hit an object then the object is shorter than the step height and should be stepped on.
                         // Continue out of the loop to prevent the character from stopping in front of the object.
                         if (SingleCast(activeCollider, horizontalDirection, m_PlatformMovement + m_Up * (m_MaxStepHeight - c_ColliderSpacing))) {
-                            if ((m_RaycastHit.distance - c_ColliderSpacing) < horizontalDirection.magnitude) {
+                            if ((m_RaycastHit.distance - distanceOffset) < horizontalDirection.magnitude) {
                                 // An object was hit. The character can step over the object if the slope is less than the limit.
                                 m_SlopeRay.direction = horizontalDirection.normalized;
                                 m_SlopeRay.origin = closestRaycastHit.point - m_SlopeRay.direction * (c_ColliderSpacing + 0.1f);
@@ -926,15 +944,15 @@ namespace Opsive.UltimateCharacterController.Character
                 // Determine the direction that the character should move based off of the angle of the hit object.
                 var hitNormal = Vector3.ProjectOnPlane(closestRaycastHit.normal, m_Up).normalized;
                 var targetDirection = Vector3.Cross(hitNormal, m_Up).normalized;
-                var closestPoint = MathUtility.ClosestPointOnCollider(m_Transform, activeCollider, closestRaycastHit.point, platformIndependentMoveDirection, true, false);
-                if ((Vector3.Dot(Vector3.Cross(Vector3.ProjectOnPlane(m_Transform.position - closestPoint, m_Up).normalized, horizontalDirection).normalized, m_Up)) > 0) {
+                var closestPoint = MathUtility.ClosestPointOnCollider(m_Transform, activeCollider, closestRaycastHit.point, m_PlatformMovement, true, false);
+                if ((Vector3.Dot(Vector3.Cross(Vector3.ProjectOnPlane(m_Transform.position + m_PlatformMovement - closestPoint, m_Up).normalized, horizontalDirection).normalized, m_Up)) > 0) {
                     targetDirection = -targetDirection;
                 }
 
                 // The hit distance may be more than the horizontal direction magnitude if the hit object is within the radius distance. 
                 // This could happen if there is a small object directly in front of the character but under the collider's concave curve.
                 // Subtract the collider spacing constant to prevent the character's collider from overlapping the hit collider.
-                moveDistance = Mathf.Min(closestRaycastHit.distance - c_ColliderSpacing, horizontalDirection.magnitude);
+                moveDistance = Mathf.Min(closestRaycastHit.distance - distanceOffset, horizontalDirection.magnitude);
                 if (moveDistance < 0.001f || Vector3.Angle(m_Up, m_GroundRaycastHit.normal) > m_SlopeLimit + c_SlopeLimitSpacing) {
                     moveDistance = 0;
                 }
@@ -943,7 +961,7 @@ namespace Opsive.UltimateCharacterController.Character
                 // then the horizontal direction magnitude unless the curve specifies to.
                 var dynamicFrictionValue = Mathf.Clamp01(1 - MathUtility.FrictionValue(activeCollider.material, closestRaycastHit.collider.material, true));
                 hitStrength = 1 - Vector3.Dot(horizontalDirection.normalized, -hitNormal);
-                hitMoveDirection = targetDirection * (horizontalDirection.magnitude - moveDistance) * m_WallGlideCurve.Evaluate(hitStrength) * dynamicFrictionValue;
+                hitMoveDirection = (horizontalDirection.magnitude - moveDistance) * m_WallGlideCurve.Evaluate(hitStrength) * dynamicFrictionValue * targetDirection;
                 if (hitMoveDirection.magnitude <= c_ColliderSpacing) {
                     hitMoveDirection = Vector3.zero;
                     hitStrength = 0;
@@ -969,7 +987,7 @@ namespace Opsive.UltimateCharacterController.Character
                     // Determine if the character should step over the object. The character must be on the ground with a slope less than the limit in order to step over.
                     var activeCollider = m_ColliderCount > 1 ? m_Colliders[m_ColliderIndexMap[closestRaycastHit]] : m_Colliders[0];
                     if (m_Grounded) {
-                        var groundPoint = m_Transform.InverseTransformPoint(closestRaycastHit.point);
+                        var groundPoint = m_Transform.InverseTransformPoint(closestRaycastHit.point - m_PlatformMovement);
                         if (groundPoint.y > c_ColliderSpacing && groundPoint.y <= m_MaxStepHeight + c_ColliderSpacing) {
                             var hitGameObject = closestRaycastHit.transform.gameObject;
                             // A CapsuleCast/SphereCast normal isn't always the true normal: http://answers.unity3d.com/questions/50825/raycasthitnormal-what-does-it-really-return.html.
@@ -987,7 +1005,7 @@ namespace Opsive.UltimateCharacterController.Character
                             // Cast a ray directly in front of the character. If it doesn't hit an object then the object is shorter than the step height and should be stepped on.
                             // Continue out of the loop to prevent the character from stopping in front of the object.
                             if (SingleCast(activeCollider, hitMoveDirection, m_PlatformMovement + m_Up * (m_MaxStepHeight - c_ColliderSpacing))) {
-                                if ((m_RaycastHit.distance - c_ColliderSpacing) < hitMoveDirection.magnitude) {
+                                if ((m_RaycastHit.distance - distanceOffset) < hitMoveDirection.magnitude) {
                                     // An object was hit. The character can step over the object if the slope is less than the limit.
                                     m_SlopeRay.direction = hitMoveDirection.normalized;
                                     m_SlopeRay.origin = closestRaycastHit.point - m_SlopeRay.direction * (c_ColliderSpacing + 0.1f);
@@ -1021,7 +1039,7 @@ namespace Opsive.UltimateCharacterController.Character
                     // This will prevent the character from moving too far because the hit point direction is similar to the horizontal direction.
                     // This last condition is especially apprant with -extremely- fast moving objects.
                     var moveDistanceContribution = moveDistance * Mathf.Cos(Vector3.Angle(horizontalDirection.normalized, hitMoveDirection.normalized) * Mathf.Deg2Rad);
-                    var hitMoveDistance = Mathf.Min(closestRaycastHit.distance - moveDistanceContribution - hitMoveDirection.magnitude - c_ColliderSpacing, hitMoveDirection.magnitude);
+                    var hitMoveDistance = Mathf.Min(closestRaycastHit.distance - moveDistanceContribution - hitMoveDirection.magnitude - distanceOffset, hitMoveDirection.magnitude);
                     if (hitMoveDistance < 0.001f || Vector3.Angle(m_Up, m_GroundRaycastHit.normal) > m_SlopeLimit + c_SlopeLimitSpacing) {
                         hitMoveDistance = 0;
                         m_HorizontalRaycastHit = closestRaycastHit;
@@ -1045,14 +1063,13 @@ namespace Opsive.UltimateCharacterController.Character
             var localMoveDirection = m_Transform.InverseTransformDirection(m_MoveDirection);
             if (UsingVerticalCollisionDetection && localMoveDirection.y > 0) {
                 var horizontalDirection = Vector3.ProjectOnPlane(m_MoveDirection - m_PlatformMovement, m_Up);
-                var hitCount = NonAllocCast(m_Up * (localMoveDirection.y + c_ColliderSpacing), horizontalDirection);
+                var hitCount = NonAllocCast(m_Up * (localMoveDirection.y + c_ColliderSpacing), m_PlatformMovement + horizontalDirection);
                 if (hitCount > 0) {
                     var closestRaycastHit = QuickSelect.SmallestK(m_CombinedRaycastHits, hitCount, 0, m_RaycastHitComparer);
                     if (closestRaycastHit.distance == 0) {
                         // Use ComputePenetration to determine a direction that doesn't overlap with other objects.
                         var activeCollider = m_ColliderCount > 1 ? m_Colliders[m_ColliderIndexMap[closestRaycastHit]] : m_Colliders[0];
-                        var offset = Vector3.zero;
-                        var overlap = ComputePenetration(activeCollider, closestRaycastHit.collider, horizontalDirection, true, out offset);
+                        var overlap = ComputePenetration(activeCollider, closestRaycastHit.collider, horizontalDirection, true, out var offset);
                         if (overlap) {
                             overlap = ComputePenetration(activeCollider, closestRaycastHit.collider, horizontalDirection, false, out offset);
                         }
@@ -1118,7 +1135,7 @@ namespace Opsive.UltimateCharacterController.Character
             } else if (grounded) { // The character is on the ground.
                 // If the character is standing on a rigidbody then a downward force should be applied.
                 if (m_GroundRaycastHit.rigidbody != null) {
-                    m_GroundRaycastHit.rigidbody.AddForceAtPosition(-m_Up * ((m_Mass / m_GroundRaycastHit.rigidbody.mass) + m_GravityAmount) / m_DeltaTime,
+                    m_GroundRaycastHit.rigidbody.AddForceAtPosition(-m_Up * ((m_Mass / m_GroundRaycastHit.rigidbody.mass) + m_GravityAmount) / Time.deltaTime,
                                                             m_Transform.position + m_MoveDirection, ForceMode.Force);
                 }
 
@@ -1154,12 +1171,6 @@ namespace Opsive.UltimateCharacterController.Character
                 // When DeflectHorizontalCollisions runs it will not do any vertical placement. If the character is on a slope or a step there will be a collision
                 // because the move direction hasn't changed vertically. The RaycastHit distance will then be 0 indicating there are objects overlapping it.
                 if (closestRaycastHit.distance == 0) {
-                    // If vertical collisions are not being detected then don't try to readjust the collider position. The hit collider should not count as being grounded
-                    // because it overlaps the character collider.
-                    if (!UsingVerticalCollisionDetection) {
-                        continue;
-                    }
-
                     // Do not run ComputeGroundPenetration if the character should step over the object. DeflectVerticalForces will account for the vertical step difference.
                     var horizontalStep = false;
                     if (UsingHorizontalCollisionDetection && horizontalDirection.sqrMagnitude >= 0.000001f) {
@@ -1188,7 +1199,7 @@ namespace Opsive.UltimateCharacterController.Character
                         var localOffset = m_Transform.InverseTransformDirection(offset);
                         // Prevent ComputeGroundPenetration from trying to reposition the character because of a collision.
                         if (!UsingHorizontalCollisionDetection && Mathf.Abs(localOffset.y) <= 0.001f) {
-                            if (!SingleCast(activeCollider, m_GravityDirection * (m_MaxStepHeight + c_ColliderSpacing), Vector3.ProjectOnPlane(m_MoveDirection, -m_GravityDirection) + m_Transform.up * (m_MaxStepHeight + c_ColliderSpacing))) {
+                            if (!SingleCast(activeCollider, m_GravityDirection * (m_MaxStepHeight + c_ColliderSpacing), m_PlatformMovement + Vector3.ProjectOnPlane(m_MoveDirection, -m_GravityDirection) + m_Transform.up * (m_MaxStepHeight + c_ColliderSpacing))) {
                                 continue;
                             }
                         }
@@ -1200,12 +1211,15 @@ namespace Opsive.UltimateCharacterController.Character
                         }
 
                         // Reset any upwards offset to 0. It will later be added back in after the gravity forces have been detected.
-                        if (localOffset.y > 0) { localOffset.y = 0; }
+                        var verticalOffset = 0f;
+                        if (localOffset.y > 0) { verticalOffset = localOffset.y; localOffset.y = 0; }
                         // The move direction should update based on the ComputePenetration value.
                         m_MoveDirection += m_Transform.TransformDirection(localOffset);
 
                         // One more cast should be performed to determine the ground object now that the character is in a non-overlapping position.
-                        if (SingleCast(activeCollider, m_GravityDirection * (m_MaxStepHeight + c_ColliderSpacing), Vector3.ProjectOnPlane(m_MoveDirection, -m_GravityDirection) + m_Transform.up * (m_MaxStepHeight + c_ColliderSpacing))) {
+                        var localPlatformMovement = m_Transform.InverseTransformDirection(m_PlatformMovement);
+                        if (SingleCast(activeCollider, m_GravityDirection * (m_MaxStepHeight + verticalOffset + c_ColliderSpacing), Vector3.ProjectOnPlane(m_MoveDirection, -m_GravityDirection) + 
+                                                    m_Transform.up * (m_MaxStepHeight + verticalOffset + c_ColliderSpacing) + new Vector3(0, localPlatformMovement.y, 0))) {
                             closestRaycastHit = m_RaycastHit;
                         } else {
                             // The character is not grounded after resolving the collision. Continue the grounded check next update.
@@ -1224,7 +1238,7 @@ namespace Opsive.UltimateCharacterController.Character
 
                 // The character is grounded when the ground contact point is within the skin width. The ground raycast hit and origin still need to be set to detect vertical collisions.
                 var localDirection = m_Transform.InverseTransformDirection(m_GroundRaycastHit.point - m_GroundRaycastOrigin);
-                var deltaTime = m_TimeScale * Time.timeScale * m_FramerateDeltaTime;
+                var deltaTime = m_TimeScale * Time.timeScale * TimeUtility.FramerateDeltaTime;
                 grounded = (localDirection.y - (LocalExternalForce.y * deltaTime)) >= -m_SkinWidth;
                 break;
             }
@@ -1297,7 +1311,7 @@ namespace Opsive.UltimateCharacterController.Character
         /// <param name="hitTransform">The name of the possible moving platform transform.</param>
         /// <param name="groundUpdate">Is the moving platform update being called from a grounded check?</param>
         /// <returns>True if the platform changed.</returns>
-        protected virtual bool UpdateMovingPlatformTransform(Transform hitTransform, bool groundUpdate)
+        private bool UpdateMovingPlatformTransform(Transform hitTransform, bool groundUpdate)
         {
             // If the platform is not null then the platform should only update if the method is being called from the grounded check.
             // This will prevent the moving platform from being updated more than once during a single move event.
@@ -1315,19 +1329,11 @@ namespace Opsive.UltimateCharacterController.Character
                     m_GroundedMovingPlatform = groundUpdate;
                     return true;
                 } else if (m_Platform != null) {
-                    TransferPlatformMovement();
                     SetPlatform(null, false);
                     return true;
                 }
             } else if (m_Platform != null && hitTransform == null) { // The character is no longer on a moving platform.
-                if (m_ExternalForce.sqrMagnitude > 0.01f) {
-                    m_PlatformMovement = Vector3.zero;
-                    m_PlatformTorque = Quaternion.identity;
-                }
-                TransferPlatformMovement();
-
-                // When the character leaves the platform inherit the platform's momentum.
-                m_Platform = null;
+                SetPlatform(null, true);
                 return true;
             }
             return false;
@@ -1347,8 +1353,12 @@ namespace Opsive.UltimateCharacterController.Character
         /// </summary>
         /// <param name="platform">The platform transform that should be set. Can be null.</param>
         /// <param name="platformOverride">Is the default moving platform logic being overridden?</param>
-        private void SetPlatform(Transform platform, bool platformOverride)
+        /// <returns>True if the platform was changed.</returns>
+        public virtual bool SetPlatform(Transform platform, bool platformOverride)
         {
+            if (m_Platform == platform) {
+                return false;
+            }
             m_Platform = platform;
             m_PlatformOverride = m_Platform != null && platformOverride;
             if (m_Platform != null) {
@@ -1357,21 +1367,14 @@ namespace Opsive.UltimateCharacterController.Character
                     Vector3.zero);
                 m_PlatformRelativePosition = m_Platform.InverseTransformPoint(m_Transform.position) + localDirection;
                 m_PlatformRotationOffset = m_Transform.rotation * Quaternion.Inverse(m_Platform.rotation);
-            } else if (platformOverride) {
-                TransferPlatformMovement();
+            } else {
+                m_PlatformDisconnectVelocity = GetPlatformDisconnectVelocity();
+                m_PlatformDisconnectTorque = GetPlatformDisconnectTorque();
+                m_PlatformVelocity = Vector3.zero;
+                m_PlatformTorque = Quaternion.identity;
+                m_ApplyPlatformDisconnectMovement = true;
             }
-        }
-
-        /// <summary>
-        /// Transfers the platform movement from the platform onto the character.
-        /// </summary>
-        private void TransferPlatformMovement()
-        {
-            m_MotorThrottle += m_PlatformMovement;
-            m_Torque *= m_PlatformTorque;
-
-            m_PlatformVelocity = m_PlatformMovement = Vector3.zero;
-            m_PlatformTorque = Quaternion.identity;
+            return true;
         }
 
         /// <summary>
@@ -1380,7 +1383,7 @@ namespace Opsive.UltimateCharacterController.Character
         protected virtual void UpdateSlopeFactor()
         {
             // The character isn't on a slope while in the air.
-            if (!m_Grounded || !UsingVerticalCollisionDetection) {
+            if (!m_AdjustMotorForceOnSlope || !m_Grounded || !UsingVerticalCollisionDetection) {
                 m_SlopeFactor = 1;
                 return;
             }
@@ -1401,16 +1404,39 @@ namespace Opsive.UltimateCharacterController.Character
         /// Updates the grounded state.
         /// </summary>
         /// <param name="grounded">Is the character grounded?</param>
-        /// <param name="eventUpdate">Should the events be sent if the grounded status changes?</param>
+        /// <param name="sendEvents">Should the events be sent if the grounded status changes?</param>
         /// <returns>True if the grounded state changed.</returns>
         protected virtual bool UpdateGroundState(bool grounded, bool sendEvents)
         {
             // Update the grounded state. Allows for cleanup when the character hits the ground or moves into the air.
             if (m_Grounded != grounded) {
                 m_Grounded = grounded;
+                if (m_Grounded) {
+                    m_ApplyPlatformDisconnectMovement = false;
+                    m_PlatformMovement = m_PlatformDisconnectVelocity = Vector3.zero;
+                    m_PlatformTorque = m_PlatformDisconnectTorque = Quaternion.identity;
+                }
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Returns the velocity when the character is disconnecting from the platform.
+        /// </summary>
+        /// <returns>The velocity when the character is disconnecting from the platform.</returns>
+        protected virtual Vector3 GetPlatformDisconnectVelocity()
+        {
+            return m_PlatformVelocity;
+        }
+
+        /// <summary>
+        /// Returns the torque when the character is disconnecting from the platform.
+        /// </summary>
+        /// <returns>The torque when the character is disconnecting from the platform.</returns>
+        protected virtual Quaternion GetPlatformDisconnectTorque()
+        {
+            return m_PlatformTorque;
         }
 
         /// <summary>
@@ -1419,14 +1445,14 @@ namespace Opsive.UltimateCharacterController.Character
         protected virtual void ApplyPosition()
         {
             // Apply the position.
-            m_Transform.position = m_Transform.position + m_MoveDirection;
-            m_Velocity = (m_Transform.position - m_PrevPosition) / (m_TimeScale * m_DeltaTime);
+            var position = m_Transform.position + m_MoveDirection;
 
-            m_PrevPosition = m_Transform.position;
+            m_Velocity = (position - m_PrevPosition) / (m_TimeScale * Time.deltaTime);
+            m_Transform.position = m_PrevPosition = position;
             m_MoveDirection = Vector3.zero;
             // Update the platform variables.
             if (m_Platform != null) {
-                m_PlatformRelativePosition = m_Platform.InverseTransformPoint(m_Transform.position);
+                m_PlatformRelativePosition = m_Platform.InverseTransformPoint(m_PrevPosition);
             }
         }
 
@@ -1447,7 +1473,7 @@ namespace Opsive.UltimateCharacterController.Character
             }
 
             // Dampen external forces.
-            var deltaTime = m_TimeScale * m_FramerateDeltaTime;
+            var deltaTime = m_TimeScale * (m_FramerateIndependentForce ? 1 : TimeUtility.FramerateDeltaTime);
             m_ExternalForce /= (1 + (m_Grounded ? m_ExternalForceDamping : m_ExternalForceAirDamping) * deltaTime);
         }
 
@@ -1457,7 +1483,7 @@ namespace Opsive.UltimateCharacterController.Character
         protected virtual void OnAnimatorMove()
         {
             // The delta position will be NaN after the first respawn frame. The TimeScale must also be positive.
-            if (float.IsNaN(m_AnimatorDeltaPosition.x) || m_TimeScale == 0 || Time.deltaTime == 0) {
+            if (float.IsNaN(m_AnimatorDeltaPosition.x) || m_TimeScale == 0 || Time.timeScale == 0 || Time.deltaTime == 0) {
                 return;
             }
 
@@ -1471,12 +1497,6 @@ namespace Opsive.UltimateCharacterController.Character
                 angle *= m_RootMotionRotationMultiplier;
                 m_LocalRootMotionRotation *= Quaternion.AngleAxis(angle, axis);
                 m_AnimatorDeltaRotation = Quaternion.identity;
-            }
-
-            // OnAnimatorMove may be called during the variable or fixed timestep. The delta time defaults to fixed and should be changed if it is variable.
-            if (!m_AnimatorMonitor.FixedUpdateMode) {
-                m_DeltaTime = Time.deltaTime;
-                m_FramerateDeltaTime = TimeUtility.FramerateDeltaTime;
             }
 
             // Root motion has been retrieved from the animator. The rotation and position should now be applied based on the root motion data. This should be done within
@@ -1505,14 +1525,15 @@ namespace Opsive.UltimateCharacterController.Character
                 if (m_Colliders[i] is CapsuleCollider) {
                     Vector3 startEndCap, endEndCap;
                     var capsuleCollider = m_Colliders[i] as CapsuleCollider;
-                    MathUtility.CapsuleColliderEndCaps(capsuleCollider, capsuleCollider.transform.position + offset, capsuleCollider.transform.rotation, out startEndCap, out endEndCap);
+                    var colliderTrasnform = capsuleCollider.transform;
+                    MathUtility.CapsuleColliderEndCaps(capsuleCollider, colliderTrasnform.position + offset, colliderTrasnform.rotation, out startEndCap, out endEndCap);
                     var radius = capsuleCollider.radius * MathUtility.ColliderRadiusMultiplier(capsuleCollider) - c_ColliderSpacing;
-                    localHitCount = Physics.CapsuleCastNonAlloc(startEndCap, endEndCap, radius, direction.normalized, m_RaycastHits, direction.magnitude + c_ColliderSpacing, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
+                    localHitCount = Physics.CapsuleCastNonAlloc(startEndCap, endEndCap, radius, direction.normalized, m_RaycastHits, Mathf.Max(direction.magnitude, c_ColliderSpacing * 2) + c_ColliderSpacing, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
                 } else { // SphereCollider.
                     var sphereCollider = m_Colliders[i] as SphereCollider;
                     var radius = sphereCollider.radius * MathUtility.ColliderRadiusMultiplier(sphereCollider) - c_ColliderSpacing;
                     localHitCount = Physics.SphereCastNonAlloc(sphereCollider.transform.TransformPoint(sphereCollider.center) + offset, radius, direction.normalized,
-                                                                    m_RaycastHits, direction.magnitude + c_ColliderSpacing, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
+                                                                    m_RaycastHits, Mathf.Max(direction.magnitude, c_ColliderSpacing * 2) + c_ColliderSpacing, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
                 }
 
                 if (localHitCount > 0) {
@@ -1524,13 +1545,13 @@ namespace Opsive.UltimateCharacterController.Character
                                 continue;
                             }
                             // Ensure the array is large enough.
-                            if (hitCount + j >= m_CombinedRaycastHits.Length) {
+                            if (hitCount + validHitCount >= m_CombinedRaycastHits.Length) {
                                 Debug.LogWarning("Warning: The maximum number of collisions has been reached. Consider increasing the CharacterLocomotion MaxCollisionCount value.");
                                 continue;
                             }
 
                             m_ColliderIndexMap.Add(m_RaycastHits[j], i);
-                            m_CombinedRaycastHits[hitCount + j] = m_RaycastHits[j];
+                            m_CombinedRaycastHits[hitCount + validHitCount] = m_RaycastHits[j];
                             validHitCount += 1;
                         }
                         hitCount += validHitCount;
@@ -1548,21 +1569,22 @@ namespace Opsive.UltimateCharacterController.Character
         /// Casts a ray using in the specified direction.  A CapsuleCast or SphereCast is used depending on the type of collider that has been added.
         /// The result is stored in the m_RaycastHit object.
         /// </summary>
-        /// <param name="collider">The collider which is performing the cast.</param>
+        /// <param name="castCollider">The collider which is performing the cast.</param>
         /// <param name="direction">The direction to perform the cast.</param>
         /// <param name="offset">Any offset to apply to the cast.</param>
         /// <returns>Did the cast hit an object?</returns>
-        private bool SingleCast(Collider collider, Vector3 direction, Vector3 offset)
+        private bool SingleCast(Collider castCollider, Vector3 direction, Vector3 offset)
         {
             // Determine if the collider would intersect any objects.
-            if (collider is CapsuleCollider) {
+            if (castCollider is CapsuleCollider) {
                 Vector3 startEndCap, endEndCap;
-                var capsuleCollider = collider as CapsuleCollider;
-                MathUtility.CapsuleColliderEndCaps(capsuleCollider, capsuleCollider.transform.position + offset, capsuleCollider.transform.rotation, out startEndCap, out endEndCap);
+                var capsuleCollider = castCollider as CapsuleCollider;
+                var colliderTransform = capsuleCollider.transform;
+                MathUtility.CapsuleColliderEndCaps(capsuleCollider, colliderTransform.position + offset, colliderTransform.rotation, out startEndCap, out endEndCap);
                 var radius = capsuleCollider.radius * MathUtility.ColliderRadiusMultiplier(capsuleCollider) - c_ColliderSpacing;
                 return Physics.CapsuleCast(startEndCap, endEndCap, radius, direction.normalized, out m_RaycastHit, direction.magnitude + c_ColliderSpacing, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
             } else { // SphereCollider.
-                var sphereCollider = collider as SphereCollider;
+                var sphereCollider = castCollider as SphereCollider;
                 var radius = sphereCollider.radius * MathUtility.ColliderRadiusMultiplier(sphereCollider) - c_ColliderSpacing;
                 return Physics.SphereCast(sphereCollider.transform.TransformPoint(sphereCollider.center) + offset, radius, direction.normalized,
                                                                 out m_RaycastHit, direction.magnitude + c_ColliderSpacing, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
@@ -1572,19 +1594,20 @@ namespace Opsive.UltimateCharacterController.Character
         /// <summary>
         /// Returns the number of colliders that are overlapping the character's collider.
         /// </summary>
-        /// <param name="collider">The collider to check against.</param>
+        /// <param name="overlapCollider">The collider to check against.</param>
         /// <param name="offset">The offset to apply to the character's collider position.</param>
         /// <returns>The number of objects which overlap the collider. These objects will be populated within m_OverlapColliderHit.</returns>
-        protected int OverlapCount(Collider collider, Vector3 offset)
+        protected int OverlapCount(Collider overlapCollider, Vector3 offset)
         {
-            if (collider is CapsuleCollider) {
+            if (overlapCollider is CapsuleCollider) {
                 Vector3 startEndCap, endEndCap;
-                var capsuleCollider = collider as CapsuleCollider;
-                MathUtility.CapsuleColliderEndCaps(capsuleCollider, collider.transform.position + offset, collider.transform.rotation, out startEndCap, out endEndCap);
+                var capsuleCollider = overlapCollider as CapsuleCollider;
+                var colliderTransform = overlapCollider.transform;
+                MathUtility.CapsuleColliderEndCaps(capsuleCollider, colliderTransform.position + offset, colliderTransform.rotation, out startEndCap, out endEndCap);
                 return Physics.OverlapCapsuleNonAlloc(startEndCap, endEndCap, capsuleCollider.radius * MathUtility.ColliderRadiusMultiplier(capsuleCollider) - c_ColliderSpacing,
                                                         m_OverlapColliderHit, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
             } else { // SphereCollider.
-                var sphereCollider = collider as SphereCollider;
+                var sphereCollider = overlapCollider as SphereCollider;
                 return Physics.OverlapSphereNonAlloc(sphereCollider.transform.TransformPoint(sphereCollider.center) + offset,
                                                         sphereCollider.radius * MathUtility.ColliderRadiusMultiplier(sphereCollider) - c_ColliderSpacing,
                                                         m_OverlapColliderHit, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
@@ -1626,47 +1649,58 @@ namespace Opsive.UltimateCharacterController.Character
 		        for (int i = 0; i < m_ColliderCount; ++i) {
 			        m_ColliderGameObjects[i].layer = m_ColliderLayers[i];
 		        }
-		        for (int i = 0; i < m_SubColliderCount; ++i) {
-			        m_SubColliderGameObjects[i].layer = m_SubColliderLayers[i];
+		        for (int i = 0; i < m_IgnoredColliderCount; ++i) {
+			        m_IgnoredColliderGameObjects[i].layer = m_IgnoredColliderLayers[i];
 		        }
 	        } else {
 		        for (int i = 0; i < m_ColliderCount; ++i) {
 			        m_ColliderLayers[i] = m_ColliderGameObjects[i].layer;
 			        m_ColliderGameObjects[i].layer = LayerManager.IgnoreRaycast;
 		        }
-				for (int i = 0; i < m_SubColliderCount; ++i) {
-					m_SubColliderLayers[i] = m_SubColliderGameObjects[i].layer;
-					m_SubColliderGameObjects[i].layer = LayerManager.IgnoreRaycast;
+				for (int i = 0; i < m_IgnoredColliderCount; ++i) {
+					m_IgnoredColliderLayers[i] = m_IgnoredColliderGameObjects[i].layer;
+					m_IgnoredColliderGameObjects[i].layer = LayerManager.IgnoreRaycast;
 				}
 			}
         }
 
         /// <summary>
-        /// Adds a collider to the existing collider array.
+        /// Sets the layer of the colliders.
         /// </summary>
-        /// <param name="collider">The collider that should be added to the array.</param>
-        public void AddCollider(Collider collider)
+        /// <param name="layer">The layer that should be set.</param>
+        public void SetCollisionLayer(int layer)
         {
-            m_ColliderCount = AddCollider(collider, ref m_Colliders, ref m_ColliderLayers, ref m_ColliderGameObjects, m_ColliderCount);
-            if (m_ColliderCount > 0 && m_ColliderIndexMap == null && m_Colliders.Length > 1) {
-                m_ColliderIndexMap = new Dictionary<RaycastHit, int>(new UnityEngineUtility.RaycastHitEqualityComparer());
+            for (int i = 0; i < m_ColliderCount; ++i) {
+                m_ColliderLayers[i] = m_ColliderGameObjects[i].layer = layer;
             }
         }
 
         /// <summary>
         /// Adds a collider to the existing collider array.
         /// </summary>
-        /// <param name="collider">The collider that should be added to the array.</param>
+        /// <param name="addCollider">The collider that should be added to the array.</param>
+        public void AddCollider(Collider addCollider)
+        {
+            m_ColliderCount = AddCollider(addCollider, ref m_Colliders, ref m_ColliderLayers, ref m_ColliderGameObjects, m_ColliderCount);
+            if (m_ColliderCount > 0 && m_ColliderIndexMap == null && m_Colliders.Length > 1) {
+                m_ColliderIndexMap = new Dictionary<RaycastHit, int>(new Utility.UnityEngineUtility.RaycastHitEqualityComparer());
+            }
+        }
+
+        /// <summary>
+        /// Adds a collider to the existing collider array.
+        /// </summary>
+        /// <param name="addCollider">The collider that should be added to the array.</param>
         /// <param name="existingColliders">An array of colliders that the colliders array should be added to.</param>
         /// <param name="existingColliderLayers">An array of existing collider layers that may need to be resized.</param>
         /// <param name="existingColliderGameObjects">An array of existing collider GameObjects that should be updated.</param>
         /// <param name="existingColliderCount">The count of the existing colliders array.</param>
         /// <returns>The new count of the existing colliders array.</returns>
-        private int AddCollider(Collider collider, ref Collider[] existingColliders, ref int[] existingColliderLayers, ref GameObject[] existingColliderGameObjects, int existingColliderCount)
+        private int AddCollider(Collider addCollider, ref Collider[] existingColliders, ref int[] existingColliderLayers, ref GameObject[] existingColliderGameObjects, int existingColliderCount)
         {
             // Don't add an already added collider.
             for (int i = 0; i < existingColliderCount; ++i) {
-                if (existingColliders[i] == collider) {
+                if (existingColliders[i] == addCollider) {
                     return existingColliderCount;
                 }
             }
@@ -1677,8 +1711,8 @@ namespace Opsive.UltimateCharacterController.Character
                 Array.Resize(ref existingColliderLayers, existingColliderLayers.Length + 1);
                 Array.Resize(ref existingColliderGameObjects, existingColliderGameObjects.Length + 1);
             }
-            existingColliders[existingColliderCount] = collider;
-            existingColliderGameObjects[existingColliderCount] = collider.gameObject;
+            existingColliders[existingColliderCount] = addCollider;
+            existingColliderGameObjects[existingColliderCount] = addCollider.gameObject;
             if (!m_CollisionLayerEnabled) {
                 existingColliderLayers[existingColliderCount] = existingColliderGameObjects[existingColliderCount].layer;
                 existingColliderGameObjects[existingColliderCount].layer = LayerManager.IgnoreRaycast;
@@ -1689,25 +1723,25 @@ namespace Opsive.UltimateCharacterController.Character
         /// <summary>
         /// Removes the specified collider from the collider array.
         /// </summary>
-        /// <param name="collider">The collider which should be removed from the array.</param>
-        public void RemoveCollider(Collider collider)
+        /// <param name="removeCollider">The collider which should be removed from the array.</param>
+        public void RemoveCollider(Collider removeCollider)
         {
-            m_ColliderCount = RemoveCollider(collider, ref m_Colliders, ref m_ColliderLayers, ref m_ColliderGameObjects, m_ColliderCount);
+            m_ColliderCount = RemoveCollider(removeCollider, ref m_Colliders, ref m_ColliderLayers, ref m_ColliderGameObjects, m_ColliderCount);
         }
 
         /// <summary>
         /// Removes the specified collider from the collider array.
         /// </summary>
-        /// <param name="collider">The collider which should be removed from the array.</param>
+        /// <param name="removeCollider">The collider which should be removed from the array.</param>
         /// <param name="existingColliders">An array of colliders that the colliders array should be removed from.</param>
         /// <param name="existingColliderLayers">An array of existing collider layers that may need to be resized.</param>
         /// <param name="existingColliderGameObjects">An array of existing collider GameObjects that should be updated.</param>
         /// <param name="existingColliderCount">The count of the existing colliders array.</param>
         /// <returns>The number of colliders within the existing colliders array.</returns>
-        public int RemoveCollider(Collider collider, ref Collider[] existingColliders, ref int[] existingColliderLayers, ref GameObject[] existingColliderGameObjects, int existingColliderCount)
+        public int RemoveCollider(Collider removeCollider, ref Collider[] existingColliders, ref int[] existingColliderLayers, ref GameObject[] existingColliderGameObjects, int existingColliderCount)
         {
             for (int i = existingColliders.Length - 1; i > -1; --i) {
-                if (existingColliders[i] != collider) {
+                if (existingColliders[i] != removeCollider) {
                     continue;
                 }
                 // The collider may be removed when collisions are disabled. The layer should be reverted back to its original.
@@ -1736,7 +1770,7 @@ namespace Opsive.UltimateCharacterController.Character
         {
             m_ColliderCount = AddColliders(colliders, ref m_Colliders, ref m_ColliderLayers, ref m_ColliderGameObjects, m_ColliderCount);
             if (m_ColliderIndexMap == null && m_Colliders.Length > 1) {
-                m_ColliderIndexMap = new Dictionary<RaycastHit, int>(new UnityEngineUtility.RaycastHitEqualityComparer());
+                m_ColliderIndexMap = new Dictionary<RaycastHit, int>(new Utility.UnityEngineUtility.RaycastHitEqualityComparer());
             }
         }
 
@@ -1836,39 +1870,39 @@ namespace Opsive.UltimateCharacterController.Character
         }
 
         /// <summary>
-        /// Adds an element to the subcollider array.
+        /// Adds an element to the ignored collider array.
         /// </summary>
-        /// <param name="collider">The collider which should be added to the array.</param>
-        public void AddSubCollider(Collider collider)
+        /// <param name="addCollider">The collider which should be added to the array.</param>
+        public void AddIgnoredCollider(Collider addCollider)
         {
-            m_SubColliderCount = AddCollider(collider, ref m_SubColliders, ref m_SubColliderLayers, ref m_SubColliderGameObjects, m_SubColliderCount);
+            m_IgnoredColliderCount = AddCollider(addCollider, ref m_IgnoredColliders, ref m_IgnoredColliderLayers, ref m_IgnoredColliderGameObjects, m_IgnoredColliderCount);
         }
 
         /// <summary>
-        /// Removes the specified collider from the subcollider array.
+        /// Removes the specified collider from the ignored collider array.
         /// </summary>
-        /// <param name="collider">The collider which should be removed from the array.</param>
-        public void RemoveSubCollider(Collider collider)
+        /// <param name="removeCollider">The collider which should be removed from the array.</param>
+        public void RemoveIgnoredCollider(Collider removeCollider)
         {
-            m_SubColliderCount = RemoveCollider(collider, ref m_SubColliders, ref m_SubColliderLayers, ref m_SubColliderGameObjects, m_SubColliderCount);
+            m_IgnoredColliderCount = RemoveCollider(removeCollider, ref m_IgnoredColliders, ref m_IgnoredColliderLayers, ref m_IgnoredColliderGameObjects, m_IgnoredColliderCount);
         }
 
         /// <summary>
-        /// Adds an array to the subcollider array.
+        /// Adds an array to the ignored collider array.
         /// </summary>
         /// <param name="colliders">The colliders which should be added to the array.</param>
-        public void AddSubColliders(Collider[] colliders)
+        public void AddIgnoredColliders(Collider[] colliders)
         {
-            m_SubColliderCount = AddColliders(colliders, ref m_SubColliders, ref m_SubColliderLayers, ref m_SubColliderGameObjects, m_SubColliderCount);
+            m_IgnoredColliderCount = AddColliders(colliders, ref m_IgnoredColliders, ref m_IgnoredColliderLayers, ref m_IgnoredColliderGameObjects, m_IgnoredColliderCount);
         }
 
         /// <summary>
-        /// Removes the specified colliders from the subcollider array.
+        /// Removes the specified colliders from the ignored collider array.
         /// </summary>
         /// <param name="colliders">The colliders that should be removed.</param>
-        public void RemoveSubColliders(Collider[] colliders)
+        public void RemoveIgnoredColliders(Collider[] colliders)
         {
-            m_SubColliderCount = RemoveColliders(colliders, ref m_SubColliders, ref m_SubColliderLayers, ref m_SubColliderGameObjects, m_SubColliderCount);
+            m_IgnoredColliderCount = RemoveColliders(colliders, ref m_IgnoredColliders, ref m_IgnoredColliderLayers, ref m_IgnoredColliderGameObjects, m_IgnoredColliderCount);
         }
 
         /// <summary>
@@ -1895,8 +1929,8 @@ namespace Opsive.UltimateCharacterController.Character
         /// </summary>
         /// <param name="force">The force to add.</param>
         /// <param name="frames">The number of frames to add the force to.</param>
-        /// <param name="scaleByTime">Should the force be scaled by the timescale?</param>
         /// <param name="scaleByMass">Should the force be scaled by the character's mass?</param>
+        /// <param name="scaleByTime">Should the force be scaled by the timescale?</param>
         public void AddForce(Vector3 force, int frames, bool scaleByMass, bool scaleByTime)
         {
             if (scaleByMass) {
@@ -1907,15 +1941,6 @@ namespace Opsive.UltimateCharacterController.Character
             } else {
                 AddExternalForce(force, scaleByTime);
             }
-        }
-
-        /// <summary>
-        /// Adds an external force to add.
-        /// </summary>
-        /// <param name="force">The force to add.</param>
-        private void AddExternalForce(Vector3 force)
-        {
-            AddExternalForce(force, true);
         }
 
         /// <summary>
@@ -1933,16 +1958,6 @@ namespace Opsive.UltimateCharacterController.Character
                 }
             }
             m_ExternalForce += force;
-        }
-
-        /// <summary>
-        /// Adds a soft force to the character. A soft force is spread out through up to c_MaxSoftForceFrames frames.
-        /// </summary>
-        /// <param name="force">The force to add.</param>
-        /// <param name="frames">The number of frames to add the force to.</param>
-        private void AddSoftForce(Vector3 force, float frames)
-        {
-            AddSoftForce(force, frames, true);
         }
 
         /// <summary>
@@ -2005,11 +2020,11 @@ namespace Opsive.UltimateCharacterController.Character
         /// <returns>Was the rigidbody pushed?</returns>
         protected virtual bool PushRigidbody(Rigidbody targetRigidbody, Vector3 moveDirection, Vector3 point, float radius)
         {
-            if (targetRigidbody.isKinematic) {
+            if (targetRigidbody.isKinematic || !MathUtility.InLayerMask(targetRigidbody.gameObject.layer, m_CharacterLayerManager.SolidObjectLayers)) {
                 return false;
             }
 
-            targetRigidbody.AddForceAtPosition((moveDirection / m_DeltaTime) * (m_Mass / targetRigidbody.mass) * 0.01f, point, ForceMode.VelocityChange);
+            targetRigidbody.AddForceAtPosition((m_Mass / targetRigidbody.mass) * 0.01f * (moveDirection / Time.deltaTime), point, ForceMode.VelocityChange);
             return targetRigidbody.velocity.sqrMagnitude > 0.1f;
         }
 
@@ -2035,8 +2050,9 @@ namespace Opsive.UltimateCharacterController.Character
         public virtual void SetRotation(Quaternion rotation)
         {
             m_Transform.rotation = m_MotorRotation = m_PrevMotorRotation = rotation;
-            m_LocalRootMotionRotation = m_Torque = Quaternion.identity;
+            m_LocalRootMotionRotation = m_Torque = m_PlatformDisconnectTorque = Quaternion.identity;
             m_Up = m_Transform.up;
+            m_ApplyPlatformDisconnectMovement = false;
             if (m_AlignToGravity) {
                 m_GravityDirection = -m_Up;
             }
@@ -2049,13 +2065,18 @@ namespace Opsive.UltimateCharacterController.Character
         public virtual void SetPosition(Vector3 position)
         {
             m_Transform.position = m_PrevPosition = position;
-            m_MotorThrottle = m_LocalRootMotionForce = m_MoveDirection = m_Velocity = m_ExternalForce = Vector3.zero;
+            m_MotorThrottle = m_LocalRootMotionForce = m_MoveDirection = m_Velocity = m_ExternalForce = m_PlatformDisconnectVelocity = Vector3.zero;
             m_GravityAmount = 0;
             m_GroundHitTransform = null;
+            m_ApplyPlatformDisconnectMovement = false;
 
-            // Remove the moving platform if the character changes position. It will be set again on the next update if the character is on a moving platform.
             if (m_Platform != null) {
-                UpdateMovingPlatformTransform(null, true);
+                if (m_PlatformOverride) {
+                    m_PlatformRelativePosition = m_Platform.InverseTransformPoint(m_Transform.position);
+                } else {
+                    // Remove the moving platform if the character changes position. It will be set again on the next update if the character is on a moving platform.
+                    UpdateMovingPlatformTransform(null, true);
+                }
             }
         }
 
@@ -2066,13 +2087,14 @@ namespace Opsive.UltimateCharacterController.Character
         {
             m_MotorRotation = m_PrevMotorRotation = m_Transform.rotation;
             m_Up = m_Transform.up;
-            m_LocalRootMotionRotation = m_Torque = Quaternion.identity;
+            m_LocalRootMotionRotation = m_Torque = m_PlatformDisconnectTorque = Quaternion.identity;
             if (m_AlignToGravity) {
                 m_GravityDirection = -m_Up;
             }
 
             m_PrevPosition = m_Transform.position;
-            m_MotorThrottle = m_LocalRootMotionForce = m_MoveDirection = m_Velocity = m_ExternalForce = Vector3.zero;
+            m_MotorThrottle = m_LocalRootMotionForce = m_MoveDirection = m_Velocity = m_ExternalForce = m_PlatformDisconnectVelocity = Vector3.zero;
+            m_ApplyPlatformDisconnectMovement = false;
         }
 
         /// <summary>

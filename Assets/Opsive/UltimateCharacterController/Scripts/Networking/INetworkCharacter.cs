@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Items.Actions;
-
 namespace Opsive.UltimateCharacterController.Networking.Character
 {
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Items.Actions;
+    using UnityEngine;
+
     /// <summary>
     /// Acts as a bridge between the character controller and the underlying networking implementation.
     /// </summary>
@@ -21,22 +21,22 @@ namespace Opsive.UltimateCharacterController.Networking.Character
         void LoadDefaultLoadout();
 
         /// <summary>
-        /// Equips or unequips the item with the specified ItemType and slot.
+        /// Equips or unequips the item with the specified ItemIdentifier and slot.
         /// </summary>
-        /// <param name="itemTypeID">The ID of the ItemType that should be equipped.</param>
+        /// <param name="itemIdentifierID">The ID of the ItemIdentifier that should be equipped.</param>
         /// <param name="slotID">The slot of the item that should be equipped.</param>
         /// <param name="equip">Should the item be equipped? If false it will be unequipped.</param>
-        void EquipUnequipItem(int itemTypeID, int slotID, bool equip);
+        void EquipUnequipItem(uint itemIdentifierID, int slotID, bool equip);
 
         /// <summary>
-        /// The ItemType has been picked up.
+        /// The ItemIdentifier has been picked up.
         /// </summary>
-        /// <param name="itemType">The ID of the ItemType that was picked up.</param>
-        /// <param name="count">The number of ItemType picked up.</param>
+        /// <param name="itemIdentifierID">The ID of the ItemIdentifier that was picked up.</param>
+        /// <param name="amount">The number of ItemIdentifier picked up.</param>
         /// <param name="slotID">The ID of the slot which the item belongs to.</param>
         /// <param name="immediatePickup">Was the item be picked up immediately?</param>
-        /// <param name="forcePickup">Should the item be force equipped?</param>
-        void ItemTypePickup(int itemTypeID, float count, int slotID, bool immediatePickup, bool forceEquip);
+        /// <param name="forceEquip">Should the item be force equipped?</param>
+        void ItemIdentifierPickup(uint itemIdentifierID, int amount, int slotID, bool immediatePickup, bool forceEquip);
 
         /// <summary>
         /// Removes all of the items from the inventory.
@@ -69,7 +69,8 @@ namespace Opsive.UltimateCharacterController.Networking.Character
         /// </summary>
         /// <param name="itemAction">The ItemAction that is being reloaded.</param>
         /// <param name="success">Was the item reloaded successfully?</param>
-        void ItemReloadComplete(ItemAction itemAction, bool success);
+        /// <param name="immediateReload">Should the item be reloaded immediately?</param>
+        void ItemReloadComplete(ItemAction itemAction, bool success, bool immediateReload);
 #endif
 
 #if ULTIMATE_CHARACTER_CONTROLLER_MELEE
@@ -95,6 +96,50 @@ namespace Opsive.UltimateCharacterController.Networking.Character
         /// </summary>
         /// <param name="itemAction">The ThrowableItem that is having the renderers enabled.</param>
         void EnableThrowableObjectMeshRenderers(ItemAction itemAction);
+
+        /// <summary>
+        /// Starts or stops the begin or end actions.
+        /// </summary>
+        /// <param name="itemAction">The MagicItem that is starting or stopping the actions.</param>
+        /// <param name="beginActions">Should the begin actions be started?</param>
+        /// <param name="start">Should the actions be started?</param>
+        void StartStopBeginEndMagicActions(ItemAction itemAction, bool beginActions, bool start);
+
+        /// <summary>
+        /// Casts a magic CastAction.
+        /// </summary>
+        /// <param name="itemAction">The MagicItem that is performing the cast.</param>
+        /// <param name="index">The index of the CastAction.</param>
+        /// <param name="castID">The ID of the cast.</param>
+        /// <param name="direction">The direction of the cast.</param>
+        /// <param name="targetPosition">The target position of the cast.</param>
+        void MagicCast(ItemAction itemAction, int index, uint castID, Vector3 direction, Vector3 targetPosition);
+
+        /// <summary>
+        /// Performs the magic impact.
+        /// </summary>
+        /// <param name="itemAction">The MagicItem that is performing the impact.</param>
+        /// <param name="castID">The ID of the cast.</param>
+        /// <param name="source">The object that originated the impact.</param>
+        /// <param name="target">The object that received the impact.</param>
+        /// <param name="position">The position of the impact.</param>
+        /// <param name="normal">The impact normal direction.</param>
+        void MagicImpact(ItemAction itemAction, uint castID, GameObject source, GameObject target, Vector3 position, Vector3 normal);
+
+        /// <summary>
+        /// Stops the magic CastAction.
+        /// </summary>
+        /// <param name="itemAction">The MagicItem that is stopping the cast.</param>
+        /// <param name="index">The index of the CastAction.</param>
+        /// <param name="castID">The ID of the cast.</param>
+        void StopMagicCast(ItemAction itemAction, int index, uint castID);
+
+        /// <summary>
+        /// Activates or deactives the flashlight.
+        /// </summary>
+        /// <param name="itemAction">The flashlight ItemAction.</param>
+        /// <param name="active">Should the flashlight be activated?</param>
+        void ToggleFlashlight(ItemAction itemAction, bool active);
 
         /// <summary>
         /// Pushes the target Rigidbody in the specified direction.
@@ -129,7 +174,8 @@ namespace Opsive.UltimateCharacterController.Networking.Character
         /// <param name="position">The position to set.</param>
         /// <param name="rotation">The rotation to set.</param>
         /// <param name="snapAnimator">Should the animator be snapped into position?</param>
-        void SetPositionAndRotation(Vector3 position, Quaternion rotation, bool snapAnimator);
+        /// <param name="stopAllAbilities">Should all abilities be stopped?</param>
+        void SetPositionAndRotation(Vector3 position, Quaternion rotation, bool snapAnimator, bool stopAllAbilities);
 
         /// <summary>
         /// Activates or deactivates the character.

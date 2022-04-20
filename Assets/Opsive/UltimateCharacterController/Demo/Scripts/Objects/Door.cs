@@ -4,13 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Demo.Objects
 {
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Controls the animation for the door.
     /// </summary>
@@ -22,7 +23,7 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
         [Tooltip("The LayerMask of the character.")]
         [SerializeField] protected LayerMask m_LayerMask = 1 << LayerManager.Character;
         [Tooltip("Is the door locked?")]
-        [SerializeField] protected bool m_Locked = false;
+        [SerializeField] protected bool m_Locked;
         [Tooltip("Should the door be permanently locked? A permanently locked door cannot be opened by the DemoManager.")]
         [UnityEngine.Serialization.FormerlySerializedAs("m_PermantlyLocked")]
         [SerializeField] protected bool m_PermanentlyLocked;

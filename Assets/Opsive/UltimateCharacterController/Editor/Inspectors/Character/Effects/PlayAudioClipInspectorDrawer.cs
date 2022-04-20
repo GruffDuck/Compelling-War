@@ -4,14 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Character.Effects;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Effects
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.Shared.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Character.Effects;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Draws a custom inspector for the PlayAudioClip effect.
     /// </summary>
@@ -31,7 +32,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Effects
             ObjectInspector.DrawFields(target, true);
 
             m_PlayAudioClip = target as PlayAudioClip;
-            m_AudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_PlayAudioClip.AudioClipSet, null, m_AudioClipsList, OnAudioClipDraw, OnAudioClipListAdd, OnAudioClipListRemove);
+            m_AudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_PlayAudioClip.AudioClipSet, m_AudioClipsList, OnAudioClipDraw, OnAudioClipListAdd, OnAudioClipListRemove);
         }
 
         /// <summary>

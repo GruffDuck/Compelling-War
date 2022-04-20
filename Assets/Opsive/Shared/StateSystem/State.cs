@@ -1,18 +1,20 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using System.Collections.Generic;
-
-namespace Opsive.UltimateCharacterController.StateSystem
+namespace Opsive.Shared.StateSystem
 {
+    using Opsive.Shared.Utility;
+    using System.Collections.Generic;
+    using UnityEngine;
+
     /// <summary>
     /// A State contains a preset which can change property values at runtime. The state has a name associated with it which allows for easy reference to it.
     /// </summary>
     [System.Serializable]
+    [FormerlySerializedAs("Opsive.UltimateCharacterController.StateSystem.State")]
     public class State
     {
         [Tooltip("The name of the state.")]
@@ -24,7 +26,7 @@ namespace Opsive.UltimateCharacterController.StateSystem
         [Tooltip("Is the state the default state?")]
         [SerializeField] protected bool m_Default;
         [Tooltip("Is the state active?")]
-        [System.NonSerialized] [SerializeField] protected bool m_Active;
+        [System.NonSerialized] protected bool m_Active;
 
         private IStateOwner m_Owner;
         public IStateOwner Owner { get { return m_Owner; } }
@@ -35,9 +37,11 @@ namespace Opsive.UltimateCharacterController.StateSystem
 #endif
         }
         public Preset Preset { get { return m_Preset; } set { m_Preset = value; } }
+        public string[] BlockList { get { return m_BlockList; } 
 #if UNITY_EDITOR
-        public string[] BlockList { get { return m_BlockList; } set { m_BlockList = value; } }
+            set { m_BlockList = value; }
 #endif
+        }
         public bool Default { get { return m_Default; }
 #if UNITY_EDITOR
             set { m_Default = value; }
@@ -90,7 +94,7 @@ namespace Opsive.UltimateCharacterController.StateSystem
                 if (m_Preset.IsInitialized) {
                     m_Preset = Object.Instantiate(m_Preset);
                 }
-                m_Preset.Initialize(owner, Utility.MemberVisibility.Public);
+                m_Preset.Initialize(owner, MemberVisibility.Public);
             }
             m_Owner = owner;
             UpdateBlockList(nameStateMap);

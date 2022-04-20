@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.Motion
 {
+    using UnityEngine;
+
     /// <summary>
     /// Defines the character's movements when there is no root motion data available.
     /// </summary>
@@ -49,7 +49,7 @@ namespace Opsive.UltimateCharacterController.Motion
         /// Evaluations the rotation at the specified time.
         /// </summary>
         /// <param name="time">The time to evaluate the rotation at.</param>
-        /// <param name="position">The rotation that occurs at the specified time.</param>
+        /// <param name="rotation">The rotation that occurs at the specified time.</param>
         public void EvaluateRotation(float time, ref Quaternion rotation)
         {
             rotation = Quaternion.Euler(m_XRotation.Evaluate(time), m_YRotation.Evaluate(time), m_ZRotation.Evaluate(time));

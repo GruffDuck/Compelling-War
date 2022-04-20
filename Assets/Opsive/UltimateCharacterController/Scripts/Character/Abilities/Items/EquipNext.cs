@@ -4,18 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Items;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities.Items
 {
+    using Opsive.Shared.Events;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// The EquipNext ability will equip the Next ItemSet in the specified category.
     /// </summary>
     [DefaultStartType(AbilityStartType.ButtonDown)]
     [DefaultInputName("Equip Next Item")]
-    [AllowMultipleAbilityTypes]
+    [AllowDuplicateTypes]
     public class EquipNext : EquipSwitcher
     {
         private int m_PrevItemSetIndex;
@@ -89,21 +90,21 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
         /// <param name="unequipOnFailure">Should the current ItemSet be unequipped if the next ItemSet cannot be activated?</param>
         private void OnNextItemSet(Item item, bool unequipOnFailure)
         {
-            var itemType = item.ItemType;
-            if (!itemType.CategoryIDMatch(m_ItemSetCategoryID)) {
+            var itemIdentifier = item.ItemIdentifier;
+            if (!m_ItemSetManager.IsCategoryMember(itemIdentifier.GetItemDefinition(), m_ItemSetCategoryIndex)) {
                 return;
             }
 
-            // Don't equip the next item if the current ItemSet doesn't contain the ItemType.
-            var activeItemType = m_ItemSetManager.GetEquipItemType(m_ItemSetCategoryIndex, item.SlotID);
-            if (itemType != activeItemType) {
+            // Don't equip the next item if the current ItemSet doesn't contain the ItemIdentifier.
+            var activeItemIdentifier = m_ItemSetManager.GetEquipItemIdentifier(m_ItemSetCategoryIndex, item.SlotID);
+            if (itemIdentifier != activeItemIdentifier) {
                 return;
             }
 
             // Tries to equip the next item. If the ability can't be started then the next item cannot be equipped. If unequip on failure is true
             // and the next item is invalid then no items should be shown.
             if (!StartAbility() && unequipOnFailure) {
-                m_EquipUnequipItemAbility.StartEquipUnequip(-1);
+                m_EquipUnequipItemAbility.StartEquipUnequip(m_ItemSetManager.GetDefaultItemSetIndex(m_ItemSetCategoryIndex));
             }
         }
 

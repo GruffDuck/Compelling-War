@@ -1,12 +1,10 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
-namespace Opsive.UltimateCharacterController.Input
+namespace Opsive.Shared.Input
 {
     /// <summary>
     /// The base class for both mobile and standalone (keyboard/mouse and controller) input. This base class exists so UnityInput doesn't need to know if it
@@ -24,7 +22,7 @@ namespace Opsive.UltimateCharacterController.Input
         /// <summary>
         /// Initializes the UnityInputBase.
         /// </summary>
-        /// <param name="unityInput">A reference to the PlayerInput component.</param>
+        /// <param name="playerInput">A reference to the PlayerInput component.</param>
         public void Initialize(PlayerInput playerInput)
         {
             m_PlayerInput = playerInput;

@@ -1,22 +1,22 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
-namespace Opsive.UltimateCharacterController.StateSystem
+namespace Opsive.Shared.StateSystem
 {
+    using UnityEngine;
+
     /// <summary>
     /// Acts as the parent component which can use the state system to change property values.
     /// </summary>
     public class StateBehavior : MonoBehaviour, IStateOwner
     {
         [Tooltip("A list of all states that the component can change to.")]
-        [HideInInspector] [SerializeField] protected State[] m_States = new State[] { new State("Default", true) };
+        [HideInInspector] [ReorderableStateListAttribute] [SerializeField] protected State[] m_States = new State[] { new State("Default", true) };
 
-        [Utility.NonSerialized] public State[] States { get { return m_States; } set { m_States = value; } }
+        [Opsive.Shared.Utility.NonSerialized] public State[] States { get { return m_States; } set { m_States = value; } }
 
         /// <summary>
         /// Initialize the default values.

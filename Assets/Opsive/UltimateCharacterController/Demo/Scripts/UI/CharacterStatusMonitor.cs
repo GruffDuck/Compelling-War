@@ -4,14 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.UI;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.MovementTypes;
-
 namespace Opsive.UltimateCharacterController.Demo.UI
 {
+    using Opsive.Shared.Events;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.MovementTypes;
+    using UnityEngine;
+    using UnityEngine.UI;
+
     /// <summary>
     /// Monitors the text components which show the active perspective and movement type.
     /// </summary>
@@ -29,8 +29,8 @@ namespace Opsive.UltimateCharacterController.Demo.UI
         /// </summary>
         private void Start()
         {
-            var camera = Utility.UnityEngineUtility.FindCamera(null);
-            var character = camera.GetComponent<Camera.CameraController>().Character;
+            var foundCamera = Opsive.Shared.Camera.CameraUtility.FindCamera(null);
+            var character = foundCamera.GetComponent<UltimateCharacterController.Camera.CameraController>().Character;
             m_CharacterLocomotion = character.GetComponent<UltimateCharacterLocomotion>();
 
             m_PerspectiveText.text = GetPerspectiveText();

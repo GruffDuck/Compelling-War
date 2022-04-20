@@ -4,17 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditor.IMGUI.Controls;
-using Opsive.UltimateCharacterController.Inventory;
-using Opsive.UltimateCharacterController.Editor.Controls;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Editor.Managers
 {
+    using Opsive.UltimateCharacterController.Editor.Controls;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Inventory;
+    using System;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditor.IMGUI.Controls;
+    using UnityEngine;
+
     /// <summary>
     /// The ItemTypeManager will draw any ItemType properties
     /// </summary>
@@ -112,6 +112,18 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
 
             // The ItemCollection may have been serialized.
             if (m_ItemCollection != null) {
+                // The category may be invalid.
+                var categories = m_ItemCollection.Categories;
+                if (categories != null) {
+                    for (int i = categories.Length - 1; i > -1; --i) {
+                        if (categories[i] != null) {
+                            continue;
+                        }
+                        ArrayUtility.RemoveAt(ref categories, i);
+                    }
+                    m_ItemCollection.Categories = categories;
+                }
+
                 // The CategoryState would have been reconstructed after deserialization so update the state within the tree.
                 m_CategoryTreeView.state.expandedIDs = m_CategoryTreeViewState.expandedIDs;
                 m_CategoryTreeView.state.lastClickedID = m_CategoryTreeViewState.lastClickedID;
@@ -146,9 +158,9 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             GUILayout.Space(10);
 
             if (m_DrawItemType) {
-                GUILayout.Label("Item Types", InspectorStyles.CenterBoldLabel);
+                GUILayout.Label("Item Types", Shared.Editor.Inspectors.Utility.InspectorStyles.CenterBoldLabel);
             } else {
-                GUILayout.Label("Categories", InspectorStyles.CenterBoldLabel);
+                GUILayout.Label("Categories", Shared.Editor.Inspectors.Utility.InspectorStyles.CenterBoldLabel);
             }
 
             EditorGUILayout.BeginHorizontal();
@@ -157,12 +169,17 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 var path = EditorUtility.SaveFilePanel("Save Item Collection", "Assets", "ItemCollection.asset", "asset");
                 if (path.Length != 0 && Application.dataPath.Length < path.Length) {
                     itemCollection = ScriptableObject.CreateInstance<ItemCollection>();
-                    itemCollection.Categories = new ItemCollection.Category[] { new ItemCollection.Category(new System.Random(Guid.NewGuid().GetHashCode()).Next(), "Items") };
+                    var category = ScriptableObject.CreateInstance<Category>();
+                    category.ID = Category.GenerateID();
+                    category.name = "Items";
+                    itemCollection.Categories = new Category[] { category };
 
                     // Save the collection.
                     path = string.Format("Assets/{0}", path.Substring(Application.dataPath.Length + 1));
                     AssetDatabase.DeleteAsset(path);
                     AssetDatabase.CreateAsset(itemCollection, path);
+                    AssetDatabase.AddObjectToAsset(category, path);
+                    AssetDatabase.SaveAssets();
                     AssetDatabase.ImportAsset(path);
                 }
             }
@@ -204,8 +221,14 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             var categories = m_ItemCollection.Categories;
             if (categories == null) {
                 // At least one category needs to exist.
-                var category = new ItemCollection.Category((new System.Random()).Next(), "Items");
-                categories = m_ItemCollection.Categories = new ItemCollection.Category[] { category };
+                var category = ScriptableObject.CreateInstance<Category>();
+                category.ID = Category.GenerateID();
+                category.name = "Items";
+                categories = m_ItemCollection.Categories = new Category[] { category };
+
+                AssetDatabase.AddObjectToAsset(category, AssetDatabase.GetAssetPath(m_ItemCollection));
+                AssetDatabase.SaveAssets();
+                AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(m_ItemCollection));
             }
 
             EditorGUILayout.BeginHorizontal();
@@ -214,16 +237,19 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             GUI.enabled = !string.IsNullOrEmpty(m_CategoryName) && (m_CategoryTreeView.TreeModal as CategoryCollectionModal).IsUniqueName(m_CategoryName);
             if (GUILayout.Button("Add", GUILayout.Width(100)) || (Event.current.keyCode == KeyCode.Return && GUI.GetNameOfFocusedControl() == "CategoryName")) {
                 // Create the new Category.
-                var category = new ItemCollection.Category();
-                category.Name = m_CategoryName;
-                category.ID = (m_CategoryTreeView.TreeModal as CategoryCollectionModal).GetUniqueCategoryID();
+                var category = ScriptableObject.CreateInstance<Category>();
+                category.ID = Category.GenerateID();
+                category.name = m_CategoryName;
+
                 // Add the Category to the ItemCollection.
                 Array.Resize(ref categories, categories.Length + 1);
                 categories[categories.Length - 1] = category;
                 m_ItemCollection.Categories = categories;
+                AssetDatabase.AddObjectToAsset(category, m_ItemCollection);
 
                 // Reset.
                 EditorUtility.SetDirty(m_ItemCollection);
+                AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(m_ItemCollection));
                 m_CategoryName = string.Empty;
                 GUI.FocusControl("");
                 m_CategoryTreeView.Reload();
@@ -257,17 +283,21 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 // Create the new ItemType.
                 var itemType = ScriptableObject.CreateInstance<ItemType>();
                 itemType.name = m_ItemTypeName;
+                if (m_ItemCollection.Categories != null && m_ItemCollection.Categories.Length > 0) {
+                    itemType.CategoryIDs = new uint[] { m_ItemCollection.Categories[0].ID };
+                }
 
                 // Add the ItemType to the ItemCollection.
                 Array.Resize(ref itemTypes, itemTypes != null ? itemTypes.Length + 1 : 1);
-                itemType.ID = itemTypes.Length - 1;
+                itemType.ID = (uint)itemTypes.Length - 1;
                 itemTypes[itemTypes.Length - 1] = itemType;
                 m_ItemCollection.ItemTypes = itemTypes;
                 AssetDatabase.AddObjectToAsset(itemType, m_ItemCollection);
+                AssetDatabase.SaveAssets();
                 AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(m_ItemCollection));
 
                 // Select the newly added item.
-                m_ItemTypeTreeView.SetSelection(new List<int>() { itemType.ID }, TreeViewSelectionOptions.FireSelectionChanged);
+                m_ItemTypeTreeView.SetSelection(new List<int>() { (int)itemType.ID }, TreeViewSelectionOptions.FireSelectionChanged);
 
                 // Reset.
                 EditorUtility.SetDirty(m_ItemCollection);
@@ -334,9 +364,9 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
     public class CategoryCollectionModal : TreeModal
     {
         // Specifies the height of the row.
-        private const float c_RowHeight = 30;
+        private const float c_RowHeight = 26;
         // Specifies the height of the selected row.
-        private const float c_SelectedRowHeight = 65;
+        private const float c_SelectedRowHeight = 60;
 
         private ItemCollection m_ItemCollection;
 
@@ -384,7 +414,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             DrawBackground(rowRect, isSelected);
 
             // Draw the header.
-            DrawHeader(rowRect, item.id);
+            DrawHeader(rowRect, item.id, isSelected);
 
             EditorGUI.BeginChangeCheck();
 
@@ -444,12 +474,15 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// </summary>
         /// <param name="rowRect">The rect of the Category row.</param>
         /// <param name="id">The id of the Category to draw the header of.</param>
-        private void DrawHeader(Rect rowRect, int id)
+        /// <param name="isSelected">Is the category selected?</param>
+        private void DrawHeader(Rect rowRect, int id, bool isSelected)
         {
             var rect = rowRect;
             rect.x += 4;
-            rect.y += 4;
-            GUI.Label(rect, m_ItemCollection.Categories[id].Name);
+            if (isSelected) {
+                rect.y -= 17;
+            }
+            GUI.Label(rect, m_ItemCollection.Categories[id].name);
         }
 
         /// <summary>
@@ -465,24 +498,29 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             duplicateRect.width = 20;
             duplicateRect.y += 4;
             duplicateRect.height = 16;
-            if (GUI.Button(duplicateRect, InspectorStyles.DuplicateIcon, InspectorStyles.NoPaddingButtonStyle)) {
+            if (GUI.Button(duplicateRect, Shared.Editor.Inspectors.Utility.InspectorStyles.DuplicateIcon, Shared.Editor.Inspectors.Utility.InspectorStyles.NoPaddingButtonStyle)) {
                 // Generate a unique name for the category.
                 var categories = m_ItemCollection.Categories;
                 var category = categories[id];
                 var index = 1;
                 string name;
                 do {
-                    name = category.Name + " (" + index + ")";
+                    name = category.name + " (" + index + ")";
                     index++;
                 } while (!IsUniqueName(name));
 
-                var clonedCategory = new ItemCollection.Category(GetUniqueCategoryID(), name);
+                var clonedCategory = ScriptableObject.CreateInstance<Category>();
+                clonedCategory.ID = Category.GenerateID();
+                clonedCategory.name = name;
+                AssetDatabase.AddObjectToAsset(clonedCategory, m_ItemCollection);
 
                 // Add the Category to the ItemCollection.
                 Array.Resize(ref categories, categories.Length + 1);
                 categories[categories.Length - 1] = clonedCategory;
                 m_ItemCollection.Categories = categories;
                 EditorUtility.SetDirty(m_ItemCollection);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(m_ItemCollection));
                 return true;
             }
 
@@ -492,13 +530,19 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             deleteRect.y += 4;
             deleteRect.height = 16;
             GUI.enabled = m_ItemCollection.Categories.Length > 1;
-            if (GUI.Button(deleteRect, InspectorStyles.DeleteIcon, InspectorStyles.NoPaddingButtonStyle)) {
+            if (GUI.Button(deleteRect, Shared.Editor.Inspectors.Utility.InspectorStyles.DeleteIcon, Shared.Editor.Inspectors.Utility.InspectorStyles.NoPaddingButtonStyle)) {
                 // The category can't be deleted if other ItemTypes depend on it.
                 var canRemove = true;
                 for (int i = 0; i < m_ItemCollection.ItemTypes.Length; ++i) {
-                    if (m_ItemCollection.ItemTypes[i].CategoryIDMatch(m_ItemCollection.Categories[id].ID)) {
-                        EditorUtility.DisplayDialog("Unable to Delete", "Unable to delete the category: the ItemType " + m_ItemCollection.ItemTypes[i].name + " uses this category", "OK");
-                        canRemove = false;
+                    var categoryIDs = m_ItemCollection.ItemTypes[i].CategoryIDs;
+                    for (int j = 0; j < categoryIDs.Length; ++j) {
+                        if (categoryIDs[j] == m_ItemCollection.Categories[id].ID) {
+                            EditorUtility.DisplayDialog("Unable to Delete", "Unable to delete the category: the ItemType " + m_ItemCollection.ItemTypes[i].name + " uses this category", "OK");
+                            canRemove = false;
+                            break;
+                        }
+                    }
+                    if (!canRemove) {
                         break;
                     }
                 }
@@ -508,44 +552,19 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                         m_BeforeModalChange();
                     }
 
-                    // Remove the ItemType.
-                    var categories = new List<ItemCollection.Category>(m_ItemCollection.Categories);
+                    // Remove the category.
+                    Undo.DestroyObjectImmediate(m_ItemCollection.Categories[id]);
+                    var categories = new List<Category>(m_ItemCollection.Categories);
                     categories.RemoveAt(id);
                     m_ItemCollection.Categories = categories.ToArray();
                     EditorUtility.SetDirty(m_ItemCollection);
+                    AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(m_ItemCollection));
                 }
                 GUI.enabled = true;
                 return true;
             }
             GUI.enabled = true;
             return false;
-        }
-
-        /// <summary>
-        /// Returns a unique ID for the category.
-        /// </summary>
-        /// <returns>The unique ID of the category.</returns>
-        public int GetUniqueCategoryID()
-        {
-            var categories = m_ItemCollection.Categories;
-            var random = new System.Random(Guid.NewGuid().GetHashCode());
-            bool generateID;
-            int categoryID;
-            do {
-                categoryID = random.Next();
-                generateID = false;
-                if (categoryID == 0) {
-                    generateID = true;
-                } else {
-                    for (int i = 0; i < categories.Length; ++i) {
-                        if (categories[i].ID == categoryID) {
-                            generateID = true;
-                            break;
-                        }
-                    }
-                }
-            } while (generateID);
-            return categoryID;
         }
 
         /// <summary>
@@ -558,7 +577,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             var rect = rowRect;
             rect.x += 4;
             rect.y += c_RowHeight;
-            InspectorUtility.RecordUndoDirtyObject(m_ItemCollection, "Category Change");
+            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(m_ItemCollection, "Category Change");
 
             var category = m_ItemCollection.Categories[id];
 
@@ -567,11 +586,12 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             nameRect.y += 6;
             nameRect.height = 16;
             nameRect.width -= 16;
-            var name = InspectorUtility.DrawEditorWithoutSelectAll(() => InspectorUtility.ClampTextField(nameRect, "Name", category.Name, 22));
+            var name = InspectorUtility.DrawEditorWithoutSelectAll(() => InspectorUtility.ClampTextField(nameRect, "Name", category.name, 22));
             // The name must be unique.
-            if (name != category.Name) {
+            if (name != category.name) {
                 if (IsUniqueName(name)) {
-                    category.Name = name;
+                    category.name = name;
+                    AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(category));
                 }
             }
         }
@@ -587,7 +607,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 return true;
             }
             for (int i = 0; i < m_ItemCollection.Categories.Length; ++i) {
-                if (m_ItemCollection.Categories[i].Name.ToLower().CompareTo(name.ToLower()) == 0) {
+                if (String.Compare(m_ItemCollection.Categories[i].name.ToLower(), name.ToLower(), StringComparison.Ordinal) == 0) {
                     return false;
                 }
             }
@@ -639,7 +659,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// <returns>True if the row matches the search string.</returns>
         public override bool MatchesSearch(int id, string searchString)
         {
-            return m_ItemCollection.Categories[id].Name.IndexOf(searchString, StringComparison.OrdinalIgnoreCase) >= 0;
+            return m_ItemCollection.Categories[id].name.IndexOf(searchString, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
@@ -665,9 +685,9 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
     public class ItemTypeCollectionModal : TreeModal
     {
         // Specifies the height of the row.
-        private const float c_RowHeight = 30;
+        private const float c_RowHeight = 26;
         // Specifies the height of the selected row.
-        private const float c_SelectedRowHeight = 190;
+        private const float c_SelectedRowHeight = 164;
 
         private ItemCollection m_ItemCollection;
 
@@ -693,17 +713,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// <returns>The height of the row.</returns>
         public override float GetRowHeight(TreeViewItem item, TreeViewState state)
         {
-            var selected = IsSelected(item, state);
-            var height = selected ? c_SelectedRowHeight : c_RowHeight;
-            // Extra spacing needs to be added for each referenced dropped ItemType.
-            if (selected) {
-                var itemType = m_ItemCollection.ItemTypes[item.id];
-                if (itemType.DroppedItemTypes != null) {
-                    height += itemType.DroppedItemTypes.Length * 20;
-                }
-            }
-
-            return height;
+            return IsSelected(item, state) ? c_SelectedRowHeight : c_RowHeight;
         }
 
         /// <summary>
@@ -725,7 +735,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             DrawBackground(rowRect, isSelected);
 
             // Draw the header.
-            DrawHeader(rowRect, item.id);
+            DrawHeader(rowRect, item.id, isSelected);
 
             EditorGUI.BeginChangeCheck();
 
@@ -785,11 +795,16 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// </summary>
         /// <param name="rowRect">The rect of the ItemType row.</param>
         /// <param name="id">The id of the ItemType to draw the header of.</param>
-        private void DrawHeader(Rect rowRect, int id)
+        /// <param name="isSelected">Is the ItemType selected?</param>
+        private void DrawHeader(Rect rowRect, int id, bool isSelected)
         {
             var rect = rowRect;
             rect.x += 4;
-            rect.y += 4;
+            if (isSelected) {
+                rect.y -= 67;
+            } else {
+                rect.y += 2;
+            }
             GUI.Label(rect, m_ItemCollection.ItemTypes[id].name);
         }
 
@@ -806,7 +821,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             identifyRect.width = 20;
             identifyRect.y += 4;
             identifyRect.height = 16;
-            if (GUI.Button(identifyRect, InspectorStyles.InfoIcon, InspectorStyles.NoPaddingButtonStyle)) {
+            if (GUI.Button(identifyRect, Shared.Editor.Inspectors.Utility.InspectorStyles.InfoIcon, Shared.Editor.Inspectors.Utility.InspectorStyles.NoPaddingButtonStyle)) {
                 Selection.activeObject = m_ItemCollection.ItemTypes[id];
                 EditorGUIUtility.PingObject(Selection.activeObject);
             }
@@ -816,7 +831,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             duplicateRect.width = 20;
             duplicateRect.y += 4;
             duplicateRect.height = 16;
-            if (GUI.Button(duplicateRect, InspectorStyles.DuplicateIcon, InspectorStyles.NoPaddingButtonStyle)) {
+            if (GUI.Button(duplicateRect, Shared.Editor.Inspectors.Utility.InspectorStyles.DuplicateIcon, Shared.Editor.Inspectors.Utility.InspectorStyles.NoPaddingButtonStyle)) {
                 var itemType = m_ItemCollection.ItemTypes[id];
                 var clonedItemType = UnityEngine.Object.Instantiate(itemType);
                 // Generate a unique name for the item.
@@ -831,12 +846,13 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 // Add the ItemType to the ItemCollection.
                 var itemTypes = m_ItemCollection.ItemTypes;
                 Array.Resize(ref itemTypes, itemTypes.Length + 1);
-                clonedItemType.ID = itemTypes.Length - 1;
+                clonedItemType.ID = (uint)itemTypes.Length - 1;
                 itemTypes[itemTypes.Length - 1] = clonedItemType;
                 m_ItemCollection.ItemTypes = itemTypes;
                 AssetDatabase.AddObjectToAsset(clonedItemType, m_ItemCollection);
-                AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(m_ItemCollection));
                 EditorUtility.SetDirty(m_ItemCollection);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(m_ItemCollection));
                 return true;
             }
 
@@ -845,7 +861,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             deleteRect.width = 18;
             deleteRect.y += 4;
             deleteRect.height = 16;
-            if (GUI.Button(deleteRect, InspectorStyles.DeleteIcon, InspectorStyles.NoPaddingButtonStyle)) {
+            if (GUI.Button(deleteRect, Shared.Editor.Inspectors.Utility.InspectorStyles.DeleteIcon, Shared.Editor.Inspectors.Utility.InspectorStyles.NoPaddingButtonStyle)) {
                 if (m_BeforeModalChange != null) {
                     m_BeforeModalChange();
                 }
@@ -860,7 +876,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
 
                 // Update all of the ItemIDs.
                 for (int i = 0; i < itemTypes.Count; ++i) {
-                    m_ItemCollection.ItemTypes[i].ID = i;
+                    m_ItemCollection.ItemTypes[i].ID = (uint)i;
                 }
                 return true;
             }
@@ -879,7 +895,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             rect.y += c_RowHeight;
 
             var itemType = m_ItemCollection.ItemTypes[id];
-            InspectorUtility.RecordUndoDirtyObject(itemType, "ItemType Change");
+            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(itemType, "ItemType Change");
 
             // Name and description properties.
             var nameRect = rect;
@@ -904,7 +920,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             descriptionRect.y += descriptionRect.height + 2;
             descriptionRect.width -= 2;
             descriptionRect.height = 42;
-            itemType.Description = InspectorUtility.DrawEditorWithoutSelectAll(() => EditorGUI.TextArea(descriptionRect, itemType.Description, InspectorStyles.WordWrapTextArea));
+            itemType.Description = InspectorUtility.DrawEditorWithoutSelectAll(() => EditorGUI.TextArea(descriptionRect, itemType.Description, Shared.Editor.Inspectors.Utility.InspectorStyles.WordWrapTextArea));
 
             // The ItemType must belong to a category.
             var categoryRect = rect;
@@ -912,70 +928,40 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             categoryRect.height = 16;
             categoryRect.width -= 12;
 
-            var selectedMask = 0;
-            var categoryNames = new string[m_ItemCollection.Categories.Length];
-            for (int i = 0; i < categoryNames.Length; ++i) {
-                categoryNames[i] = m_ItemCollection.Categories[i].Name;
-                if (itemType.CategoryIDMatch(m_ItemCollection.Categories[i].ID)) {
-                    selectedMask |= 1 << i;
-                }
-            }
-            var categoryMask = InspectorUtility.ClampMaskField(categoryRect, "Category", selectedMask, categoryNames, 55);
-            if (categoryMask != selectedMask) {
-                var selectedIDs = new List<int>();
+            if (m_ItemCollection.Categories.Length == 0) {
+                EditorGUI.LabelField(categoryRect, "No categories exist. Categories can be created within the Category tab.");
+            } else {
+                var selectedMask = 0;
+                var categoryNames = new string[m_ItemCollection.Categories.Length];
                 for (int i = 0; i < categoryNames.Length; ++i) {
-                    if ((categoryMask & (1 << i)) == (1 << i)) {
-                        selectedIDs.Add(m_ItemCollection.Categories[i].ID);
+                    if (m_ItemCollection.Categories[i] == null) {
+                        continue;
+                    }
+                    categoryNames[i] = m_ItemCollection.Categories[i].name;
+                    var categoryIDs = m_ItemCollection.ItemTypes[id].CategoryIDs;
+                    for (int j = 0; j < categoryIDs.Length; ++j) {
+                        if (categoryIDs[j] == m_ItemCollection.Categories[i].ID) {
+                            selectedMask |= 1 << i;
+                        }
                     }
                 }
-                itemType.CategoryIDs = selectedIDs.ToArray();
+
+                var categoryMask = InspectorUtility.ClampMaskField(categoryRect, "Category", selectedMask, categoryNames, 55);
+                if (categoryMask != selectedMask) {
+                    var selectedIDs = new List<uint>();
+                    for (int i = 0; i < categoryNames.Length; ++i) {
+                        if ((categoryMask & (1 << i)) == (1 << i)) {
+                            selectedIDs.Add(m_ItemCollection.Categories[i].ID);
+                        }
+                    }
+                    itemType.CategoryIDs = selectedIDs.ToArray();
+                }
             }
 
             // The ItemType can set a max capacity to restrict the item amount.
             var capacityRect = categoryRect;
             capacityRect.y = capacityRect.yMax + 4;
-            itemType.Capacity = InspectorUtility.DrawEditorWithoutSelectAll(() => InspectorUtility.ClampFloatField(capacityRect, "Capacity", itemType.Capacity, 59));
-
-            // The ItemType can drop other ItemTypes. Allow for the selection here.
-            var nameItemTypeMap = new Dictionary<string, ItemType>();
-            for (int i = 0; i < m_ItemCollection.ItemTypes.Length; ++i) {
-                if (m_ItemCollection.ItemTypes[i] == itemType) {
-                    continue;
-                }
-                nameItemTypeMap.Add(m_ItemCollection.ItemTypes[i].name, m_ItemCollection.ItemTypes[i]);
-            }
-
-            // Draw all of the previously selected ItemTypes.
-            var dropItemTypesRect = capacityRect;
-            dropItemTypesRect.width -= 23;
-            var dropItemTypesButtonRect = capacityRect;
-            dropItemTypesButtonRect.x = dropItemTypesRect.xMax + 4;
-            dropItemTypesButtonRect.width = 18;
-            if (itemType.DroppedItemTypes != null) {
-                for (int i = 0; i < itemType.DroppedItemTypes.Length; ++i) {
-                    dropItemTypesButtonRect.y = dropItemTypesRect.y = dropItemTypesRect.yMax + 4;
-                    if (i == 1) {
-                        dropItemTypesRect.x += 112;
-                        dropItemTypesRect.width -= 112;
-                    }
-                    DrawDropItemTypePopup(dropItemTypesRect, itemType, nameItemTypeMap, itemType.DroppedItemTypes[i], i == 0);
-
-                    if (GUI.Button(dropItemTypesButtonRect, InspectorStyles.RemoveIcon, InspectorStyles.NoPaddingButtonStyle)) {
-                        var droppedItemTypesList = new List<ItemType>(itemType.DroppedItemTypes);
-                        droppedItemTypesList.RemoveAt(i);
-                        itemType.DroppedItemTypes = droppedItemTypesList.ToArray();
-                    }
-                }
-            }
-
-            // A new ItemType should be able to be added.
-            dropItemTypesRect.y = dropItemTypesRect.yMax + 4;
-            if (itemType.DroppedItemTypes != null && itemType.DroppedItemTypes.Length == 1) {
-                dropItemTypesRect.x += 112;
-                dropItemTypesRect.width -= 112;
-            }
-            dropItemTypesRect.width += 23;
-            DrawDropItemTypePopup(dropItemTypesRect, itemType, nameItemTypeMap, null, (itemType.DroppedItemTypes == null || itemType.DroppedItemTypes.Length == 0));
+            itemType.Capacity = InspectorUtility.DrawEditorWithoutSelectAll(() => InspectorUtility.ClampIntField(capacityRect, "Capacity", itemType.Capacity, 59));
         }
 
         /// <summary>
@@ -989,82 +975,11 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 return true;
             }
             for (int i = 0; i < m_ItemCollection.ItemTypes.Length; ++i) {
-                if (m_ItemCollection.ItemTypes[i].name.ToLower().CompareTo(name.ToLower())== 0) {
+                if (String.Compare(m_ItemCollection.ItemTypes[i].name.ToLower(), name.ToLower(), StringComparison.Ordinal)== 0) {
                     return false;
                 }
             }
             return true;
-        }
-
-        /// <summary>
-        /// Drops the Popup for the reference of the drop ItemType.
-        /// </summary>
-        private void DrawDropItemTypePopup(Rect rect, ItemType itemType, Dictionary<string, ItemType> nameItemTypeMap, ItemType droppedItemType, bool showLabel)
-        {
-            var allItemTypeNames = new List<string>();
-            allItemTypeNames.Add("(Add)");
-            var prevSelected = 0;
-            for (int i = 0; i < m_ItemCollection.ItemTypes.Length; ++i) {
-                // The ItemType can always drop itself.
-                if (m_ItemCollection.ItemTypes[i] == itemType) {
-                    continue;
-                }
-
-                if (m_ItemCollection.ItemTypes[i] == droppedItemType) {
-                    prevSelected = allItemTypeNames.Count;
-                } else {
-                    // Don't show any ItemTypes that are already included.
-                    var containsItemType = false;
-                    if (itemType.DroppedItemTypes != null) {
-                        for (int j = 0; j < itemType.DroppedItemTypes.Length; ++j) {
-                            if (m_ItemCollection.ItemTypes[i] == itemType.DroppedItemTypes[j]) {
-                                containsItemType = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (containsItemType) {
-                        continue;
-                    }
-                }
-
-                allItemTypeNames.Add(m_ItemCollection.ItemTypes[i].name);
-            }
-
-            // Determine the index of the popup.
-            if (droppedItemType != null) {
-                for (int i = 1; i < allItemTypeNames.Count; ++i) {
-                    if (allItemTypeNames[i] == droppedItemType.name) {
-                        prevSelected = i;
-                        break;
-                    }
-                }
-            }
-
-            var selected = InspectorUtility.ClampPopupField(rect, showLabel ? "Drop ItemTypes" : string.Empty, prevSelected, allItemTypeNames.ToArray(), 15);
-            // A new selection has been made.
-            if (prevSelected != selected) {
-                var droppedItemTypes = itemType.DroppedItemTypes;
-                if (droppedItemTypes == null) {
-                    droppedItemTypes = new ItemType[0];
-                }
-
-                var droppedItemTypesList = new List<ItemType>(droppedItemTypes);
-                // Remove the old.
-                if (prevSelected != 0) {
-                    droppedItemTypesList.Remove(nameItemTypeMap[allItemTypeNames[prevSelected]]);
-                }
-                // Add the new.
-                if (selected != 0) {
-                    droppedItemTypesList.Add(nameItemTypeMap[allItemTypeNames[selected]]);
-                }
-                itemType.DroppedItemTypes = droppedItemTypesList.ToArray();
-            }
-
-            // Remove the name from the list so tat ItemType name is no longer drawn.
-            if (selected != 0) {
-                allItemTypeNames.Remove(allItemTypeNames[selected]);
-            }
         }
 
         /// <summary>
@@ -1088,20 +1003,20 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                     var insertElement = itemTypes[rows[i]];
                     for (int j = rows[i]; j > insertIndex + i; --j) {
                         itemTypes[j] = itemTypes[j - 1];
-                        itemTypes[j].ID = j;
+                        itemTypes[j].ID = (uint)j;
                     }
                     itemTypes[insertIndex + i] = insertElement;
-                    itemTypes[insertIndex + i].ID = insertIndex + i;
+                    itemTypes[insertIndex + i].ID = (uint)(insertIndex + i);
                 } else {
                     // Shift the array rows down to make space for the moved rows.
                     insertIndex--;
                     var insertElement = itemTypes[rows[i] - i];
                     for (int j = rows[i] - i; j < insertIndex + i; ++j) {
                         itemTypes[j] = itemTypes[j + 1];
-                        itemTypes[j].ID = j;
+                        itemTypes[j].ID = (uint)j;
                     }
                     itemTypes[insertIndex + i] = insertElement;
-                    itemTypes[insertIndex + i].ID = insertIndex + i;
+                    itemTypes[insertIndex + i].ID = (uint)(insertIndex + i);
                 }
                 insertIDs.Add(insertIndex + i);
             }

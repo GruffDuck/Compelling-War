@@ -1,14 +1,14 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.EventSystems;
-
-namespace Opsive.UltimateCharacterController.Input.VirtualControls
+namespace Opsive.Shared.Input.VirtualControls
 {
+    using UnityEngine;
+    using UnityEngine.EventSystems;
+
     /// <summary>
     /// An abstract class for handing axis input.
     /// </summary>

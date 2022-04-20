@@ -4,13 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using Opsive.UltimateCharacterController.Motion;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
 {
+    using Opsive.UltimateCharacterController.Motion;
+    using UnityEditor;
+    using UnityEngine;
+
     /// <summary>
     /// Shows a custom inspector for the Path component.
     /// </summary>
@@ -83,7 +82,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
                 Repaint();
             }
 
-            if (GUILayout.Button("Remove Last Curve Segment")) {
+            if (GUILayout.Button("Remove Last Curve Segment") && m_Path.ControlPoints.Length > 0) {
                 var controlPoints = m_Path.ControlPoints;
                 var count = m_Path.ControlPoints.Length > 4 ? 3 : 4;
                 System.Array.Resize(ref controlPoints, controlPoints.Length - count);
@@ -97,7 +96,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
             }
             EditorGUILayout.EndHorizontal();
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.SetDirty(m_Path);
+                Shared.Editor.Utility.EditorUtility.SetDirty(m_Path);
             }
         }
 
@@ -163,7 +162,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
         /// Draws the control point.
         /// </summary>
         /// <param name="index">The index that should be drawn.</param>
-        /// <returns>The position of the control point</returns>
+        /// <returns>The position of the control point.</returns>
         private Vector3 DrawControlPoint(int index)
         {
             var position = m_Path.ControlPoints[index];
@@ -206,7 +205,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
                     }
                     m_Path.ControlPoints[index] = position;
                     AdjustControlPoint(index);
-                    InspectorUtility.SetDirty(m_Path);
+                    Shared.Editor.Utility.EditorUtility.SetDirty(m_Path);
                 }
             }
             return m_Path.ControlPoints[index];

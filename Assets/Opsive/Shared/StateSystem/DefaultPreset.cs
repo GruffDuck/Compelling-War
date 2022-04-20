@@ -1,18 +1,19 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using System.Reflection;
-using System.Collections.Generic;
-using Opsive.UltimateCharacterController.Utility;
-
-namespace Opsive.UltimateCharacterController.StateSystem
+namespace Opsive.Shared.StateSystem
 {
+    using Opsive.Shared.Utility;
+    using System.Collections.Generic;
+    using System.Reflection;
+
     /// <summary>
     /// Used by the state system for the default preset. The default preset will only set the property value when there has been a change from another preset.
     /// </summary>
+    [FormerlySerializedAs("Opsive.UltimateCharacterController.StateSystem.DefaultPreset")]
     public class DefaultPreset : Preset
     {
         private Dictionary<MethodInfo, int> m_DelegateIndexMap;

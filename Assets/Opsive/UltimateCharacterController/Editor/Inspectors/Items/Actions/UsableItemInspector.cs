@@ -4,19 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Traits;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState;
-using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 {
+    using Opsive.Shared.Editor.Inspectors.StateSystem;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Items.Actions;
+    using Opsive.UltimateCharacterController.Traits;
+    using System;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Shows a custom inspector for the UsableItem component.
     /// </summary>
@@ -29,7 +29,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 
         protected Item m_Item;
         private UsableItem m_UsableItem;
-        private AttributeManager m_AttributeManager;
+        protected AttributeManager m_AttributeManager;
         private AttributeManager m_CharacterAttributeManager;
         private ReorderableList m_ReorderableUseAnimatorAudioStateSetList;
         private ReorderableList m_ReorderableUseAnimatorAudioStateSetAudioList;
@@ -85,10 +85,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                     EditorGUILayout.PropertyField(PropertyFromName("m_ForceRootMotionRotation"));
                     if (Foldout("Attributes")) {
                         EditorGUI.indentLevel++;
-                        var attributeName = InspectorUtility.DrawAttribute(target, m_AttributeManager, m_UsableItem.UseAttributeName, "Use Attribute");
+                        var attributeName = InspectorUtility.DrawAttribute(m_AttributeManager, m_UsableItem.UseAttributeName, "Use Attribute");
                         if (attributeName != m_UsableItem.UseAttributeName) {
                             m_UsableItem.UseAttributeName = attributeName;
-                            InspectorUtility.SetDirty(target);
+                            Shared.Editor.Utility.EditorUtility.SetDirty(target);
                         }
                         if (!string.IsNullOrEmpty(m_UsableItem.UseAttributeName)) {
                             EditorGUI.indentLevel++;
@@ -96,10 +96,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                             EditorGUILayout.PropertyField(PropertyFromName("m_DropWhenUseDepleted"));
                             EditorGUI.indentLevel--;
                         }
-                        attributeName = InspectorUtility.DrawAttribute(target, m_CharacterAttributeManager, m_UsableItem.CharacterUseAttributeName, "Character Use Attribute");
+                        attributeName = InspectorUtility.DrawAttribute(m_CharacterAttributeManager, m_UsableItem.CharacterUseAttributeName, "Character Use Attribute");
                         if (attributeName != m_UsableItem.CharacterUseAttributeName) {
                             m_UsableItem.CharacterUseAttributeName = attributeName;
-                            InspectorUtility.SetDirty(target);
+                            Shared.Editor.Utility.EditorUtility.SetDirty(target);
                         }
                         if (!string.IsNullOrEmpty(m_UsableItem.CharacterUseAttributeName)) {
                             EditorGUI.indentLevel++;
@@ -108,7 +108,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                         }
                         EditorGUI.indentLevel--;
                     }
-                    if (Foldout("Animator Audio")) {
+                    if (Foldout("Animator Audio", "Use")) {
                         EditorGUI.indentLevel++;
                         EditorGUILayout.PropertyField(PropertyFromName("m_PlayAudioOnStartUse"));
                         AnimatorAudioStateSetInspector.DrawAnimatorAudioStateSet(m_UsableItem, m_UsableItem.UseAnimatorAudioStateSet, "m_UseAnimatorAudioStateSet", true, 
@@ -207,7 +207,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 
             StateInspector.OnStateListDraw(animatorAudioState, animatorAudioState.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 StateInspector.UpdateDefaultStateValues(animatorAudioState.States);
             }
         }
@@ -229,7 +229,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.AddExistingPreset(animatorAudioState.GetType(), animatorAudioState.States, m_ReorderableUseAnimatorAudioStateSetStateList, GetSelectedAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedUseAnimatorAudioStateSetIndexKey)));
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableUseAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -243,7 +243,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.CreatePreset(animatorAudioState, animatorAudioState.States, m_ReorderableUseAnimatorAudioStateSetStateList, GetSelectedAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedUseAnimatorAudioStateSetIndexKey)));
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableUseAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -256,7 +256,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var animatorAudioState = m_UsableItem.UseAnimatorAudioStateSet.States[EditorPrefs.GetInt(SelectedUseAnimatorAudioStateSetIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new UltimateCharacterController.StateSystem.State[animatorAudioState.States.Length];
+            var copiedStates = new Shared.StateSystem.State[animatorAudioState.States.Length];
             Array.Copy(animatorAudioState.States, copiedStates, animatorAudioState.States.Length);
             for (int i = 0; i < animatorAudioState.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -269,7 +269,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.OnStateListReorder(animatorAudioState.States);
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableUseAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -283,7 +283,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.OnStateListRemove(animatorAudioState.States, GetSelectedAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedUseAnimatorAudioStateSetIndexKey)), list);
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableUseAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }

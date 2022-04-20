@@ -1,26 +1,24 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Utility;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System.Collections.Generic;
-
-namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
+namespace Opsive.Shared.Editor.Inspectors.StateSystem
 {
+    using Opsive.Shared.Utility;
+    using Opsive.Shared.StateSystem;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// StateInspector is a helper class which will manage the inspector for the state system.
     /// </summary>
     public static class StateInspector
     {
-        private const string c_EditorPrefsSelectedIndexKey = "Opsive.UltimateCharacterController.Editor.Inspectors.SelectedStateIndex";
-        private const string c_EditorPrefsLastPresetPathKey = "Opsive.UltimateCharacterController.Editor.Inspectors.LastPresetPath";
+        private const string c_EditorPrefsLastPresetPathKey = "Opsive.Shared.Editor.Inspectors.LastPresetPath";
         private const int c_MaxPresetWidth = 120;
         private const int c_MinBlockedByWidth = 40;
         private const int c_MaxBlockedByWidth = 76;
@@ -40,36 +38,36 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             // Initialize the reorder list on first run.
             if (reorderableList == null) {
                 reorderableList = new ReorderableList(serializedObject, states, !Application.isPlaying, true, !Application.isPlaying, !Application.isPlaying && states.arraySize > 1);
-                reorderableList.drawHeaderCallback = (Rect rect) =>
+                reorderableList.drawHeaderCallback = rect =>
                 {
                     // Setup the field sizings.
                     rect.x += 14;
-                    rect.x -= EditorGUI.indentLevel * InspectorUtility.IndentWidth;
+                    rect.x -= EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
                     var fieldWidth = rect.width / 5;
-                    var blockedByWidth = Mathf.Max(c_MinBlockedByWidth, Mathf.Min(c_MaxBlockedByWidth, fieldWidth)) + EditorGUI.indentLevel * InspectorUtility.IndentWidth;
+                    var blockedByWidth = Mathf.Max(c_MinBlockedByWidth, Mathf.Min(c_MaxBlockedByWidth, fieldWidth)) + EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
                     fieldWidth = rect.width / 7;
                     var persistWidth = Mathf.Max(c_MinPersistWidth, Mathf.Min(c_MaxPersistWidth, fieldWidth));
                     var activateWidth = Mathf.Max(c_MinActivateWidth, Mathf.Min(c_MaxActivateWidth, fieldWidth));
                     fieldWidth = (rect.width - blockedByWidth - persistWidth - activateWidth) / 2 - (c_WidthBuffer * 3);
-                    var presetWidth = Mathf.Min(c_MaxPresetWidth, fieldWidth) + EditorGUI.indentLevel * InspectorUtility.IndentWidth * 2;
-                    var nameWidth = Mathf.Max(0, rect.width - presetWidth - blockedByWidth - persistWidth - activateWidth - (c_WidthBuffer * 6)) + EditorGUI.indentLevel * InspectorUtility.IndentWidth * 3;
+                    var presetWidth = Mathf.Min(c_MaxPresetWidth, fieldWidth) + EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth * 2;
+                    var nameWidth = Mathf.Max(0, rect.width - presetWidth - blockedByWidth - persistWidth - activateWidth - (c_WidthBuffer * 6)) + EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth * 3;
                     var startRectX = rect.x;
 
                     EditorGUI.LabelField(new Rect(startRectX, rect.y + 1, nameWidth, EditorGUIUtility.singleLineHeight), "Name");
-                    startRectX += nameWidth + c_WidthBuffer - EditorGUI.indentLevel * InspectorUtility.IndentWidth;
+                    startRectX += nameWidth + c_WidthBuffer - EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
                     EditorGUI.LabelField(new Rect(startRectX, rect.y + 1, presetWidth, EditorGUIUtility.singleLineHeight), "Preset");
-                    startRectX += presetWidth - c_WidthBuffer * 3 - EditorGUI.indentLevel * InspectorUtility.IndentWidth;
-                    EditorGUI.LabelField(new Rect(startRectX, rect.y + 1, blockedByWidth + EditorGUI.indentLevel * InspectorUtility.IndentWidth, EditorGUIUtility.singleLineHeight), "Blocked By");
-                    startRectX += blockedByWidth + c_WidthBuffer * 5 - EditorGUI.indentLevel * InspectorUtility.IndentWidth;
-                    EditorGUI.LabelField(new Rect(startRectX, rect.y + 1, persistWidth + EditorGUI.indentLevel * InspectorUtility.IndentWidth, EditorGUIUtility.singleLineHeight), "Persist");
+                    startRectX += presetWidth - c_WidthBuffer * 3 - EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
+                    EditorGUI.LabelField(new Rect(startRectX, rect.y + 1, blockedByWidth + EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth, EditorGUIUtility.singleLineHeight), "Blocked By");
+                    startRectX += blockedByWidth + c_WidthBuffer * 5 - EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
+                    EditorGUI.LabelField(new Rect(startRectX, rect.y + 1, persistWidth + EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth, EditorGUIUtility.singleLineHeight), "Persist");
                     startRectX += persistWidth;
-                    EditorGUI.LabelField(new Rect(startRectX, rect.y + 1, activateWidth + EditorGUI.indentLevel * InspectorUtility.IndentWidth, EditorGUIUtility.singleLineHeight), "Activate");
+                    EditorGUI.LabelField(new Rect(startRectX, rect.y + 1, activateWidth + EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth, EditorGUIUtility.singleLineHeight), "Activate");
                 };
                 reorderableList.drawElementCallback = drawCallback;
                 reorderableList.onAddCallback = addCallback;
                 reorderableList.onReorderCallback = reorderCallback;
                 reorderableList.onRemoveCallback = removeCallback;
-                reorderableList.onSelectCallback = (ReorderableList list) =>
+                reorderableList.onSelectCallback = list =>
                 {
                     EditorPrefs.SetInt(selectedIndexKey, list.index);
                 };
@@ -80,8 +78,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 
             // Indent the list so it lines up with the rest of the content.
             var listRect = GUILayoutUtility.GetRect(0, reorderableList.GetHeight());
-            listRect.x += InspectorUtility.IndentWidth * (EditorGUI.indentLevel + 1);
-            listRect.xMax -= InspectorUtility.IndentWidth * (EditorGUI.indentLevel + 1);
+            listRect.x += Utility.InspectorUtility.IndentWidth * (EditorGUI.indentLevel + 1);
+            listRect.xMax -= Utility.InspectorUtility.IndentWidth * (EditorGUI.indentLevel + 1);
             reorderableList.DoList(listRect);
             return reorderableList;
         }
@@ -89,7 +87,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Draws all of the added states.
         /// </summary>
-        public static void OnStateListDraw(object obj, UltimateCharacterController.StateSystem.State[] states, Rect rect, int index)
+        public static void OnStateListDraw(object obj, Opsive.Shared.StateSystem.State[] states, Rect rect, int index)
         {
             OnStateListDraw(obj, states, null, rect, index);
         }
@@ -97,7 +95,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Draws all of the added states.
         /// </summary>
-        public static void OnStateListDraw(object obj, UltimateCharacterController.StateSystem.State[] states, SerializedProperty statesProperty, Rect rect, int index)
+        public static void OnStateListDraw(object obj, Opsive.Shared.StateSystem.State[] states, SerializedProperty statesProperty, Rect rect, int index)
         {
             if (rect.width < 0) {
                 return;
@@ -105,7 +103,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 
             // States cannot be edited at runtime, nor can the Default state ever be edited.
             GUI.enabled = !Application.isPlaying && index != states.Length - 1;
-            rect.x -= EditorGUI.indentLevel * InspectorUtility.IndentWidth;
+            rect.x -= EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
 
             // Ensure the default state doesn't get changed.
             var state = states[index];
@@ -117,7 +115,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
                     stateProperty.FindPropertyRelative("m_Name").stringValue = "Default";
                     stateProperty.FindPropertyRelative("m_Default").boolValue = true;
                 } else if (statesProperty == null && state == null) {
-                    states[index] = state = new UltimateCharacterController.StateSystem.State("Default", true);
+                    states[index] = state = new Opsive.Shared.StateSystem.State("Default", true);
                     GUI.changed = true;
                 }
                 if (state.Name != "Default") {
@@ -140,7 +138,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 
             // Setup the field sizings.
             var fieldWidth = rect.width / 5;
-            var blockedByWidth = Mathf.Max(c_MinBlockedByWidth, Mathf.Min(c_MaxBlockedByWidth, fieldWidth)) + EditorGUI.indentLevel * InspectorUtility.IndentWidth;
+            var blockedByWidth = Mathf.Max(c_MinBlockedByWidth, Mathf.Min(c_MaxBlockedByWidth, fieldWidth)) + EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
             fieldWidth = rect.width / 7;
             var persistWidth = Mathf.Max(c_MinPersistWidth, Mathf.Min(c_MaxPersistWidth, fieldWidth));
             var activateWidth = Mathf.Max(c_MinActivateWidth, Mathf.Min(c_MaxActivateWidth, fieldWidth));
@@ -153,7 +151,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             var active = state.Active && !state.IsBlocked();
             var desiredName = EditorGUI.TextField(new Rect(startRectX, rect.y + 1, nameWidth, EditorGUIUtility.singleLineHeight), state.Name + 
                 (active ? " (Active)" : string.Empty),
-                (active ? InspectorStyles.BoldTextField : EditorStyles.textField));
+                (active ? Utility.InspectorStyles.BoldTextField : EditorStyles.textField));
             if (!Application.isPlaying && desiredName != state.Name && IsUniqueName(states, desiredName)) {
                 // The name of the state that is blocking the current state should be updated.
                 for (int i = 0; i < states.Length; ++i) {
@@ -165,7 +163,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
                         for (int j = 0; j < states[i].BlockList.Length; ++j) {
                             if (states[i].BlockList[j] == state.Name) {
                                 if (stateProperty != null) {
-                                    stateProperty.FindPropertyRelative("m_BlockList").GetArrayElementAtIndex(j).stringValue = desiredName;
+                                    statesProperty.GetArrayElementAtIndex(i).FindPropertyRelative("m_BlockList").GetArrayElementAtIndex(j).stringValue = desiredName;
                                 } else {
                                     states[i].BlockList[j] = desiredName;
                                 }
@@ -180,23 +178,24 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
                     state.Name = desiredName;
                 }
             }
-            startRectX += nameWidth + c_WidthBuffer - EditorGUI.indentLevel * InspectorUtility.IndentWidth;
+            startRectX += nameWidth + c_WidthBuffer - EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
 
             // The preset cannot be null.
             var desiredPreset = EditorGUI.ObjectField(new Rect(startRectX, rect.y + 1, presetWidth,
                                                         EditorGUIUtility.singleLineHeight), string.Empty, state.Preset, typeof(PersistablePreset), false) as PersistablePreset;
             if (desiredPreset != null) {
-                if (UnityEngineUtility.GetType(desiredPreset.Data.ObjectType).IsAssignableFrom(obj.GetType())) {
+                var objType = TypeUtility.GetType(desiredPreset.Data.ObjectType);
+                if (objType != null && objType.IsInstanceOfType(obj)) {
                     if (stateProperty != null) {
                         stateProperty.FindPropertyRelative("m_Preset").objectReferenceValue = desiredPreset;
                     } else {
                         state.Preset = desiredPreset;
                     }
                 } else {
-                    Debug.LogError("Error: Unable to add preset " + desiredPreset.name + " - the preset doesn't use the same object type.");
+                    Debug.LogError($"Error: Unable to add preset. {desiredPreset.name} ({desiredPreset.Data.ObjectType}) doesn't use the same object type ({obj.GetType().FullName}).");
                 }
             }
-            startRectX += presetWidth + c_WidthBuffer - EditorGUI.indentLevel * InspectorUtility.IndentWidth;
+            startRectX += presetWidth + c_WidthBuffer - EditorGUI.indentLevel * Utility.InspectorUtility.IndentWidth;
 
             // Create a popup of the states that can block the current state. There are several conditions which would prevent a state from being able to block
             // another state so this popup has to first be filtered.
@@ -207,7 +206,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             for (int i = 0; i < states.Length; ++i) {
                 var currentState = states[i];
                 if (currentState == null) {
-                    states[i] = currentState = new UltimateCharacterController.StateSystem.State();
+                    states[i] = currentState = new Opsive.Shared.StateSystem.State();
                 }
                 // The current state cannot block the default state.
                 if (currentState.Default) {
@@ -279,7 +278,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 
             GUI.enabled = index < states.Length - 1;
 
-            if (GUI.Button(new Rect(startRectX + persistWidth / 2, rect.y + 1, 18, EditorGUIUtility.singleLineHeight), InspectorStyles.PersistIcon, InspectorStyles.NoPaddingButtonStyle)) {
+            if (GUI.Button(new Rect(startRectX + persistWidth / 2, rect.y + 1, 18, EditorGUIUtility.singleLineHeight), Utility.InspectorStyles.PersistIcon, Utility.InspectorStyles.NoPaddingButtonStyle)) {
                 // Populate the position map so ObjectInspector.DrawProperties to know which properties already exist.
                 var valuePositionMap = new Dictionary<int, int>(desiredPreset.Data.ValueHashes.Length);
                 for (int i = 0; i < desiredPreset.Data.ValueHashes.Length; ++i) {
@@ -288,6 +287,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
 
                 // Loop through all of the properties on the object.
                 var properties = Serialization.GetSerializedProperties(obj.GetType(), MemberVisibility.Public);
+                var bitwiseHash = new System.Version(desiredPreset.Data.Version).CompareTo(new System.Version("3.1")) >= 0;
                 // Remove and add the properties that are being serialized.
                 for (int i = 0; i < properties.Length; ++i) {
                     var hash = Serialization.StringHash(properties[i].PropertyType.FullName) + Serialization.StringHash(properties[i].Name);
@@ -299,9 +299,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
                         if (!typeof(Object).IsAssignableFrom(property.PropertyType)) {
                             var unityObjectIndexes = new List<int>();
                             Serialization.GetUnityObjectIndexes(ref unityObjectIndexes, property.PropertyType, property.Name, 0, valuePositionMap, desiredPreset.Data.ValueHashes, desiredPreset.Data.ValuePositions,
-                                                                desiredPreset.Data.Values, false, MemberVisibility.Public);
+                                                                desiredPreset.Data.Values, false, MemberVisibility.Public, bitwiseHash);
 
-                            Serialization.RemoveProperty(i, unityObjectIndexes, desiredPreset.Data, MemberVisibility.Public);
+                            Serialization.RemoveProperty(i, unityObjectIndexes, desiredPreset.Data, MemberVisibility.Public, bitwiseHash);
 
                             // Get the current value of the active object.
                             var getMethod = property.GetGetMethod();
@@ -317,7 +317,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             startRectX += persistWidth + c_WidthBuffer;
 
             GUI.enabled = Application.isPlaying && index < states.Length - 1;
-            if (GUI.Button(new Rect(startRectX + activateWidth / 2, rect.y + 1, 18, EditorGUIUtility.singleLineHeight), InspectorStyles.ActivateIcon, InspectorStyles.NoPaddingButtonStyle)) {
+            if (GUI.Button(new Rect(startRectX + activateWidth / 2, rect.y + 1, 18, EditorGUIUtility.singleLineHeight), Utility.InspectorStyles.ActivateIcon, Utility.InspectorStyles.NoPaddingButtonStyle)) {
                 StateManager.ActivateState(states[index], !states[index].Active, states);
             }
 
@@ -327,7 +327,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Is the state name unique compared to the other states?
         /// </summary>
-        private static bool IsUniqueName(UltimateCharacterController.StateSystem.State[] states, string name)
+        private static bool IsUniqueName(Opsive.Shared.StateSystem.State[] states, string name)
         {
             // A blank string is not unique.
             if (string.IsNullOrEmpty(name)) {
@@ -360,18 +360,18 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Adds a new element to the state list which uses an existing preset.
         /// </summary>
-        public static UltimateCharacterController.StateSystem.State[] AddExistingPreset(System.Type objType, UltimateCharacterController.StateSystem.State[] states, ReorderableList reorderableList, string selectedIndexKey)
+        public static Opsive.Shared.StateSystem.State[] AddExistingPreset(System.Type objType, Opsive.Shared.StateSystem.State[] states, ReorderableList reorderableList, string selectedIndexKey)
         {
             // A state must have a preset - open the file panel to select it.
-            var path = EditorPrefs.GetString(c_EditorPrefsLastPresetPathKey, InspectorUtility.GetSaveFilePath());
-            path = EditorUtility.OpenFilePanelWithFilters("Select Preset", path, new string[] { "Preset", "asset" });
+            var path = EditorPrefs.GetString(c_EditorPrefsLastPresetPathKey, Utility.InspectorUtility.GetSaveFilePath());
+            path = EditorUtility.OpenFilePanelWithFilters("Select Preset", path, new[] { "Preset", "asset" });
             if (path.Length != 0 && Application.dataPath.Length < path.Length) {
                 EditorPrefs.SetString(c_EditorPrefsLastPresetPathKey, System.IO.Path.GetDirectoryName(path));
                 // The path is relative to the project.
                 path = string.Format("Assets/{0}", path.Substring(Application.dataPath.Length + 1));
                 var preset = AssetDatabase.LoadAssetAtPath<PersistablePreset>(path);
                 if (preset == null) {
-                    Debug.LogError("Error: Unable to add preset " + System.IO.Path.GetFileName(path) + " - the preset isn't located within the same project directory.");
+                    Debug.LogError($"Error: Unable to add preset. {System.IO.Path.GetFileName(path)} isn't located within the same project directory.");
                     return states;
                 }
                 // The preset object type has to belong to the same object type.
@@ -383,7 +383,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
                     }
                     states = InsertStateElement(states, reorderableList, selectedIndexKey, name, preset);
                 } else {
-                    Debug.LogError("Error: Unable to add preset " + preset.name + " - the preset doesn't use the same object type.");
+                    Debug.LogError($"Error: Unable to add preset. {preset.name} ({preset.Data.ObjectType}) doesn't use the same object type ({objType.FullName}).");
                 }
             }
             return states;
@@ -392,12 +392,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Creates a new preset and adds it to a new state in the list.
         /// </summary>
-        public static UltimateCharacterController.StateSystem.State[] CreatePreset(object target, UltimateCharacterController.StateSystem.State[] states, ReorderableList reorderableList, string selectedIndexKey)
+        public static Opsive.Shared.StateSystem.State[] CreatePreset(object target, Opsive.Shared.StateSystem.State[] states, ReorderableList reorderableList, string selectedIndexKey)
         {
             var preset = PersistablePreset.CreatePreset(target);
             if (preset != null) {
                 var startName = target.GetType().Name + "Preset.asset";
-                var path = EditorPrefs.GetString(c_EditorPrefsLastPresetPathKey, InspectorUtility.GetSaveFilePath());
+                var path = EditorPrefs.GetString(c_EditorPrefsLastPresetPathKey, Utility.InspectorUtility.GetSaveFilePath());
                 path = EditorUtility.SaveFilePanel("Save Preset", path, startName, "asset");
                 if (path.Length != 0 && Application.dataPath.Length < path.Length) {
                     EditorPrefs.SetString(c_EditorPrefsLastPresetPathKey, System.IO.Path.GetDirectoryName(path));
@@ -429,7 +429,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Inserts a new state element in the state array.
         /// </summary>
-        private static UltimateCharacterController.StateSystem.State[] InsertStateElement(UltimateCharacterController.StateSystem.State[] states, ReorderableList reorderableList, string selectedIndexKey, string name, PersistablePreset preset)
+        private static Opsive.Shared.StateSystem.State[] InsertStateElement(Opsive.Shared.StateSystem.State[] states, ReorderableList reorderableList, string selectedIndexKey, string name, PersistablePreset preset)
         {
             // The name has to be unique to prevent it from interferring with other state names.
             if (!IsUniqueName(states, name)) {
@@ -441,9 +441,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
             }
 
             // Create the element.
-            var state = new UltimateCharacterController.StateSystem.State(name, false);
+            var state = new Opsive.Shared.StateSystem.State(name, false);
             state.Preset = preset;
-            var stateList = new List<UltimateCharacterController.StateSystem.State>(states);
+            var stateList = new List<Opsive.Shared.StateSystem.State>(states);
             stateList.Insert(0, state);
             reorderableList.displayRemove = stateList.Count > 1;
 
@@ -456,7 +456,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// The list has been reordered. Ensure the reorder is valid.
         /// </summary>
-        public static UltimateCharacterController.StateSystem.State[] OnStateListReorder(UltimateCharacterController.StateSystem.State[] states)
+        public static Opsive.Shared.StateSystem.State[] OnStateListReorder(Opsive.Shared.StateSystem.State[] states)
         {
             // The Default state must always be last.
             for (int i = 0; i < states.Length; ++i) {
@@ -472,7 +472,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// Swaps the elements in the specified positions of the array.
         /// </summary>
-        public static void SwapElements(UltimateCharacterController.StateSystem.State[] states, int origIndex, int newIndex)
+        public static void SwapElements(Opsive.Shared.StateSystem.State[] states, int origIndex, int newIndex)
         {
             var origElement = states[origIndex];
             states[origIndex] = states[newIndex];
@@ -482,7 +482,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// The ReordableList remove button has been pressed. Remove the selected state.
         /// </summary>
-        public static UltimateCharacterController.StateSystem.State[] OnStateListRemove(UltimateCharacterController.StateSystem.State[] states, string selectedIndexKey, ReorderableList reorderableList)
+        public static Opsive.Shared.StateSystem.State[] OnStateListRemove(Opsive.Shared.StateSystem.State[] states, string selectedIndexKey, ReorderableList reorderableList)
         {
             return OnStateListRemove(states, null, selectedIndexKey, reorderableList);
         }
@@ -490,7 +490,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// <summary>
         /// The ReordableList remove button has been pressed. Remove the selected state.
         /// </summary>
-        public static UltimateCharacterController.StateSystem.State[] OnStateListRemove(UltimateCharacterController.StateSystem.State[] states, SerializedProperty statesProperty, string selectedIndexKey, ReorderableList reorderableList)
+        public static Opsive.Shared.StateSystem.State[] OnStateListRemove(Opsive.Shared.StateSystem.State[] states, SerializedProperty statesProperty, string selectedIndexKey, ReorderableList reorderableList)
         {
             // The last state cannot be removed.
             if (reorderableList.index == states.Length - 1) {
@@ -520,7 +520,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
                 }
             }
 
-            var stateList = new List<UltimateCharacterController.StateSystem.State>(states);
+            var stateList = new List<Opsive.Shared.StateSystem.State>(states);
             stateList.RemoveAt(reorderableList.index);
             if (statesProperty != null) {
                 statesProperty.DeleteArrayElementAtIndex(reorderableList.index);
@@ -537,7 +537,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
         /// Updates the value of the default state if the game is active.
         /// </summary>
         /// <param name="states">An array of all of the states.</param>
-        public static void UpdateDefaultStateValues(UltimateCharacterController.StateSystem.State[] states)
+        public static void UpdateDefaultStateValues(Opsive.Shared.StateSystem.State[] states)
         {
             // If there is a change to the object with only the default state active then the values on the preset should be updated. This will prevent the values from
             // switching back to the default state when there is a state change.

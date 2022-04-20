@@ -1,17 +1,17 @@
 /// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using System.Collections.Generic;
-using Opsive.UltimateCharacterController.Input.VirtualControls;
-
-namespace Opsive.UltimateCharacterController.Input
+namespace Opsive.Shared.Input
 {
+    using Opsive.Shared.Input.VirtualControls;
+    using System.Collections.Generic;
+    using UnityEngine;
+
     /// <summary>
-    /// Acts as a common base class for any type of Unity input. Works with keyboard/mouse, controller, and mobile input.
+    /// Acts as a common base class for input using the Unity Input Manager. Works with keyboard/mouse, controller, and mobile input.
     /// </summary>
     public class UnityInput : PlayerInput
     {
@@ -67,8 +67,7 @@ namespace Opsive.UltimateCharacterController.Input
             m_UseVirtualInput = m_ForceInput == ForceInputType.Virtual;
 #if !UNITY_EDITOR && (UNITY_IPHONE || UNITY_ANDROID || UNITY_WP_8_1 || UNITY_BLACKBERRY)
             if (m_ForceInput != ForceInputType.Standalone) {
-                var virtualControlsManager = FindObjectOfType<VirtualControlsManager>();
-                m_UseVirtualInput = virtualControlsManager != null;
+                m_UseVirtualInput = true;
             }
 #endif
             if (m_UseVirtualInput) {
@@ -117,79 +116,92 @@ namespace Opsive.UltimateCharacterController.Input
         }
 
         /// <summary>
+        /// Is the cursor visible?
+        /// </summary>
+        /// <returns>True if the cursor is visible.</returns>
+        public override bool IsCursorVisible()
+        {
+            if (m_Input is VirtualInput) {
+                return false;
+            }
+            return base.IsCursorVisible();
+        }
+
+        /// <summary>
         /// Update the joystick and cursor state values.
         /// </summary>
         private void LateUpdate()
         {
-            if (!m_UseVirtualInput) {
-                // The joystick is no longer down after the axis is 0.
-                if (IsControllerConnected()) {
-                    // GetButtonUp/Down doesn't immediately add the button name to the set to prevent the GetButtonUp/Down from returning false
-                    // if it is called twice within the same frame. Add it after the frame has ended.
-                    if (m_JoystickDownSet != null) {
-                        foreach (var item in m_JoystickDownSet) {
-                            if (Mathf.Abs(m_Input.GetAxisRaw(item)) < m_JoystickUpThreshold) {
-                                m_ToRemoveJoystickDownSet.Add(item);
-                            }
-                        }
-                        foreach (var item in m_ToRemoveJoystickDownSet) {
-                            m_JoystickDownSet.Remove(item);
-                        }
-                        m_ToRemoveJoystickDownSet.Clear();
-                    }
-                    if (m_ToAddJoystickDownSet != null && m_ToAddJoystickDownSet.Count > 0) {
-                        if (m_JoystickDownSet == null) {
-                            m_JoystickDownSet = new HashSet<string>();
-                            m_ToRemoveJoystickDownSet = new HashSet<string>();
-                        }
-                        foreach (var item in m_ToAddJoystickDownSet) {
-                            m_JoystickDownSet.Add(item);
-                        }
-                        m_ToAddJoystickDownSet.Clear();
-                    }
-                }
-
-                // Enable the cursor if the escape key is pressed. Disable the cursor if it is visbile but should be disabled upon press.
-                if (m_EnableCursorWithEscape && UnityEngine.Input.GetKeyDown(KeyCode.Escape)) {
-                    Cursor.lockState = CursorLockMode.None;
-                    Cursor.visible = true;
-                    if (m_PreventLookVectorChanges) {
-                        OnApplicationFocus(false);
-                    }
-                } else if (Cursor.visible && m_DisableCursor && !IsPointerOverUI() && (UnityEngine.Input.GetKeyDown(KeyCode.Mouse0) || UnityEngine.Input.GetKeyDown(KeyCode.Mouse1))) {
-                    Cursor.lockState = CursorLockMode.Locked;
-                    Cursor.visible = false;
-                    if (m_PreventLookVectorChanges) {
-                        OnApplicationFocus(true);
-                    }
-                }
-#if UNITY_EDITOR
-                // The cursor should be visible when the game is paused.
-                if (!Cursor.visible && Time.deltaTime == 0) {
-                    Cursor.lockState = CursorLockMode.None;
-                    Cursor.visible = true;
-                }
-#endif
+            if (m_UseVirtualInput) {
+                return;
             }
+            // The joystick is no longer down after the axis is 0.
+            if (IsControllerConnected()) {
+                // GetButtonUp/Down doesn't immediately add the button name to the set to prevent the GetButtonUp/Down from returning false
+                // if it is called twice within the same frame. Add it after the frame has ended.
+                if (m_JoystickDownSet != null) {
+                    foreach (var item in m_JoystickDownSet) {
+                        if (Mathf.Abs(m_Input.GetAxisRaw(item)) < m_JoystickUpThreshold) {
+                            m_ToRemoveJoystickDownSet.Add(item);
+                        }
+                    }
+                    foreach (var item in m_ToRemoveJoystickDownSet) {
+                        m_JoystickDownSet.Remove(item);
+                    }
+                    m_ToRemoveJoystickDownSet.Clear();
+                }
+                if (m_ToAddJoystickDownSet != null && m_ToAddJoystickDownSet.Count > 0) {
+                    if (m_JoystickDownSet == null) {
+                        m_JoystickDownSet = new HashSet<string>();
+                        m_ToRemoveJoystickDownSet = new HashSet<string>();
+                    }
+                    foreach (var item in m_ToAddJoystickDownSet) {
+                        m_JoystickDownSet.Add(item);
+                    }
+                    m_ToAddJoystickDownSet.Clear();
+                }
+            }
+
+            // Enable the cursor if the escape key is pressed. Disable the cursor if it is visbile but should be disabled upon press.
+            if (m_EnableCursorWithEscape && UnityEngine.Input.GetKeyDown(KeyCode.Escape)) {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                if (m_PreventLookVectorChanges) {
+                    OnApplicationFocus(false);
+                }
+            } else if (Cursor.visible && m_DisableCursor && !IsPointerOverUI() && (UnityEngine.Input.GetKeyDown(KeyCode.Mouse0) || UnityEngine.Input.GetKeyDown(KeyCode.Mouse1))) {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+                if (m_PreventLookVectorChanges) {
+                    OnApplicationFocus(true);
+                }
+            }
+#if UNITY_EDITOR
+            // The cursor should be visible when the game is paused.
+            if (!Cursor.visible && UnityEditor.EditorApplication.isPaused && !m_DisableCursor) {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+#endif
         }
 
         /// <summary>
         /// Internal method which returns true if the button is being pressed.
         /// </summary>
-        /// <param name="name">The name of the button.</param>
+        /// <param name="buttonName">The name of the button.</param>
         /// <returns>True of the button is being pressed.</returns>
-        protected override bool GetButtonInternal(string name)
+        protected override bool GetButtonInternal(string buttonName)
         {
-            if (m_Input.GetButton(name, InputBase.ButtonAction.GetButton)) {
+            if (m_Input.GetButton(buttonName, InputBase.ButtonAction.GetButton)) {
                 return true;
             }
             if (IsControllerConnected()) {
-                if (Mathf.Abs(m_Input.GetAxisRaw(name)) == 1) {
-                    if (m_JoystickDownSet == null || !m_JoystickDownSet.Contains(name)) {
+                if (Mathf.Abs(m_Input.GetAxisRaw(buttonName)) == 1) {
+                    if (m_JoystickDownSet == null || !m_JoystickDownSet.Contains(buttonName)) {
                         if (m_ToAddJoystickDownSet == null) {
                             m_ToAddJoystickDownSet = new HashSet<string>();
                         }
-                        m_ToAddJoystickDownSet.Add(name);
+                        m_ToAddJoystickDownSet.Add(buttonName);
                     }
                     return true;
                 }
@@ -200,65 +212,65 @@ namespace Opsive.UltimateCharacterController.Input
         /// <summary>
         /// Internal method which returns true if the button was pressed this frame.
         /// </summary>
-        /// <param name="name">The name of the button.</param>
+        /// <param name="buttonName">The name of the button.</param>
         /// <returns>True if the button is pressed this frame.</returns>
-        protected override bool GetButtonDownInternal(string name)
+        protected override bool GetButtonDownInternal(string buttonName)
         {
-            if (IsControllerConnected() && Mathf.Abs(m_Input.GetAxisRaw(name)) == 1) {
+            if (IsControllerConnected() && Mathf.Abs(m_Input.GetAxisRaw(buttonName)) == 1) {
                 // The button should only be considered down on the first frame.
-                if (m_JoystickDownSet != null && m_JoystickDownSet.Contains(name)) {
+                if (m_JoystickDownSet != null && m_JoystickDownSet.Contains(buttonName)) {
                     return false;
                 }
                 if (m_ToAddJoystickDownSet == null) {
                     m_ToAddJoystickDownSet = new HashSet<string>();
                 }
-                m_ToAddJoystickDownSet.Add(name);
+                m_ToAddJoystickDownSet.Add(buttonName);
                 return true;
             }
-            return m_Input.GetButton(name, InputBase.ButtonAction.GetButtonDown);
+            return m_Input.GetButton(buttonName, InputBase.ButtonAction.GetButtonDown);
         }
 
         /// <summary>
         /// Internal method which returnstrue if the button is up.
         /// </summary>
-        /// <param name="name">The name of the button.</param>
+        /// <param name="buttonName">The name of the button.</param>
         /// <returns>True if the button is up.</returns>
-        protected override bool GetButtonUpInternal(string name)
+        protected override bool GetButtonUpInternal(string buttonName)
         {
             if (IsControllerConnected()) {
-                if (Mathf.Abs(m_Input.GetAxisRaw(name)) == 1 && (m_JoystickDownSet == null || !m_JoystickDownSet.Contains(name))) {
+                if (Mathf.Abs(m_Input.GetAxisRaw(buttonName)) == 1 && (m_JoystickDownSet == null || !m_JoystickDownSet.Contains(buttonName))) {
                     if (m_ToAddJoystickDownSet == null) {
                         m_ToAddJoystickDownSet = new HashSet<string>();
                     }
-                    m_ToAddJoystickDownSet.Add(name);
+                    m_ToAddJoystickDownSet.Add(buttonName);
                     return false;
                 }
-                if (m_JoystickDownSet != null && m_JoystickDownSet.Contains(name) && m_Input.GetAxisRaw(name) < m_JoystickUpThreshold) {
+                if (m_JoystickDownSet != null && m_JoystickDownSet.Contains(buttonName) && Mathf.Abs(m_Input.GetAxisRaw(buttonName)) < m_JoystickUpThreshold) {
                     return true;
                 }
                 return false;
             }
-            return m_Input.GetButton(name, InputBase.ButtonAction.GetButtonUp);
+            return m_Input.GetButton(buttonName, InputBase.ButtonAction.GetButtonUp);
         }
 
         /// <summary>
         /// Internal method which returns the value of the axis with the specified name.
         /// </summary>
-        /// <param name="name">The name of the axis.</param>
+        /// <param name="buttonName">The name of the axis.</param>
         /// <returns>The value of the axis.</returns>
-        protected override float GetAxisInternal(string name)
+        protected override float GetAxisInternal(string buttonName)
         {
-            return m_Input.GetAxis(name);
+            return m_Input.GetAxis(buttonName);
         }
 
         /// <summary>
         /// Internal method which returns the value of the raw axis with the specified name.
         /// </summary>
-        /// <param name="name">The name of the axis.</param>
+        /// <param name="buttonName">The name of the axis.</param>
         /// <returns>The value of the raw axis.</returns>
-        protected override float GetAxisRawInternal(string name)
+        protected override float GetAxisRawInternal(string buttonName)
         {
-            return m_Input.GetAxisRaw(name);
+            return m_Input.GetAxisRaw(buttonName);
         }
 
         /// <summary>

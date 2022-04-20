@@ -1,18 +1,18 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using Opsive.UltimateCharacterController.Utility;
-
-namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
+namespace Opsive.Shared.Editor.Inspectors.Utility
 {
+    using Opsive.Shared.Utility;
+    using System;
+    using System.Collections;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEngine;
+
     /// <summary>
     /// Draws individual object values.
     /// </summary>
@@ -53,23 +53,24 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
             // Only the serialized objects need to be drawn.
             var objType = obj.GetType();
             var fieldsDrawn = false;
+            var hash = hashPrefix + Serialization.StringHash(obj.GetType().FullName);
             var fields = Serialization.GetSerializedFields(objType, MemberVisibility.Public);
             for (int i = 0; i < fields.Length; ++i) {
                 // Do not draw HideInInspector fields.
-                if (UnityEngineUtility.HasAttribute(fields[i], typeof(HideInInspector))) {
+                if (TypeUtility.GetAttribute(fields[i], typeof(HideInInspector)) != null) {
                     continue;
                 }
                 EditorGUI.BeginChangeCheck();
                 // Fields can have tooltips assocaited with them. Tooltips are visible when hovering over the field label within the inspector.
                 GUIContent guiContent;
-                var tooltip = InspectorUtility.GetTooltipAttribute(fields[i]);
+                var tooltip = GetTooltipAttribute(fields[i]);
                 if (tooltip != null) {
-                    guiContent = new GUIContent(InspectorUtility.SplitCamelCase(fields[i].Name), tooltip.tooltip);
+                    guiContent = new GUIContent(Shared.Editor.Utility.EditorUtility.SplitCamelCase(fields[i].Name), tooltip.tooltip);
                 } else {
-                    guiContent = new GUIContent(InspectorUtility.SplitCamelCase(fields[i].Name));
+                    guiContent = new GUIContent(Shared.Editor.Utility.EditorUtility.SplitCamelCase(fields[i].Name));
                 }
                 var value = fields[i].GetValue(obj);
-                value = DrawObject(guiContent, fields[i].FieldType, value, fields[i].Name, hashPrefix, null, null, fields[i], true);
+                value = DrawObject(guiContent, fields[i].FieldType, obj, value, fields[i].Name, hash, null, null, fields[i], true);
                 // Update the object if the value was changed.
                 if (EditorGUI.EndChangeCheck()) {
                     fields[i].SetValue(obj, value);
@@ -100,11 +101,16 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         {
             // Only the serialized properties need to be drawn.
             var properties = Serialization.GetSerializedProperties(type, visibility);
+            var bitwiseHash = new Version(serialization.Version).CompareTo(new Version("3.1")) >= 0;
             for (int i = 0; i < properties.Length; ++i) {
-                var hash = hashPrefix + Serialization.StringHash(properties[i].PropertyType.FullName) + Serialization.StringHash(properties[i].Name);
-                int position;
+                int hash;
+                if (bitwiseHash) {
+                    hash = (hashPrefix * Serialization.HashMultiplier) ^ (Serialization.StringHash(properties[i].PropertyType.FullName) + Serialization.StringHash(properties[i].Name));
+                } else {
+                    hash = hashPrefix + Serialization.StringHash(properties[i].PropertyType.FullName) + Serialization.StringHash(properties[i].Name);
+                }
                 // The value may not be serialized.
-                if (!valuePositionMap.TryGetValue(hash, out position)) {
+                if (!valuePositionMap.ContainsKey(hash)) {
                     continue;
                 }
 
@@ -113,17 +119,17 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
                     startDrawElementCallback();
                 }
                 var value = Serializer.BytesToValue(properties[i].PropertyType, properties[i].Name, valuePositionMap, hashPrefix, serialization.Values,
-                                                    serialization.ValuePositions, serialization.UnityObjects, false, visibility);
+                                                    serialization.ValuePositions, serialization.UnityObjects, false, visibility, bitwiseHash);
 
                 EditorGUI.BeginChangeCheck();
 
                 // Get a list of Unity Objects before the property is drawn. This will be used if the property is deleted and the Unity Object array needs to be cleaned up.
                 var unityObjectIndexes = new List<int>();
                 Serialization.GetUnityObjectIndexes(ref unityObjectIndexes, properties[i].PropertyType, properties[i].Name, hashPrefix, valuePositionMap, serialization.ValueHashes, serialization.ValuePositions,
-                                                    serialization.Values, false, visibility);
+                                                    serialization.Values, false, visibility, bitwiseHash);
 
                 // Draw the property.
-                value = DrawObject(new GUIContent(InspectorUtility.SplitCamelCase(properties[i].Name)), properties[i].PropertyType, value, properties[i].Name, hashPrefix, valuePositionMap, serialization, properties[i], false);
+                value = DrawObject(new GUIContent(Shared.Editor.Utility.EditorUtility.SplitCamelCase(properties[i].Name)), properties[i].PropertyType, obj, value, properties[i].Name, hashPrefix, valuePositionMap, serialization, properties[i], false);
 
                 // Issue the end callback after the value is drawn.
                 if (endDrawElementCallback != null) {
@@ -146,13 +152,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
                         return obj;
                     }
 
-                    var localValueCount = Serialization.GetValueCount(properties[i].PropertyType, value, false, visibility);
-                    if (localValueCount == 0) {
-                        return obj;
-                    }
                     // Remove the current element and then add it back at the end. The order of the values doesn't matter and this prevents each subsequent element from needing to be modified because the current
                     // value could have changed sizes.
-                    Serialization.RemoveProperty(i, unityObjectIndexes, serialization, visibility);
+                    Serialization.RemoveProperty(i, unityObjectIndexes, serialization, visibility, bitwiseHash);
 
                     // Add the property to the Serialization data.
                     Serialization.AddProperty(properties[i], value, unityObjectIndexes, serialization, visibility);
@@ -168,6 +170,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// </summary>
         /// <param name="guiContent">The GUIContent to draw with the associated object.</param>
         /// <param name="type">The type of object to draw.</param>
+        /// <param name="parent">The parent of the value.</param>
         /// <param name="value">The value of the object.</param>
         /// <param name="name">The name of the object being drawn.</param>
         /// <param name="hashPrefix">The prefix of the hash from the parent class. This value will prevent collisions with similarly named objects.</param>
@@ -176,10 +179,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// <param name="fieldProperty">A reference to the field or property that is being drawn.</param>
         /// <param name="drawFields">Should the fields be drawn? If false the properties will be drawn.</param>
         /// <returns>The drawn object.</returns>
-        public static object DrawObject(GUIContent guiContent, Type type, object value, string name, int hashPrefix, Dictionary<int, int> valuePositionMap, Serialization serialization, object fieldProperty, bool drawFields)
+        public static object DrawObject(GUIContent guiContent, Type type, object parent, object value, string name, int hashPrefix, Dictionary<int, int> valuePositionMap, Serialization serialization, object fieldProperty, bool drawFields)
         {
             if (typeof(IList).IsAssignableFrom(type)) {
-                return DrawArrayObject(guiContent, type, value, name, hashPrefix, valuePositionMap, serialization, fieldProperty, drawFields);
+                return DrawArrayObject(guiContent, type, parent, value, name, hashPrefix, valuePositionMap, serialization, fieldProperty, drawFields);
             } else {
                 return DrawSingleObject(guiContent, type, value, name, hashPrefix, valuePositionMap, serialization, fieldProperty, drawFields);
             }
@@ -190,6 +193,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// </summary>
         /// <param name="guiContent">The GUIContent to draw with the associated object.</param>
         /// <param name="type">The type of object to draw.</param>
+        /// <param name="parent">The parent of the value.</param>
         /// <param name="value">The value of the object.</param>
         /// <param name="name">The name of the object being drawn.</param>
         /// <param name="hashPrefix">The prefix of the hash from the parent class. This value will prevent collisions with similarly named objects.</param>
@@ -198,7 +202,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// <param name="fieldProperty">A reference to the field or property that is being drawn.</param>
         /// <param name="drawFields">Should the fields be drawn? If false the properties will be drawn.</param>
         /// <returns>The drawn object.</returns>
-        private static object DrawArrayObject(GUIContent guiContent, Type type, object value, string name, int hashPrefix, Dictionary<int, int> valuePositionMap, Serialization serialization, object fieldProperty, bool drawFields)
+        private static object DrawArrayObject(GUIContent guiContent, Type type, object parent, object value, string name, int hashPrefix, Dictionary<int, int> valuePositionMap, Serialization serialization, object fieldProperty, bool drawFields)
         {
             // Arrays and lists operate differently when retrieving the element type.
             Type elementType;
@@ -257,7 +261,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
                         newArray.SetValue(listValue, i);
                     }
                     if (type.IsArray) {
-                        list = (IList)newArray;
+                        list = newArray;
                     } else {
                         if (type.IsGenericType) {
                             list = Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType), true) as IList;
@@ -281,13 +285,14 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
                     s_ArraySize = size;
                 }
 
+                hash = hashPrefix + Serialization.StringHash(type.FullName) + Serialization.StringHash(name);
                 for (int i = 0; i < list.Count; ++i) {
                     GUILayout.BeginHorizontal();
                     if (list[i] == null && !typeof(UnityEngine.Object).IsAssignableFrom(elementType) && elementType != typeof(string)) {
                         list[i] = Activator.CreateInstance(elementType);
                     }
                     guiContent.text = "Element " + i;
-                    list[i] = DrawObject(guiContent, elementType, list[i], name, hash / (i + 2), valuePositionMap, serialization, fieldProperty, drawFields);
+                    list[i] = DrawObject(guiContent, elementType, parent, list[i], name, hash / (i + 2), valuePositionMap, serialization, fieldProperty, drawFields);
                     GUILayout.Space(6);
                     GUILayout.EndHorizontal();
                 }
@@ -388,7 +393,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
                 return DrawLayerMask(guiContent, (LayerMask)value);
             }
             if (type.IsEnum) {
-                return EditorGUILayout.EnumPopup(guiContent, (Enum)value);
+                if (type.IsDefined(typeof(FlagsAttribute), true)) {
+                    return EditorGUILayout.MaskField(guiContent, (int)value, Enum.GetNames(type));
+                }
+                return EditorGUILayout.EnumPopup(guiContent, (Enum)Enum.ToObject(type, value));
             }
             if (typeof(UnityEngine.Object).IsAssignableFrom(type)) {
                 return EditorGUILayout.ObjectField(guiContent, (UnityEngine.Object)value, type, true);
@@ -492,6 +500,20 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
             }
             s_LayerNames = layers.ToArray();
             s_MaskValues = masks.ToArray();
+        }
+
+        /// <summary>
+        /// Returns the Tooltip attribute for the given field, if it exists.
+        /// </summary>
+        /// <param name="field">The field to get the Tooltip attribute of.</param>
+        /// <returns>The Tooltip for the given field. If it does not exist then null is returned.</returns>
+        public static TooltipAttribute GetTooltipAttribute(System.Reflection.FieldInfo field)
+        {
+            var tooltipAttributes = field.GetCustomAttributes(typeof(TooltipAttribute), false) as TooltipAttribute[];
+            if (tooltipAttributes.Length > 0) {
+                return tooltipAttributes[0];
+            }
+            return null;
         }
     }
 }

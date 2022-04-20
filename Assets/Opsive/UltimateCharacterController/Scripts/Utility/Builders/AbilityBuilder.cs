@@ -4,16 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.Abilities;
-using Opsive.UltimateCharacterController.Character.Abilities.Items;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.StateSystem;
-using System;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Utility.Builders
 {
+    using Opsive.Shared.StateSystem;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.Abilities;
+    using Opsive.UltimateCharacterController.Character.Abilities.Items;
+    using Opsive.UltimateCharacterController.Game;
+    using System;
+    using System.Collections.Generic;
+
     /// <summary>
     /// Adds and serializes UltimateCharacterLocomotion abilities.
     /// </summary>
@@ -113,6 +113,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         /// Adds the item ability with the specified type.
         /// </summary>
         /// <param name="characterLocomotion">The character to add the ability to.</param>
+        /// <param name="index">The index that the ability should be added to.</param>
         /// <param name="abilityType">The type of ability to add.</param>
         /// <returns>The added ability.</returns>
         public static ItemAbility AddItemAbility(UltimateCharacterLocomotion characterLocomotion, Type abilityType, int index)
@@ -144,7 +145,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         public static void SerializeAbilities(UltimateCharacterLocomotion characterLocomotion)
         {
             var abilities = characterLocomotion.Abilities == null ? new List<Ability>() : new List<Ability>(characterLocomotion.Abilities);
-            characterLocomotion.AbilityData = Serialization.Serialize<Ability>(abilities);
+            characterLocomotion.AbilityData = Shared.Utility.Serialization.Serialize<Ability>(abilities);
             characterLocomotion.Abilities = abilities.ToArray();
 #if UNITY_EDITOR
             UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(characterLocomotion);
@@ -158,7 +159,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         public static void SerializeItemAbilities(UltimateCharacterLocomotion characterLocomotion)
         {
             var itemAbilities = characterLocomotion.ItemAbilities == null ? new List<ItemAbility>() : new List<ItemAbility>(characterLocomotion.ItemAbilities);
-            characterLocomotion.ItemAbilityData = Serialization.Serialize<ItemAbility>(itemAbilities);
+            characterLocomotion.ItemAbilityData = Shared.Utility.Serialization.Serialize<ItemAbility>(itemAbilities);
             characterLocomotion.ItemAbilities = itemAbilities.ToArray();
 #if UNITY_EDITOR
             UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(characterLocomotion);
@@ -228,7 +229,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         /// <summary>
         /// Returns the RequiredComponent of the specified ability type.
         /// </summary>
-        /// <param name="abilityType">The type of ability.</param>
+        /// <param name="type">The type of ability.</param>
         /// <returns>The RequiredComponent of the specified ability type. Can be null.</returns>
         private static UnityEngine.RequireComponent[] GetRequiredComponents(Type type)
         {

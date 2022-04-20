@@ -4,13 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// An abstract class for any ability that needs another object to start (such as picking an object up, vaulting, climbing, interacting, etc).
     /// </summary>
@@ -19,6 +20,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// <summary>
         /// Specifies how to detect the object.
         /// </summary>
+        [System.Flags]
         public enum ObjectDetectionMode
         {
             Trigger = 1,        // Use a trigger to detect if the character is near an object.
@@ -52,6 +54,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         [HideInInspector] [SerializeField] protected float m_SpherecastRadius = 0.5f;
         [Tooltip("The maximum number of valid triggers that the ability can detect.")]
         [HideInInspector] [SerializeField] protected int m_MaxTriggerObjectCount = 1;
+        [Tooltip("Should the character move with the detected object?")]
+        [HideInInspector] [SerializeField] protected bool m_MoveWithObject;
 
         public ObjectDetectionMode ObjectDetection { get { return m_ObjectDetection; }
             set {
@@ -70,6 +74,18 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         public Vector3 CastOffset { get { return m_CastOffset; } set { m_CastOffset = value; } }
         public QueryTriggerInteraction TriggerInteraction { get { return m_TriggerInteraction; } set { m_TriggerInteraction = value; } }
         public float SpherecastRadius { get { return m_SpherecastRadius; } set { m_SpherecastRadius = value; } }
+        public bool MoveWithObject { get { return m_MoveWithObject; }
+            set {
+                if (m_MoveWithObject == value) { return; }
+                m_MoveWithObject = value;
+                if (!IsActive || m_DetectedObject == null) { return; }
+                if (m_MoveWithObject && m_CharacterLocomotion.Platform == null) {
+                    m_CharacterLocomotion.SetPlatform(m_DetectedObject.transform);
+                } else if (!m_MoveWithObject && m_CharacterLocomotion.Platform == m_DetectedObject.transform) {
+                    m_CharacterLocomotion.SetPlatform(null);
+                }
+            }
+        }
 
         protected ILookSource m_LookSource;
         protected Transform m_LookSourceTransform;
@@ -78,6 +94,22 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         protected int m_DetectedTriggerObjectsCount;
         protected GameObject m_DetectedObject;
         private int m_LastCastFrame;
+
+        public GameObject DetectedObject { get { return m_DetectedObject; }
+            protected set
+            {
+                if (m_DetectedObject == value) {
+                    return;
+                }
+                if (m_DetectedObject != null) {
+                    EventHandler.ExecuteEvent(m_DetectedObject, "OnObjectDetected", m_GameObject, false);
+                }
+                m_DetectedObject = value;
+                if (m_DetectedObject != null) {
+                    EventHandler.ExecuteEvent(m_DetectedObject, "OnObjectDetected", m_GameObject, true);
+                }
+            }
+        }
 
         /// <summary>
         /// Initialize the default values.
@@ -95,6 +127,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 m_DetectedTriggerObjects = new GameObject[m_MaxTriggerObjectCount];
             }
             EventHandler.RegisterEvent<ILookSource>(m_GameObject, "OnCharacterAttachLookSource", OnAttachLookSource);
+            EventHandler.RegisterEvent<bool>(m_GameObject, "OnCharacterImmediateTransformChange", OnImmediateTransformChange);
         }
 
         /// <summary>
@@ -130,10 +163,10 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             // The ability can start if using a trigger.
             if ((m_ObjectDetection & ObjectDetectionMode.Trigger) != 0 && m_DetectedTriggerObjectsCount > 0) {
                 for (int i = 0; i < m_DetectedTriggerObjectsCount; ++i) {
-                    if (ValidateObject(m_DetectedTriggerObjects[i], true)) {
-                        m_DetectedObject = m_DetectedTriggerObjects[i];
+                    if (ValidateObject(m_DetectedTriggerObjects[i], null)) {
+                        DetectedObject = m_DetectedTriggerObjects[i];
                         return true;
-                    } else if (!m_DetectedTriggerObjects[i].activeInHierarchy) { // The OnTriggerExit callback doesn't occur when the object is deactivated. 
+                    } else if (m_DetectedTriggerObjects[i] == null || !m_DetectedTriggerObjects[i].activeInHierarchy) { // The OnTriggerExit callback doesn't occur when the object is deactivated. 
                         if (TriggerExit(m_DetectedTriggerObjects[i])) {
                             i--; // Subtract one so the newly replaced object will be evaluated.
                         }
@@ -142,7 +175,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
 
             // No more work is necessary if no casts are necessary.
-            if (m_ObjectDetection == ObjectDetectionMode.Trigger || (m_UseLookDirection && m_LookSource == null)) {
+            if (m_ObjectDetection == ObjectDetectionMode.Trigger || ((m_UseLookPosition || m_UseLookDirection) && m_LookSource == null)) {
                 return false;
             }
 
@@ -163,8 +196,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             if ((m_ObjectDetection & ObjectDetectionMode.Charactercast) != 0) {
                 if (m_CharacterLocomotion.SingleCast(castDirection * m_CastDistance, castTransform.TransformDirection(m_CastOffset), m_DetectLayers, ref m_RaycastResult)) {
                     var hitObject = m_RaycastResult.collider.gameObject;
-                    if (ValidateObject(hitObject, false)) {
-                        m_DetectedObject = hitObject;
+                    if (ValidateObject(hitObject, m_RaycastResult)) {
+                        DetectedObject = hitObject;
                         return true;
                     }
                 }
@@ -174,8 +207,8 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             if ((m_ObjectDetection & ObjectDetectionMode.Raycast) != 0) {
                 if (Physics.Raycast(castTransform.TransformPoint(m_CastOffset), castDirection, out m_RaycastResult, m_CastDistance, m_DetectLayers, m_TriggerInteraction)) {
                     var hitObject = m_RaycastResult.collider.gameObject;
-                    if (ValidateObject(hitObject, false)) {
-                        m_DetectedObject = hitObject;
+                    if (ValidateObject(hitObject, m_RaycastResult)) {
+                        DetectedObject = hitObject;
                         return true;
                     }
                 }
@@ -186,15 +219,15 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 if (Physics.SphereCast(castTransform.TransformPoint(m_CastOffset) - castTransform.forward * m_SpherecastRadius, m_SpherecastRadius, castDirection, out m_RaycastResult,
                                         m_CastDistance, m_DetectLayers, m_TriggerInteraction)) {
                     var hitObject = m_RaycastResult.collider.gameObject;
-                    if (ValidateObject(hitObject, false)) {
-                        m_DetectedObject = hitObject;
+                    if (ValidateObject(hitObject, m_RaycastResult)) {
+                        DetectedObject = hitObject;
                         return true;
                     }
                 }
             }
 
             // The cast did not detect an object.
-            m_DetectedObject = null;
+            DetectedObject = null;
             return false;
         }
 
@@ -221,13 +254,26 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 }
             }
 
-            if (ValidateObject(other.gameObject, true)) {
+            if (ValidateObject(other.gameObject, null)) {
                 if (m_DetectedTriggerObjects.Length == m_DetectedTriggerObjectsCount) {
-                    Debug.LogError("Error: The maximum number of trigger objects need to be increased on the " + GetType().Name + " ability.");
+                    Debug.LogError($"Error: The maximum number of trigger objects should be increased on the {GetType().Name} ability.");
                     return;
                 }
                 m_DetectedTriggerObjects[m_DetectedTriggerObjectsCount] = other.gameObject;
                 m_DetectedTriggerObjectsCount++;
+            }
+        }
+
+        /// <summary>
+        /// The ability has started.
+        /// </summary>
+        protected override void AbilityStarted()
+        {
+            base.AbilityStarted();
+
+            // The character can move with the ground.
+            if (m_MoveWithObject && m_DetectedObject != null && m_CharacterLocomotion.Platform == null) {
+                m_CharacterLocomotion.SetPlatform(m_DetectedObject.transform);
             }
         }
 
@@ -253,7 +299,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         protected virtual bool TriggerExit(GameObject other)
         {
             for (int i = 0; i < m_DetectedTriggerObjectsCount; ++i) {
-                if (other == m_DetectedTriggerObjects[i]) {
+                if (other == m_DetectedTriggerObjects[i] || m_DetectedTriggerObjects[i] == null) {
                     m_DetectedTriggerObjects[i] = null;
                     // Ensure there is not a gap in the trigger object elements.
                     for (int j = i; j < m_DetectedTriggerObjectsCount - 1; ++j) {
@@ -261,7 +307,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                     }
                     m_DetectedTriggerObjectsCount--;
                     // The detected object should be assigned to the oldest trigger object. This value may be null.
-                    m_DetectedObject = m_DetectedTriggerObjects[0];
+                    DetectedObject = m_DetectedTriggerObjects[0];
                     return true;
                 }
             }
@@ -272,9 +318,9 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// Validates the object to ensure it is valid for the current ability.
         /// </summary>
         /// <param name="obj">The object being validated.</param>
-        /// <param name="fromTrigger">Is the object being validated within a trigger?</param>
+        /// <param name="raycastHit">The raycast hit of the detected object. Will be null for trigger detections.</param>
         /// <returns>True if the object is valid. The object may not be valid if it doesn't have an ability-specific component attached.</returns>
-        protected virtual bool ValidateObject(GameObject obj, bool withinTrigger)
+        protected virtual bool ValidateObject(GameObject obj, RaycastHit? raycastHit)
         {
             if (obj == null || !obj.activeInHierarchy) {
                 return false;
@@ -299,14 +345,18 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
 
             // The object has to be within the specified angle.
-            if (!withinTrigger) {
+            if (raycastHit.HasValue) {
                 var castDirection = m_UseLookDirection ? m_LookSource.LookDirection(true) : m_Transform.forward;
-                var angle = Quaternion.Angle(Quaternion.LookRotation(castDirection, m_CharacterLocomotion.Up), Quaternion.LookRotation(-obj.transform.forward, m_CharacterLocomotion.Up));
+                float angle;
                 var objectFaces = obj.GetCachedParentComponent<Objects.ObjectForwardFaces>();
-                // If an object has multiple faces then the ability can start from multiple directions.
                 if (objectFaces != null) {
+                    // If an object has multiple faces then the ability can start from multiple directions. It should not start from any angle so don't use the raycast normal.
                     var roundedAngle = 360 / objectFaces.ForwardFaceCount;
+                    angle = Quaternion.Angle(Quaternion.LookRotation(castDirection, m_CharacterLocomotion.Up), Quaternion.LookRotation(-obj.transform.forward, m_CharacterLocomotion.Up));
                     angle = Mathf.Abs(MathUtility.ClampInnerAngle(angle - (roundedAngle * Mathf.RoundToInt(angle / roundedAngle))));
+                } else {
+                    // The object doesn't have the ObjectFaces component. Use the actual angle value.
+                    angle = Quaternion.Angle(Quaternion.LookRotation(castDirection, m_CharacterLocomotion.Up), Quaternion.LookRotation(-raycastHit.Value.normal, m_CharacterLocomotion.Up));
                 }
 
                 if (angle <= m_AngleThreshold) {
@@ -334,12 +384,34 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// <param name="triggerExit">Should any triggers be exited before the ability is stopped?</param>
         protected void AbilityStopped(bool force, bool triggerExit)
         {
+            // The character is no longer moving with the object.
+            if (m_MoveWithObject && m_DetectedObject != null && m_CharacterLocomotion.Platform == m_DetectedObject.transform) {
+                m_CharacterLocomotion.SetPlatform(null);
+            }
+
             // Ensure the OnTriggerExit is triggered when the ability stops.
             if (triggerExit && m_DetectedObject != null && (m_ObjectDetection & ObjectDetectionMode.Trigger) != 0) {
                 TriggerExit(m_DetectedObject);
             }
 
             base.AbilityStopped(force);
+        }
+
+        /// <summary>
+        /// The character's position or rotation has been teleported.
+        /// </summary>
+        /// <param name="snapAnimator">Should the animator be snapped?</param>
+        private void OnImmediateTransformChange(bool snapAnimator)
+        {
+            // The detected objects should be reset when the character teleports.
+            for (int i = 0; i < m_DetectedTriggerObjectsCount - 1; ++i) {
+                m_DetectedTriggerObjects[i] = null;
+            }
+            m_DetectedTriggerObjectsCount = 0;
+            if (m_ObjectDetection == ObjectDetectionMode.Trigger || m_ObjectDetection == 0) {
+                DetectedObject = null;
+            }
+            m_LastCastFrame = 0;
         }
 
         /// <summary>
@@ -350,6 +422,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             base.OnDestroy();
 
             EventHandler.UnregisterEvent<ILookSource>(m_GameObject, "OnCharacterAttachLookSource", OnAttachLookSource);
+            EventHandler.UnregisterEvent<bool>(m_GameObject, "OnCharacterImmediateTransformChange", OnImmediateTransformChange);
         }
     }
 }

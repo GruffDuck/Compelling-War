@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Game;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Objects.ItemAssist
 {
+    using Opsive.Shared.Game;
+    using System.Collections.Generic;
+    using UnityEngine;
+
     /// <summary>
     /// Builds a mesh which can show a trail following a melee weapon. This is typically used when the melee weapon is slashed.
     /// </summary>
@@ -90,6 +90,10 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
             m_Transform = transform;
 
             var meshFilter = GetComponent<MeshFilter>();
+            if (meshFilter == null) {
+                Debug.LogError("Error: Unable to find the MeshFilter component. Enssure the Trail object has been created through the Object Manager.");
+                return;
+            }
             m_Mesh = meshFilter.mesh;
 
             m_MinDistanceSquared = m_MinDistance * m_MinDistance;
@@ -273,6 +277,13 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
         private void RemoveOldSlices()
         {
             if (m_TrailSlicesCount == 0) {
+                if (!m_GenerateSlices) {
+                    if (ObjectPoolBase.InstantiatedWithPool(m_GameObject)) {
+                        ObjectPoolBase.Destroy(m_GameObject);
+                    } else {
+                        m_GameObject.SetActive(false);
+                    }
+                }
                 return;
             }
 
@@ -313,11 +324,6 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
 
             if (m_TrailSlicesCount == 0 && m_SmoothedTrailSlicesCount == 0) {
                 m_GenerateSlices = false;
-                if (ObjectPool.InstantiatedWithPool(m_GameObject)) {
-                    ObjectPool.Destroy(m_GameObject);
-                } else {
-                    m_GameObject.SetActive(false);
-                }
             }
         }
 
@@ -345,7 +351,7 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
 
             for (int i = 0; i < m_SmoothedTrailSlicesCount; ++i) {
                 var trailSlice = m_SmoothedTrailSlices[(startIndex + i) % m_SmoothedTrailSlices.Length];
-                // The vertex position is the local position of the slice point. This will allow the trail to stay in the same position while the melee object is moving..
+                // The vertex position is the local position of the slice point. This will allow the trail to stay in the same position while the melee object is moving.
                 m_Vertices.Add(m_Transform.InverseTransformPoint(trailSlice.Point));
                 m_Vertices.Add(m_Transform.InverseTransformPoint(trailSlice.Point + trailSlice.Up * m_Length));
                 // Set the UV value so a texture can be applied to the material.

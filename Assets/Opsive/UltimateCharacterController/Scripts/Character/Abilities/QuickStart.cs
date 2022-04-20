@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using Opsive.Shared.Events;
+    using UnityEngine;
+
     /// <summary>
     /// The Start Movement ability allows the character to play a starting animation.
     /// </summary>
@@ -132,7 +132,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// <returns>True if the ability can be stopped.</returns>
         public override bool CanStopAbility()
         {
-            return m_EventStop || m_CharacterLocomotion.RawInputVector.sqrMagnitude == 0;
+            return m_EventStop;
         }
 
         /// <summary>

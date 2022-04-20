@@ -4,14 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character.Abilities;
-using Opsive.UltimateCharacterController.Character.MovementTypes;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Abilities
 {
+    using Opsive.Shared.Events;
+    using Opsive.UltimateCharacterController.Character.Abilities;
+    using Opsive.UltimateCharacterController.Character.MovementTypes;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Follows a path specified by the 2.5D movement type. Ensures the character stays at a consistant horizontal offset.
     /// </summary>
@@ -56,6 +56,18 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Abi
                 // If the movement type is no longer active then the ability should stop.
                 StopAbility();
             }
+        }
+
+        /// <summary>
+        /// Called when the ablity is tried to be started. If false is returned then the ability will not be started.
+        /// </summary>
+        /// <returns>True if the ability can be started.</returns>
+        public override bool CanStartAbility()
+        {
+            if (!base.CanStartAbility()) {
+                return false;
+            }
+            return (m_CharacterLocomotion.ActiveMovementType is MovementTypes.Pseudo3D) && (m_CharacterLocomotion.ActiveMovementType as MovementTypes.Pseudo3D).Path != null;
         }
 
         /// <summary>

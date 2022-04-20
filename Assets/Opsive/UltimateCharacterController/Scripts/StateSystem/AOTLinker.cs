@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-#if NET_4_6 || UNITY_2018_3_OR_NEWER || UNITY_WEBGL || UNITY_IOS || UNITY_ANDROID || UNITY_WII || UNITY_WIIU || UNITY_SWITCH || UNITY_PS3 || UNITY_PS4 || UNITY_XBOXONE || UNITY_WSA
-using UnityEngine;
-using System;
-
 namespace Opsive.UltimateCharacterController.StateSystem
 {
+    using Opsive.Shared.StateSystem;
+    using System;
+    using UnityEngine;
+
     // This class is required in order for the preset system to work with AOT platforms. The preset system uses reflection to generate the delegates
     // and reflection doesn't play well with AOT because the classes need to be defined ahead of time. Define the classes here so the compiler will
     // add in the correct type. This code is not actually used anywhere, it is purely for the compiler.
@@ -69,12 +69,18 @@ namespace Opsive.UltimateCharacterController.StateSystem
             var layerMaskGenericDelegate = new Preset.GenericDelegate<LayerMask>();
             var layerMaskFuncDelegate = new Func<LayerMask>(() => { return new LayerMask(); });
             var layerMaskActionDelegate = new Action<LayerMask>((LayerMask value) => { });
+            var raycastHitGenericDelegate = new Preset.GenericDelegate<RaycastHit>();
+            var raycastHitFuncDelegate = new Func<RaycastHit>(() => { return new RaycastHit(); });
+            var raycastHitActionDelegate = new Action<RaycastHit>((RaycastHit value) => { });
             var humanBodyBonesGenericDelegate = new Preset.GenericDelegate<HumanBodyBones>();
             var humanBodyBonesFuncDelegate = new Func<HumanBodyBones>(() => { return 0; });
             var humanBodyBonesActionDelegate = new Action<HumanBodyBones>((HumanBodyBones value) => { });
             var queryTriggerInteractionGenericDelegate = new Preset.GenericDelegate<QueryTriggerInteraction>();
             var queryTriggerInteractionFuncDelegate = new Func<QueryTriggerInteraction>(() => { return 0; });
             var queryTriggerInteractionActionDelegate = new Action<QueryTriggerInteraction>((QueryTriggerInteraction value) => { });
+            var forceModeGenericDelegate = new Preset.GenericDelegate<ForceMode>();
+            var forceModeFuncDelegate = new Func<ForceMode>(() => { return 0; });
+            var forceModeActionDelegate = new Action<ForceMode>((ForceMode value) => { });
             var unityObjectGenericDelegate = new Preset.GenericDelegate<UnityEngine.Object>();
             var unityObjectFuncDelegate = new Func<UnityEngine.Object>(() => { return new UnityEngine.Object(); });
             var unityObjectActionDelegate = new Action<UnityEngine.Object>((UnityEngine.Object value) => { });
@@ -90,12 +96,12 @@ namespace Opsive.UltimateCharacterController.StateSystem
             var minMaxVector3GenericDelegate = new Preset.GenericDelegate<Utility.MinMaxVector3>();
             var minMaxVector3FuncDelegate = new Func<Utility.MinMaxVector3>(() => { return new Utility.MinMaxVector3(); });
             var minMaxVector3ActionDelegate = new Action<Utility.MinMaxVector3>((Utility.MinMaxVector3 value) => { });
-            var lookVectorModeGenericDelegate = new Preset.GenericDelegate<Input.PlayerInput.LookVectorMode>();
-            var lookVectorModeFuncDelegate = new Func<Input.PlayerInput.LookVectorMode>(() => { return 0; });
-            var lookVectorModeActionDelegate = new Action<Input.PlayerInput.LookVectorMode>((Input.PlayerInput.LookVectorMode value) => { });
-            var preloadedPrefabGenericDelegate = new Preset.GenericDelegate<Game.ObjectPool.PreloadedPrefab>();
-            var preloadedPrefabFuncDelegate = new Func<Game.ObjectPool.PreloadedPrefab>(() => { return new Game.ObjectPool.PreloadedPrefab(); });
-            var preloadedPrefabActionDelegate = new Action<Game.ObjectPool.PreloadedPrefab>((Game.ObjectPool.PreloadedPrefab value) => { });
+            var lookVectorModeGenericDelegate = new Preset.GenericDelegate<Shared.Input.PlayerInput.LookVectorMode>();
+            var lookVectorModeFuncDelegate = new Func<Shared.Input.PlayerInput.LookVectorMode>(() => { return 0; });
+            var lookVectorModeActionDelegate = new Action<Shared.Input.PlayerInput.LookVectorMode>((Shared.Input.PlayerInput.LookVectorMode value) => { });
+            var preloadedPrefabGenericDelegate = new Preset.GenericDelegate<Shared.Game.ObjectPool.PreloadedPrefab>();
+            var preloadedPrefabFuncDelegate = new Func<Shared.Game.ObjectPool.PreloadedPrefab>(() => { return new Shared.Game.ObjectPool.PreloadedPrefab(); });
+            var preloadedPrefabActionDelegate = new Action<Shared.Game.ObjectPool.PreloadedPrefab>((Shared.Game.ObjectPool.PreloadedPrefab value) => { });
             var abilityStartTypeGenericDelegate = new Preset.GenericDelegate<Character.Abilities.Ability.AbilityStartType>();
             var abilityStartTypeFuncDelegate = new Func<Character.Abilities.Ability.AbilityStartType>(() => { return 0; });
             var abilityStartTypeActionDelegate = new Action<Character.Abilities.Ability.AbilityStartType>((Character.Abilities.Ability.AbilityStartType value) => { });
@@ -165,9 +171,9 @@ namespace Opsive.UltimateCharacterController.StateSystem
             var movingPlatformRotateInterpolationModeGenericDelegate = new Preset.GenericDelegate<Objects.MovingPlatform.RotateInterpolationMode>();
             var movingPlatformRotateInterpolationModeFuncDelegate = new Func<Objects.MovingPlatform.RotateInterpolationMode>(() => { return 0; });
             var movingPlatformRotateInterpolationModeActionDelegate = new Action<Objects.MovingPlatform.RotateInterpolationMode>((Objects.MovingPlatform.RotateInterpolationMode value) => { });
-            var audioClipSetGenericDelegate = new Preset.GenericDelegate<Audio.AudioClipSet>();
-            var audioClipSetFuncDelegate = new Func<Audio.AudioClipSet>(() => { return null; });
-            var audioClipSetActionDelegate = new Action<Audio.AudioClipSet>((Audio.AudioClipSet value) => { });
+            var audioClipSetGenericDelegate = new Preset.GenericDelegate<Opsive.Shared.Audio.AudioClipSet>();
+            var audioClipSetFuncDelegate = new Func<Opsive.Shared.Audio.AudioClipSet>(() => { return null; });
+            var audioClipSetActionDelegate = new Action<Opsive.Shared.Audio.AudioClipSet>((Opsive.Shared.Audio.AudioClipSet value) => { });
 #if ULTIMATE_CHARACTER_CONTROLLER_SHOOTER
             var autoReloadTypeGenericDelegate = new Preset.GenericDelegate<Character.Abilities.Items.Reload.AutoReloadType>();
             var autoReloadTypeFuncDelegate = new Func<Character.Abilities.Items.Reload.AutoReloadType>(() => { return 0; });
@@ -190,6 +196,15 @@ namespace Opsive.UltimateCharacterController.StateSystem
             var meleeWeaponTrailVisibilityFuncDelegate = new Func<Items.Actions.MeleeWeapon.TrailVisibilityType>(() => { return 0; });
             var meleeWeaponTrailVisibilityActionDelegate = new Action<Items.Actions.MeleeWeapon.TrailVisibilityType>((Items.Actions.MeleeWeapon.TrailVisibilityType value) => { });
 #endif
+            var magicItemCastDirectionGenericDelegate = new Preset.GenericDelegate<Items.Actions.MagicItem.CastDirection>();
+            var magicItemCastDirectionFuncDelegate = new Func<Items.Actions.MagicItem.CastDirection>(() => { return 0; });
+            var magicItemCastDirectionActionDelegate = new Action<Items.Actions.MagicItem.CastDirection>((Items.Actions.MagicItem.CastDirection value) => { });
+            var magicItemCastUseTypeGenericDelegate = new Preset.GenericDelegate<Items.Actions.MagicItem.CastUseType>();
+            var magicItemCastUseTypeFuncDelegate = new Func<Items.Actions.MagicItem.CastUseType>(() => { return 0; });
+            var magicItemCastUseTypeActionDelegate = new Action<Items.Actions.MagicItem.CastUseType>((Items.Actions.MagicItem.CastUseType value) => { });
+            var magicItemCastInterruptSourceGenericDelegate = new Preset.GenericDelegate<Items.Actions.MagicItem.CastInterruptSource>();
+            var magicItemCastInterruptSourceFuncDelegate = new Func<Items.Actions.MagicItem.CastInterruptSource>(() => { return 0; });
+            var magicItemCastInterruptSourceActionDelegate = new Action<Items.Actions.MagicItem.CastInterruptSource>((Items.Actions.MagicItem.CastInterruptSource value) => { });
             var healthFlashMonitorFlashGenericDelegate = new Preset.GenericDelegate<UI.HealthFlashMonitor.Flash>();
             var healthFlashMonitorFlashFuncDelegate = new Func<UI.HealthFlashMonitor.Flash>(() => { return new UI.HealthFlashMonitor.Flash(); });
             var healthFlashMonitorFlashActionDelegate = new Action<UI.HealthFlashMonitor.Flash>((UI.HealthFlashMonitor.Flash value) => { });
@@ -197,4 +212,3 @@ namespace Opsive.UltimateCharacterController.StateSystem
         }
     }
 }
-#endif

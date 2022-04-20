@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
+    using Opsive.Shared.Events;
+    using UnityEngine;
+
     /// <summary>
     /// Prevents the movement animation from playing when the character would run into a solid object. The move direction is predicted if the character is using
     /// root motion because with root motion the movement is applied after the animation plays.
@@ -77,7 +77,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         /// <returns>True if the character would collide with an object based on the input vector.</returns>
         private bool PredicatedCollision()
         {
-            if (m_CharacterLocomotion.InputVector.sqrMagnitude < m_CharacterLocomotion.ColliderSpacingSquared) {
+            if (m_CharacterLocomotion.InputVector.sqrMagnitude < m_CharacterLocomotion.ColliderSpacingCubed) {
                 return false;
             }
 

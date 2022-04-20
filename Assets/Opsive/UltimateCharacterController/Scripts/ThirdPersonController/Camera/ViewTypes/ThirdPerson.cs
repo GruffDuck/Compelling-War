@@ -4,21 +4,23 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Camera;
-using Opsive.UltimateCharacterController.Camera.ViewTypes;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Input;
-using Opsive.UltimateCharacterController.Motion;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Utility;
-#if ULTIMATE_CHARACTER_CONTROLLER_VR
-using Opsive.UltimateCharacterController.VR;
-#endif
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTypes
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Input;
+    using Opsive.Shared.StateSystem;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Camera;
+    using Opsive.UltimateCharacterController.Camera.ViewTypes;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Motion;
+    using Opsive.UltimateCharacterController.Utility;
+#if ULTIMATE_CHARACTER_CONTROLLER_VR
+    using Opsive.UltimateCharacterController.VR;
+#endif
+    using UnityEngine;
+
     /// <summary>
     /// The Third Person View Type will orbit around the character while always having the character in view.
     /// </summary>
@@ -32,30 +34,30 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         [SerializeField] protected float m_LookOffsetSmoothing = 0.05f;
         [Tooltip("The forward axis that the camera should adjust towards.")]
         [SerializeField] protected Vector3 m_ForwardAxis = Vector3.forward;
-        [Tooltip("The field of view of the main camera.")]
-        [SerializeField] protected float m_FieldOfView = 70f;
-        [Tooltip("The damping time of the field of view angle when changed.")]
-        [SerializeField] protected float m_FieldOfViewDamping = 0.25f;
         [Tooltip("The radius of the camera's collision sphere to prevent it from clipping with other objects.")]
         [SerializeField] protected float m_CollisionRadius = 0.05f;
         [Tooltip("The offset from the anchor position when determining if there is a collision.")]
         [SerializeField] protected Vector3 m_CollisionAnchorOffset;
         [Tooltip("The amount of smoothing to apply to the position. Can be zero.")]
-        [SerializeField] protected float m_PositionSmoothing = 0.02f;
+        [SerializeField] protected float m_PositionSmoothing = 0;
         [Tooltip("The amount of smoothing to apply to the position when an object is obstructing the target position. Can be zero.")]
         [SerializeField] protected float m_ObstructionPositionSmoothing = 0.04f;
+        [Tooltip("Should the rotation of the character be updated? Set to false to prevent the camera from rotating with the character.")]
+        [SerializeField] protected bool m_UpdateCharacterRotation = true;
+        [Tooltip("The lerping speed when determining the align to gravity character rotation.")]
+        [SerializeField] protected float m_AlignToGravityRotationSpeed = 0.8f;
         [Tooltip("The minimum pitch angle (in degrees).")]
         [SerializeField] protected float m_MinPitchLimit = -72;
         [Tooltip("The maximum pitch angle (in degrees).")]
         [SerializeField] protected float m_MaxPitchLimit = 72;
         [Tooltip("The positional spring used for regular movement.")]
-        [SerializeField] protected Spring m_PositionSpring;
+        [SerializeField] protected Spring m_PositionSpring = new Spring();
         [Tooltip("The rotational spring used for regular movement.")]
-        [SerializeField] protected Spring m_RotationSpring;
+        [SerializeField] protected Spring m_RotationSpring = new Spring();
         [Tooltip("The positional spring which returns to equilibrium after a small amount of time (for recoil).")]
-        [SerializeField] protected Spring m_SecondaryPositionSpring;
+        [SerializeField] protected Spring m_SecondaryPositionSpring = new Spring();
         [Tooltip("The rotational spring which returns to equilibrium after a small amount of time (for recoil).")]
-        [SerializeField] protected Spring m_SecondaryRotationSpring;
+        [SerializeField] protected Spring m_SecondaryRotationSpring = new Spring();
         [Tooltip("The name of the step zoom input mapping.")]
         [SerializeField] protected string m_StepZoomInputName = "Mouse ScrollWheel";
         [Tooltip("Specifies how quickly the camera zooms when step zooming.")]
@@ -75,6 +77,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         public Vector3 CollisionAnchorOffset { get { return m_CollisionAnchorOffset; } set { m_CollisionAnchorOffset = value; } }
         public float PositionSmoothing { get { return m_PositionSmoothing; } set { m_PositionSmoothing = value; } }
         public float ObstructionPositionSmoothing { get { return m_ObstructionPositionSmoothing; } set { m_ObstructionPositionSmoothing = value; } }
+        public bool UpdateCharacterRotation { get { return m_UpdateCharacterRotation; } set { m_UpdateCharacterRotation = value; } }
+        public float AlignToGravityRotationSpeed { get { return m_AlignToGravityRotationSpeed; } set { m_AlignToGravityRotationSpeed = value; } }
         public float MinPitchLimit { get { return m_MinPitchLimit; } set { m_MinPitchLimit = value; } }
         public float MaxPitchLimit { get { return m_MaxPitchLimit; } set { m_MaxPitchLimit = value; } }
         public Spring PositionSpring { get { return m_PositionSpring; }
@@ -109,8 +113,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         public float MinStepZoom { get { return m_MinStepZoom; } set { m_MinStepZoom = value; } }
         public float MaxStepZoom { get { return m_MaxStepZoom; } set { m_MaxStepZoom = value; } }
 
-        private UnityEngine.Camera m_Camera;
         private Transform m_CrosshairsTransform;
+        private Canvas m_CrosshairsCanvas;
+        private UI.CrosshairsMonitor m_CrosshairsMonitor;
         private AimAssist m_AimAssist;
         protected float m_Pitch;
         protected float m_Yaw;
@@ -118,15 +123,14 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         private Quaternion m_CharacterPlatformRotationOffset = Quaternion.identity;
         private Quaternion m_PlatformRotation = Quaternion.identity;
         private bool m_AppendingZoomState;
-        private Vector3 m_CrosshairsLocalPosition;
         private Quaternion m_CrosshairsDeltaRotation;
+        private Vector3 m_CrosshairsPosition;
 
         private Vector3 m_CurrentLookOffset;
         private RaycastHit m_RaycastHit;
         private Vector3 m_SmoothPositionVelocity;
         private Vector3 m_ObstructionSmoothPositionVelocity;
         private Vector3 m_SmoothLookOffsetVelocity;
-        private float m_FieldOfViewChangeTime;
 
         protected CameraControllerHandler m_Handler;
         private ActiveInputEvent m_StepZoomInputEvent;
@@ -155,7 +159,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         {
             base.Awake();
 
-            m_Camera = m_GameObject.GetCachedComponent<UnityEngine.Camera>();
 #if ULTIMATE_CHARACTER_CONTROLLER_VR
             VRCameraIdentifier vrCamera;
             if ((vrCamera = m_GameObject.GetComponentInChildren<VRCameraIdentifier>()) != null) {
@@ -202,6 +205,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         /// <param name="characterRotation">The rotation of the character.</param>
         public override void ChangeViewType(bool activate, float pitch, float yaw, Quaternion characterRotation)
         {
+            base.ChangeViewType(activate, pitch, yaw, characterRotation);
+
             if (activate) {
                 m_Pitch = pitch;
                 m_Yaw = yaw;
@@ -209,12 +214,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
                 if (m_CharacterLocomotion.Platform != null) {
                     UpdatePlatformRotationOffset(m_CharacterLocomotion.Platform);
                 }
-                if (m_Camera.fieldOfView != m_FieldOfView) {
-                    m_FieldOfViewChangeTime = Time.time + m_FieldOfViewDamping / m_CharacterLocomotion.TimeScale;
-                }
                 if (m_StepZoomSensitivity > 0) {
                     if (m_Handler != null) {
-                        m_StepZoomInputEvent = ObjectPool.Get<ActiveInputEvent>();
+                        m_StepZoomInputEvent = GenericObjectPool.Get<ActiveInputEvent>();
                         m_StepZoomInputEvent.Initialize(ActiveInputEvent.Type.Axis, m_StepZoomInputName, "OnThirdPersonViewTypeStepZoom");
                         m_Handler.RegisterInputEvent(m_StepZoomInputEvent);
                     }
@@ -223,9 +225,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             } else {
                 if (m_StepZoomSensitivity > 0) {
                     if (m_Handler != null) {
-                        m_StepZoomInputEvent = ObjectPool.Get<ActiveInputEvent>();
+                        m_StepZoomInputEvent = GenericObjectPool.Get<ActiveInputEvent>();
                         m_Handler.UnregisterAbilityInputEvent(m_StepZoomInputEvent);
-                        ObjectPool.Return(m_StepZoomInputEvent);
+                        GenericObjectPool.Return(m_StepZoomInputEvent);
                     }
                     EventHandler.UnregisterEvent<float>(m_GameObject, "OnThirdPersonViewTypeStepZoom", OnStepZoom);
                 }
@@ -261,9 +263,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             m_CrosshairsTransform = crosshairs;
 
             if (m_CrosshairsTransform != null) {
-                var screenPoint = RectTransformUtility.WorldToScreenPoint(null, m_CrosshairsTransform.position);
-                m_CrosshairsDeltaRotation = Quaternion.LookRotation(m_Camera.ScreenPointToRay(screenPoint).direction, m_Transform.up) * Quaternion.Inverse(m_Transform.rotation);
-                m_CrosshairsLocalPosition = m_CrosshairsTransform.localPosition;
+                m_CrosshairsCanvas = crosshairs.GetComponentInParent<Canvas>();
+                m_CrosshairsMonitor = crosshairs.gameObject.GetCachedComponent<UI.CrosshairsMonitor>();
+                m_CrosshairsPosition = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             }
         }
 
@@ -278,10 +280,16 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             }
 
             // The crosshairs direction should only be updated when it changes.
-            if (m_CrosshairsLocalPosition != m_CrosshairsTransform.localPosition) {
-                var screenPoint = RectTransformUtility.WorldToScreenPoint(null, m_CrosshairsTransform.position);
-                m_CrosshairsDeltaRotation = Quaternion.LookRotation(m_Camera.ScreenPointToRay(screenPoint).direction, m_Transform.up) * Quaternion.Inverse(m_Transform.rotation);
-                m_CrosshairsLocalPosition = m_CrosshairsTransform.localPosition;
+            if (m_CrosshairsPosition != m_CrosshairsTransform.position) {
+                Vector3 direction;
+                if (m_CrosshairsCanvas.renderMode == RenderMode.ScreenSpaceOverlay) {
+                    var screenPoint = RectTransformUtility.WorldToScreenPoint(null, m_CrosshairsTransform.position);
+                    direction = m_Camera.ScreenPointToRay(screenPoint).direction;
+                } else {
+                    direction = (m_CrosshairsTransform.position - m_Camera.transform.position).normalized;
+                }
+                m_CrosshairsDeltaRotation = Quaternion.LookRotation(direction, m_Transform.up) * Quaternion.Inverse(m_Transform.rotation);
+                m_CrosshairsPosition = m_CrosshairsTransform.position;
             }
 
             return m_CrosshairsDeltaRotation;
@@ -327,10 +335,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
                 return;
             }
 #endif
-            if (m_Camera.fieldOfView != m_FieldOfView) {
-                var zoom = (immediateUpdate || m_FieldOfViewDamping == 0) ? 1 : ((Time.time - m_FieldOfViewChangeTime) / (m_FieldOfViewDamping / m_CharacterLocomotion.TimeScale));
-                m_Camera.fieldOfView = Mathf.SmoothStep(m_Camera.fieldOfView, m_FieldOfView, zoom);
-            }
+            base.UpdateFieldOfView(immediateUpdate);
         }
 
         /// <summary>
@@ -349,25 +354,27 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             }
 #endif
 
-            // Rotate with the moving platform.
-            if (m_CharacterLocomotion.Platform != null) {
-                m_PlatformRotation = MathUtility.InverseTransformQuaternion(m_CharacterLocomotion.Platform.rotation, m_CharacterPlatformRotationOffset) *
-                    Quaternion.Inverse(MathUtility.InverseTransformQuaternion(m_CharacterLocomotion.Platform.rotation, m_CharacterRotation *
-                    Quaternion.Inverse(m_CharacterLocomotion.Platform.rotation)));
-                if (!m_CharacterLocomotion.AlignToGravity) {
-                    // Only the local y rotation should affect the character's rotation.
-                    var localPlatformTorque = MathUtility.InverseTransformQuaternion(m_CharacterTransform.rotation, m_PlatformRotation).eulerAngles;
-                    localPlatformTorque.x = localPlatformTorque.z = 0;
-                    m_PlatformRotation = MathUtility.TransformQuaternion(m_CharacterTransform.rotation, Quaternion.Euler(localPlatformTorque));
+            if (m_UpdateCharacterRotation) {
+                // Rotate with the moving platform.
+                if (m_CharacterLocomotion.Platform != null) {
+                    m_PlatformRotation = MathUtility.InverseTransformQuaternion(m_CharacterLocomotion.Platform.rotation, m_CharacterPlatformRotationOffset) *
+                        Quaternion.Inverse(MathUtility.InverseTransformQuaternion(m_CharacterLocomotion.Platform.rotation, m_CharacterRotation *
+                        Quaternion.Inverse(m_CharacterLocomotion.Platform.rotation)));
+                    if (!m_CharacterLocomotion.AlignToGravity) {
+                        // Only the local y rotation should affect the character's rotation.
+                        var localPlatformTorque = MathUtility.InverseTransformQuaternion(m_CharacterTransform.rotation, m_PlatformRotation).eulerAngles;
+                        localPlatformTorque.x = localPlatformTorque.z = 0;
+                        m_PlatformRotation = MathUtility.TransformQuaternion(m_CharacterTransform.rotation, Quaternion.Euler(localPlatformTorque));
+                    }
+                    m_CharacterRotation *= m_PlatformRotation;
                 }
-                m_CharacterRotation *= m_PlatformRotation;
-            }
 
-            // Keep the same relative rotation with the character if the character changes their up direction.
-            if (m_CharacterLocomotion.AlignToGravity) {
-                var localRotation = MathUtility.InverseTransformQuaternion(m_CharacterTransform.rotation, m_CharacterRotation).eulerAngles;
-                localRotation.x = localRotation.z = 0;
-                m_CharacterRotation = MathUtility.TransformQuaternion(m_CharacterTransform.rotation, Quaternion.Euler(localRotation));
+                // Keep the same relative rotation with the character if the character changes their up direction.
+                if (m_AlignToGravityRotationSpeed > 0) {
+                    var localRotation = MathUtility.InverseTransformQuaternion(m_CharacterTransform.rotation, m_CharacterRotation).eulerAngles;
+                    localRotation.x = localRotation.z = 0;
+                    m_CharacterRotation = Quaternion.Slerp(m_CharacterRotation, MathUtility.TransformQuaternion(m_CharacterTransform.rotation, Quaternion.Euler(localRotation)), m_AlignToGravityRotationSpeed);
+                }
             }
 
             // Remember the offset so the delta can be compared the next update.
@@ -430,13 +437,15 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             var collisionLayerEnabled = m_CharacterLocomotion.CollisionLayerEnabled;
             m_CharacterLocomotion.EnableColliderCollisionLayer(false);
             var direction = lookPosition - (anchorPosition + m_CollisionAnchorOffset);
+            var normalizedDirection = direction.normalized;
+            var directionMagnitude = direction.magnitude;
             // Fire a sphere to prevent the camera from colliding with other objects.
-            if (Physics.SphereCast(anchorPosition + m_CollisionAnchorOffset - direction.normalized * m_CollisionRadius, m_CollisionRadius, direction.normalized, out m_RaycastHit, direction.magnitude, 
+            if (Physics.SphereCast(anchorPosition + m_CollisionAnchorOffset - normalizedDirection * m_CollisionRadius, m_CollisionRadius, normalizedDirection, out m_RaycastHit, directionMagnitude,
                                 m_CharacterLayerManager.IgnoreInvisibleCharacterWaterLayers, QueryTriggerInteraction.Ignore)) {
                 // Move the camera in if the character isn't in view.
                 targetPosition = m_RaycastHit.point + m_RaycastHit.normal * m_CollisionRadius;
                 if (!immediateUpdate) {
-                    targetPosition = Vector3.SmoothDamp(m_Transform.position, targetPosition, ref m_ObstructionSmoothPositionVelocity, m_ObstructionPositionSmoothing);
+                    targetPosition = Vector3.SmoothDamp(m_Transform.position + m_CharacterLocomotion.PlatformMovement, targetPosition, ref m_ObstructionSmoothPositionVelocity, m_ObstructionPositionSmoothing);
                 }
 
                 // Keep a constant height if there is nothing getting in the way of that position.
@@ -447,8 +456,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
                     constantHeightPosition.y = MathUtility.InverseTransformPoint(m_CharacterTransform.position, m_CharacterRotation, lookPosition).y;
                     constantHeightPosition = MathUtility.TransformPoint(m_CharacterTransform.position, m_CharacterRotation, constantHeightPosition);
                     direction = constantHeightPosition - (anchorPosition + m_CollisionAnchorOffset);
-                    if (!Physics.SphereCast(anchorPosition + m_CollisionAnchorOffset - direction.normalized * m_CollisionRadius, m_CollisionRadius, direction.normalized, 
-                            out m_RaycastHit, direction.magnitude - m_CollisionRadius, m_CharacterLayerManager.IgnoreInvisibleCharacterWaterLayers, QueryTriggerInteraction.Ignore)) {
+                    if (!Physics.SphereCast(anchorPosition + m_CollisionAnchorOffset - normalizedDirection * m_CollisionRadius, m_CollisionRadius, normalizedDirection,
+                            out m_RaycastHit, directionMagnitude - m_CollisionRadius, m_CharacterLayerManager.IgnoreInvisibleCharacterWaterLayers, QueryTriggerInteraction.Ignore)) {
                         targetPosition = constantHeightPosition;
                     }
                 }
@@ -489,9 +498,10 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
+        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
+        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil)
+        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread)
         {
             var collisionLayerEnabled = m_CharacterLocomotion.CollisionLayerEnabled;
             m_CharacterLocomotion.EnableColliderCollisionLayer(false);
@@ -502,12 +512,11 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             var platformRotation = characterLookDirection ? m_PlatformRotation : Quaternion.identity;
 
             // Cast a ray from the camera point in the forward direction. The look direction is then the vector from the look position to the hit point.
-            RaycastHit hit;
-            Vector3 hitPoint;
-            var rotation = (useRecoil ? m_Transform.rotation : 
+            var rotation = (includeRecoil ? m_Transform.rotation : 
                                 MathUtility.TransformQuaternion(m_CharacterRotation, Quaternion.Euler(m_Pitch, m_Yaw, 0)) * Quaternion.LookRotation(m_ForwardAxis)) *
                                 crosshairsDeltaRotation * Quaternion.Inverse(platformRotation);
-            if (Physics.Raycast(m_Transform.position, rotation * Vector3.forward, out hit, m_LookDirectionDistance, layerMask, QueryTriggerInteraction.Ignore)) {
+            Vector3 hitPoint;
+            if (Physics.Raycast(m_Transform.position, rotation * Vector3.forward, out var hit, m_LookDirectionDistance, layerMask, QueryTriggerInteraction.Ignore)) {
                 hitPoint = hit.point;
             } else {
                 var offset = Vector3.zero;
@@ -516,7 +525,15 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             }
 
             m_CharacterLocomotion.EnableColliderCollisionLayer(collisionLayerEnabled);
-            return (hitPoint - lookPosition).normalized;
+            var direction = (hitPoint - lookPosition).normalized;
+            if (includeMovementSpread && m_CrosshairsMonitor != null) {
+                var spread = m_CrosshairsMonitor.GetMovementSpread() * 180;
+                if (spread > 0) {
+                    direction = (Quaternion.AngleAxis(Random.Range(-spread, spread), m_CharacterTransform.up) *
+                        Quaternion.AngleAxis(Random.Range(-spread, spread), m_CharacterTransform.right)) * m_Transform.forward;
+                }
+            }
+            return direction;
         }
 
         /// <summary>

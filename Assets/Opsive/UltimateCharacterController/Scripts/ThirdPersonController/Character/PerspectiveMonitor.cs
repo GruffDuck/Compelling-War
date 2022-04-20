@@ -4,17 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.Identifiers;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Utility;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Character
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.StateSystem;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.Identifiers;
+    using Opsive.UltimateCharacterController.Items;
+    using System.Collections.Generic;
+    using UnityEngine;
+
     /// <summary>
     /// Manages the objects that are changed between a first and third person perspective.
     /// </summary>
@@ -60,10 +60,23 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character
             m_GameObject = gameObject;
             m_CharacterLocomotion = m_GameObject.GetCachedComponent<UltimateCharacterLocomotion>();
 
+            // The third person objects will be hidden with the invisible shadow caster while in first person view.
+            var characterRenderers = m_GameObject.GetComponentsInChildren<Renderer>(true);
+            if (characterRenderers != null) {
+                for (int i = 0; i < characterRenderers.Length; ++i) {
+                    var characterRenderer = characterRenderers[i];
+                    if (m_RegisteredRenderers.Contains(characterRenderer)) {
+                        continue;
+                    }
+
+                    CacheRendererMaterials(characterRenderer);
+                }
+            }
+
             EventHandler.RegisterEvent<bool>(m_GameObject, "OnCameraChangePerspectives", OnChangePerspectives);
             EventHandler.RegisterEvent<Item>(m_GameObject, "OnInventoryAddItem", OnAddItem);
             EventHandler.RegisterEvent<Vector3, Vector3, GameObject>(m_GameObject, "OnDeath", OnDeath);
-            EventHandler.RegisterEvent(m_GameObject, "OnRespawn", OnRespawn);
+            EventHandler.RegisterEvent(m_GameObject, "OnWillRespawn", OnWillRespawn);
         }
 
         /// <summary>
@@ -74,47 +87,33 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character
             m_Inventory = m_GameObject.GetCachedComponent<Inventory.InventoryBase>();
             m_FirstPersonPerspective = m_CharacterLocomotion.FirstPersonPerspective;
 
-            // The third person objects will be hidden with the invisible shadow caster while in first person view.
-            var characterRenderers = m_GameObject.GetComponentsInChildren<Renderer>(true);
-            if (characterRenderers != null) {
-                for (int i = 0; i < characterRenderers.Length; ++i) {
-                    var renderer = characterRenderers[i];
-                    if (m_RegisteredRenderers.Contains(renderer)) {
-                        continue;
-                    }
-
-                    CacheRendererMaterials(renderer);
-                }
-            }
-
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             var networkInfo = m_GameObject.GetCachedComponent<Networking.INetworkInfo>();
             if (networkInfo != null && !networkInfo.IsLocalPlayer()) {
                 // Remote players should always be in the third person view.
-                m_FirstPersonPerspective = false;
+                OnChangePerspectives(false);
                 EventHandler.UnregisterEvent<bool>(m_GameObject, "OnCameraChangePerspectives", OnChangePerspectives);
             }
 #endif
-            OnChangePerspectives(m_FirstPersonPerspective);
         }
 
         /// <summary>
         /// Caches the materials attached to the renderer so they can be switched with the invisible material.
         /// </summary>
-        /// <param name="renderer">The renderer to cache.</param>
-        private void CacheRendererMaterials(Renderer renderer)
+        /// <param name="materialRenderer">The renderer to cache.</param>
+        private void CacheRendererMaterials(Renderer materialRenderer)
         {
-            var thirdPersonobject = renderer.gameObject.GetCachedInactiveComponentInParent<ThirdPersonObject>();
+            var thirdPersonobject = materialRenderer.gameObject.GetCachedInactiveComponentInParent<ThirdPersonObject>();
             if (thirdPersonobject != null) {
                 m_ThirdPersonRenderers.Add(m_Renderers.Count);
             }
 
-            m_Renderers.Add(renderer);
+            m_Renderers.Add(materialRenderer);
             m_RendererThirdPersonObjects.Add(thirdPersonobject);
-            m_RegisteredRenderers.Add(renderer);
-            m_OriginalMaterials.Add(renderer.materials);
-            var invisibleMaterials = new Material[renderer.materials.Length];
-            for (int i = 0; i < renderer.materials.Length; ++i) {
+            m_RegisteredRenderers.Add(materialRenderer);
+            m_OriginalMaterials.Add(materialRenderer.materials);
+            var invisibleMaterials = new Material[materialRenderer.materials.Length];
+            for (int i = 0; i < materialRenderer.materials.Length; ++i) {
                 invisibleMaterials[i] = m_InvisibleMaterial;
             }
             m_InvisibleMaterials.Add(invisibleMaterials);
@@ -132,7 +131,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character
                 return;
             }
 
-            UpdateThirdPersonMaterials();
+            UpdateThirdPersonMaterials(false);
 
             // The FirstPersonObjects GameObject must be changed first to prevent activation errors/warnings. After the GameObject has been changed the 
             // character components can safely receive the event.
@@ -142,11 +141,11 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character
         /// <summary>
         /// Updates the materials of the third person objects.
         /// </summary>
-        public void UpdateThirdPersonMaterials()
+        public void UpdateThirdPersonMaterials(bool forceThirdPerson)
         {
             for (int i = 0; i < m_ThirdPersonRenderers.Count; ++i) {
                 var thirdPersonIndex = m_ThirdPersonRenderers[i];
-                m_Renderers[thirdPersonIndex].materials = ((m_FirstPersonPerspective && !m_RendererThirdPersonObjects[thirdPersonIndex].ForceVisible) ? 
+                m_Renderers[thirdPersonIndex].materials = ((m_FirstPersonPerspective && !m_RendererThirdPersonObjects[thirdPersonIndex].ForceVisible && !forceThirdPerson) ? 
                                                                 m_InvisibleMaterials[thirdPersonIndex] : m_OriginalMaterials[thirdPersonIndex]);
             }
         }
@@ -207,7 +206,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character
             // Ensure no first person weapons are equipped before enabling the third person objects.
             if (m_CharacterLocomotion.FirstPersonPerspective) {
                 for (int i = 0; i < m_Inventory.SlotCount; ++i) {
-                    if (m_Inventory.GetItem(i) != null) {
+                    if (m_Inventory.GetActiveItem(i) != null) {
                         // If an item is still equipped then the material shouldn't be switched until after it is no longer equipped.
                         if (fromDeathEvent) {
                             EventHandler.RegisterEvent<Item, int>(m_GameObject, "OnInventoryUnequipItem", OnUnequipItem);
@@ -245,9 +244,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character
         }
 
         /// <summary>
-        /// The character has respawned.
+        /// The character will respawn. This should be performed before the MaterialSwapper's Respawn method is called.
         /// </summary>
-        private void OnRespawn()
+        private void OnWillRespawn()
         {
             EventHandler.UnregisterEvent<Item, int>(m_GameObject, "OnInventoryUnequipItem", OnUnequipItem);
 
@@ -265,7 +264,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character
             EventHandler.UnregisterEvent<bool>(m_GameObject, "OnCameraChangePerspectives", OnChangePerspectives);
             EventHandler.UnregisterEvent<Item>(m_GameObject, "OnInventoryAddItem", OnAddItem);
             EventHandler.UnregisterEvent<Vector3, Vector3, GameObject>(m_GameObject, "OnDeath", OnDeath);
-            EventHandler.UnregisterEvent(m_GameObject, "OnRespawn", OnRespawn);
+            EventHandler.UnregisterEvent(m_GameObject, "OnWillRespawn", OnWillRespawn);
         }
     }
 }

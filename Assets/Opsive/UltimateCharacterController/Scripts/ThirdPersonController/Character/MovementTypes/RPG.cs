@@ -4,16 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Character.MovementTypes;
-using Opsive.UltimateCharacterController.Input;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.MovementTypes
 {
+    using Opsive.Shared.Game;
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Input;
+    using Opsive.Shared.Utility;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Character.MovementTypes;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// The RPG MovementType uses a control scheme similar to the standard in the RPG genre. The MovementType works with the RPG ViewType to move and rotate the character.
     /// </summary>
@@ -57,16 +58,16 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
 
             // Work with the handler to listen for any input events.
             if (m_Handler != null) {
-                m_StartRotateInputEvent = ObjectPool.Get<ActiveInputEvent>();
+                m_StartRotateInputEvent = GenericObjectPool.Get<ActiveInputEvent>();
                 m_StartRotateInputEvent.Initialize(ActiveInputEvent.Type.ButtonDown, m_RotateInputName, "OnRPGMovementTypeStartRotate");
 
-                m_StopRotateInputEvent = ObjectPool.Get<ActiveInputEvent>();
+                m_StopRotateInputEvent = GenericObjectPool.Get<ActiveInputEvent>();
                 m_StopRotateInputEvent.Initialize(ActiveInputEvent.Type.ButtonUp, m_RotateInputName, "OnRPGMovementTypeStopRotate");
 
-                m_TurnInputEvent = ObjectPool.Get<ActiveInputEvent>();
+                m_TurnInputEvent = GenericObjectPool.Get<ActiveInputEvent>();
                 m_TurnInputEvent.Initialize(ActiveInputEvent.Type.Axis, m_TurnInputName, "OnRPGMovementTypeTurn");
 
-                m_AutoMoveInputEvent = ObjectPool.Get<ActiveInputEvent>();
+                m_AutoMoveInputEvent = GenericObjectPool.Get<ActiveInputEvent>();
                 m_AutoMoveInputEvent.Initialize(ActiveInputEvent.Type.ButtonDown, m_AutoMoveInputName, "OnRPGMovementTypeAutoMove");
 
                 m_Handler.RegisterInputEvent(m_StartRotateInputEvent);
@@ -149,16 +150,17 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
         {
 #if UNITY_EDITOR
             if (m_LookSource == null) {
-                Debug.LogError("Error: There is no look source attached to the character. Ensure the character has a look source attached (such as a camera).");
+                Debug.LogError($"Error: There is no look source attached to the character {m_GameObject.name}. Ensure the character has a look source attached. For player characters the look source is the Camera Controller, and AI agents use the Local Look Source.");
                 return 0;
             }
 #endif
             var turnAmount = m_TurnValue;
+            var transformRotation = m_Transform.rotation;
             if (m_Rotate) {
-                turnAmount += MathUtility.InverseTransformQuaternion(m_Transform.rotation, m_LookSource.Transform.rotation).eulerAngles.y;
+                turnAmount += MathUtility.InverseTransformQuaternion(transformRotation, m_LookSource.Transform.rotation).eulerAngles.y;
             }
-            var rotation = Quaternion.AngleAxis(turnAmount, m_CharacterLocomotion.Up) * m_Transform.rotation;
-            return MathUtility.ClampInnerAngle(MathUtility.InverseTransformQuaternion(m_Transform.rotation, rotation).eulerAngles.y);
+            var rotation = Quaternion.AngleAxis(turnAmount, m_CharacterLocomotion.Up) * transformRotation;
+            return MathUtility.ClampInnerAngle(MathUtility.InverseTransformQuaternion(transformRotation, rotation).eulerAngles.y);
         }
 
         /// <summary>
@@ -207,10 +209,10 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Mov
                 m_Handler.UnregisterInputEvent(m_TurnInputEvent);
                 m_Handler.UnregisterInputEvent(m_AutoMoveInputEvent);
 
-                ObjectPool.Return(m_StartRotateInputEvent);
-                ObjectPool.Return(m_StopRotateInputEvent);
-                ObjectPool.Return(m_TurnInputEvent);
-                ObjectPool.Return(m_AutoMoveInputEvent);
+                GenericObjectPool.Return(m_StartRotateInputEvent);
+                GenericObjectPool.Return(m_StopRotateInputEvent);
+                GenericObjectPool.Return(m_TurnInputEvent);
+                GenericObjectPool.Return(m_AutoMoveInputEvent);
             }
             EventHandler.UnregisterEvent(m_GameObject, "OnRPGMovementTypeStartRotate", OnStartRotate);
             EventHandler.UnregisterEvent(m_GameObject, "OnRPGMovementTypeStopRotate", OnStopRotate);

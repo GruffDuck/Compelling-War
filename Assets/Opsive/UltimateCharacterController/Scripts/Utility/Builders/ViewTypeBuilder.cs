@@ -4,14 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using Opsive.UltimateCharacterController.Camera;
-using Opsive.UltimateCharacterController.Camera.ViewTypes;
-using Opsive.UltimateCharacterController.StateSystem;
-using System;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Utility.Builders
 {
+    using Opsive.Shared.StateSystem;
+    using Opsive.UltimateCharacterController.Camera;
+    using Opsive.UltimateCharacterController.Camera.ViewTypes;
+    using System;
+    using System.Collections.Generic;
+
     /// <summary>
     /// Adds and serializes CameraController view types.
     /// </summary>
@@ -128,7 +128,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         public static void SerializeViewTypes(CameraController cameraController)
         {
             var viewTypes = new List<ViewType>(cameraController.ViewTypes);
-            cameraController.ViewTypeData = Serialization.Serialize<ViewType>(viewTypes);
+            cameraController.ViewTypeData = Shared.Utility.Serialization.Serialize<ViewType>(viewTypes);
 #if UNITY_EDITOR
             UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(cameraController);
 #endif

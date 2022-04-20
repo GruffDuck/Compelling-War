@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
-namespace Opsive.UltimateCharacterController.Items.Actions
+namespace Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties
 {
+    using UnityEngine;
+
     /// <summary>
     /// Interface for an object which contains the perspective dependent variables for a ShootableWeapon.
     /// </summary>

@@ -4,15 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Objects.CharacterAssist;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects.CharacterAssist
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+    using Opsive.UltimateCharacterController.Objects.CharacterAssist;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Custom inspector for the ObjectPickup component.
     /// </summary>
@@ -38,9 +38,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects.Character
             base.OnInspectorGUI();
 
             EditorGUI.BeginChangeCheck();
+            EditorGUILayout.PropertyField(PropertyFromName("m_PickupOnTriggerEnter"));
             DrawObjectPickupFields();
             EditorGUILayout.PropertyField(PropertyFromName("m_TriggerEnableDelay"));
-            EditorGUILayout.PropertyField(PropertyFromName("m_PickupOnTriggerEnter"));
             EditorGUILayout.PropertyField(PropertyFromName("m_RotationSpeed"));
             if (Foldout("UI")) {
                 EditorGUI.indentLevel++;
@@ -50,12 +50,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects.Character
             }
             if (Foldout("Audio")) {
                 EditorGUI.indentLevel++;
-                m_ReorderablePickupAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_ObjectPickup.PickupAudioClipSet, PropertyFromName("m_PickupAudioClipSet"), m_ReorderablePickupAudioClipsList, OnPickupAudioClipDraw, OnPickupAudioClipListAdd, OnPickupAudioClipListRemove);
+                m_ReorderablePickupAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_ObjectPickup.PickupAudioClipSet, m_ReorderablePickupAudioClipsList, OnPickupAudioClipDraw, OnPickupAudioClipListAdd, OnPickupAudioClipListRemove);
                 EditorGUI.indentLevel--;
             }
 
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Value Change");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Value Change");
                 serializedObject.ApplyModifiedProperties();
             }
         }

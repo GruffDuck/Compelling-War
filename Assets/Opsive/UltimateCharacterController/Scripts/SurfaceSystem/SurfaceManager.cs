@@ -4,12 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.SurfaceSystem
 {
+    using Opsive.Shared.Game;
+    using System.Collections.Generic;
+    using UnityEngine;
+    using UnityEngine.SceneManagement;
+
     /// <summary>
     /// The SurfaceManager is responsible for determining which SurfaceEffect to spawn based on the speicifed RaycastHit.
     /// </summary>
@@ -33,6 +34,10 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
 
         [Tooltip("An array of SurfaceTypes which are paired to a UV position within a texture.")]
         [SerializeField] protected ObjectSurface[] m_ObjectSurfaces;
+        [Tooltip("The name of the main texture property that should be retrieved.")]
+        [SerializeField] protected string m_MainTexturePropertyName = "_MainTex";
+        [Tooltip("Should the textures from trees on the terrain be detected? Note that this is a CPU-intensive operation.")]
+        [SerializeField] protected bool m_DetectTerrainTreeTextures;
         [Tooltip("The fallback SurfaceImpact if no SurfaceImpacts can be found.")]
         [SerializeField] protected SurfaceImpact m_FallbackSurfaceImpact;
         [Tooltip("The fallback SurfaceType if no SurfaceTypes can be found.")]
@@ -41,11 +46,13 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         [SerializeField] protected bool m_FallbackAllowDecals = true;
 
         public ObjectSurface[] ObjectSurfaces { get { return m_ObjectSurfaces; } }
+        public bool DetectTerrainTreeTextures { get { return m_DetectTerrainTreeTextures; } }
         public SurfaceImpact FallbackSurfaceImpact { get { return m_FallbackSurfaceImpact; } }
         public SurfaceType FallbackSurfaceType { get { return m_FallbackSurfaceType; } }
         public bool FallbackAllowDecals { get { return m_FallbackAllowDecals; } }
 
         private bool m_HasTerrain;
+        private int m_MainTexturePropertyID;
         private Rect m_DefaultUV = new Rect(0, 0, 1, 1);
         private int[] m_MaterialHitTriangle = new int[3];
         private Dictionary<Texture, ObjectSurface> m_TextureObjectSurfaceMap = new Dictionary<Texture, ObjectSurface>();
@@ -81,12 +88,15 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// </summary>
         private void Awake()
         {
+            // PropertyToID cannot be initialized within a MonoBehaviour constructor.
+            m_MainTexturePropertyID = Shader.PropertyToID(m_MainTexturePropertyName);
+
             InitObjectSurfaces();
 
             s_MaskID = Shader.PropertyToID("_Mask");
             s_SecondaryTextureID = Shader.PropertyToID("_MainTex2");
 
-            m_HasTerrain = FindObjectsOfType<Terrain>().Length > 0;
+            m_HasTerrain = FindObjectsOfType<Terrain>() != null;
         }
 
         /// <summary>
@@ -185,17 +195,17 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// Internal method which tries to spawn the effect based on the RaycastHit and SurfaceImpact.
         /// </summary>
         /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
-        /// <param name="collider">The collider of the object that was hit.</param>
+        /// <param name="hitCollider">The collider of the object that was hit.</param>
         /// <param name="surfaceImpact">A reference to the Surface Impact triggered when the object hits an object.</param>
         /// <param name="gravityDirection">The normalized direction of the character's gravity.</param>
         /// <param name="timeScale">The timescale of the character.</param>
         /// <param name="originator">The object which spawned the effect.</param>
         /// <returns>True if the effect was spawned.</returns>
-        private bool SpawnEffectInternal(RaycastHit hit, Collider collider, SurfaceImpact surfaceImpact, Vector3 gravityDirection, float timeScale, GameObject originator)
+        private bool SpawnEffectInternal(RaycastHit hit, Collider hitCollider, SurfaceImpact surfaceImpact, Vector3 gravityDirection, float timeScale, GameObject originator)
         {
             SurfaceType surfaceType = null;
             var spawnDecals = false;
-            var surfaceEffect = GetSurfaceEffect(hit, collider, surfaceImpact, ref surfaceType, ref spawnDecals);
+            var surfaceEffect = GetSurfaceEffect(hit, hitCollider, surfaceImpact, ref surfaceType, ref spawnDecals);
             if (surfaceEffect == null) {
                 return false;
             }
@@ -242,7 +252,7 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// Internal method which tries to spawn the effect based on the RaycastHit and SurfaceImpact.
         /// </summary>
         /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
-        /// <param name="collider">The collider of the object that was hit.</param>
+        /// <param name="hitCollider">The collider of the object that was hit.</param>
         /// <param name="surfaceImpact">A reference to the Surface Impact triggered when the object hits an object.</param>
         /// <param name="gravityDirection">The normalized direction of the character's gravity.</param>
         /// <param name="timeScale">The timescale of the character.</param>
@@ -250,11 +260,11 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <param name="flipFootprint">Should the footprint decal be flipped?</param>
         /// <param name="originator">The object which spawned the effect.</param>
         /// <returns>True if the effect was spawned.</returns>
-        private bool SpawnEffectInternal(RaycastHit hit, Collider collider, SurfaceImpact surfaceImpact, Vector3 gravityDirection, float timeScale, GameObject originator, Vector3 footprintDirection, bool flipFootprint)
+        private bool SpawnEffectInternal(RaycastHit hit, Collider hitCollider, SurfaceImpact surfaceImpact, Vector3 gravityDirection, float timeScale, GameObject originator, Vector3 footprintDirection, bool flipFootprint)
         {
             SurfaceType surfaceType = null;
             var spawnDecals = false;
-            var surfaceEffect = GetSurfaceEffect(hit, collider, surfaceImpact, ref surfaceType, ref spawnDecals);
+            var surfaceEffect = GetSurfaceEffect(hit, hitCollider, surfaceImpact, ref surfaceType, ref spawnDecals);
             if (surfaceType == null || surfaceEffect == null) {
                 return false;
             }
@@ -273,15 +283,15 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// Returns the SurfaceEffect based on the RaycastHit and SurfaceImpact.
         /// </summary>
         /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
-        /// <param name="collider">The collider of the object that was hit.</param>
+        /// <param name="hitCollider">The collider of the object that was hit.</param>
         /// <param name="surfaceImpact">A reference to the Surface Impact triggered when the object hits an object.</param>
         /// <param name="surfaceType">The SurfaceType used to get the SurfaceEffect.</param>
         /// <param name="spawnDecals">True if the SurfaceEffect can spawn decals.</param>
         /// <returns>The SurfaceEffect based on the RaycastHit and SurfaceImpact. Can be null.</returns>
-        private SurfaceEffect GetSurfaceEffect(RaycastHit hit, Collider collider, SurfaceImpact surfaceImpact, ref SurfaceType surfaceType, ref bool spawnDecals)
+        private SurfaceEffect GetSurfaceEffect(RaycastHit hit, Collider hitCollider, SurfaceImpact surfaceImpact, ref SurfaceType surfaceType, ref bool spawnDecals)
         {
-            surfaceType = GetSurfaceType(hit, collider);
-            spawnDecals = ShouldSpawnDecals(collider);
+            surfaceType = GetSurfaceType(hit, hitCollider);
+            spawnDecals = ShouldSpawnDecals(hitCollider);
             return GetSurfaceEffect(surfaceImpact, ref surfaceType, ref spawnDecals);
         }
 
@@ -289,12 +299,12 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// Returns the SurfaceType based on the RaycastHit.
         /// </summary>
         /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
-        /// <param name="collider">The collider of the object that was hit.</param>
+        /// <param name="hitCollider">The collider of the object that was hit.</param>
         /// <returns>The SurfaceType based on the RaycastHit. Can be null.</returns>
-        private SurfaceType GetSurfaceType(RaycastHit hit, Collider collider)
+        private SurfaceType GetSurfaceType(RaycastHit hit, Collider hitCollider)
         {
             // The SurfaceType on the SurfaceIdentifier can provide a unique SurfaceType for that collider. Therefore it should be tested first.
-            var surfaceIdentifier = GetSurfaceIdentifier(collider);
+            var surfaceIdentifier = GetSurfaceIdentifier(hitCollider);
             if (surfaceIdentifier != null) {
                 if (surfaceIdentifier.SurfaceType != null) {
                     return surfaceIdentifier.SurfaceType;
@@ -302,19 +312,19 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
             }
 
             // Detect objects with a single material and no texture regions.
-            var surfaceType = GetSimpleSurfaceType(collider);
+            var surfaceType = GetSimpleSurfaceType(hitCollider);
             if (surfaceType != null) {
                 return surfaceType;
             }
 
             // Detect objects with texture regions (atlases), materials, or secondary maps.
-            surfaceType = GetComplexSurfaceType(hit, collider);
+            surfaceType = GetComplexSurfaceType(hit, hitCollider);
             if (surfaceType != null) {
                 return surfaceType;
             }
 
             // Check the terrain for a surface if all of the above failed.
-            surfaceType = GetTerrainSurfaceType(hit, collider);
+            surfaceType = GetTerrainSurfaceType(hit, hitCollider);
             if (surfaceType != null) {
                 return surfaceType;
             }
@@ -325,31 +335,31 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <summary>
         /// Returns the SurfaceIdentifier for the specified collider.
         /// </summary>
-        /// <param name="collider">The collider to retrieve the SurfaceIdentifier of.</param>
+        /// <param name="hitCollider">The collider to retrieve the SurfaceIdentifier of.</param>
         /// <returns>The SurfaceIdentifier for the specified collider. Can be null.</returns>
-        private SurfaceIdentifier GetSurfaceIdentifier(Collider collider)
+        private SurfaceIdentifier GetSurfaceIdentifier(Collider hitCollider)
         {
-            if (collider == null) {
+            if (hitCollider == null || hitCollider is TerrainCollider) {
                 return null;
             }
 
             SurfaceIdentifier surfaceIdentifier;
-            if (!m_ColliderSurfaceIdentifiersMap.TryGetValue(collider, out surfaceIdentifier)) {
+            if (!m_ColliderSurfaceIdentifiersMap.TryGetValue(hitCollider, out surfaceIdentifier)) {
                 // Try to find a SurfaceIdentifier on the collider's GameObject.
-                surfaceIdentifier = collider.GetComponent<SurfaceIdentifier>();
+                surfaceIdentifier = hitCollider.GetComponent<SurfaceIdentifier>();
                 // If there is no SurfaceIdentifier on the collider GameObject then try to find a SurfaceIdentifier withinin the children or parent.
                 if (surfaceIdentifier == null) {
-                    surfaceIdentifier = collider.GetComponentInChildren<SurfaceIdentifier>();
+                    surfaceIdentifier = hitCollider.GetComponentInChildren<SurfaceIdentifier>();
 
                     if (surfaceIdentifier == null) {
-                        surfaceIdentifier = collider.GetComponentInParent<SurfaceIdentifier>();
+                        surfaceIdentifier = hitCollider.GetComponentInParent<SurfaceIdentifier>();
                     }
                 }
 
-                m_ColliderSurfaceIdentifiersMap.Add(collider, surfaceIdentifier);
+                m_ColliderSurfaceIdentifiersMap.Add(hitCollider, surfaceIdentifier);
                 // Remember if the SurfaceIdentifier allows decals.
-                if (surfaceIdentifier != null && !m_ColliderDecalsAllowedMap.ContainsKey(collider)) {
-                    m_ColliderDecalsAllowedMap.Add(collider, surfaceIdentifier.AllowDecals);
+                if (surfaceIdentifier != null && !m_ColliderDecalsAllowedMap.ContainsKey(hitCollider)) {
+                    m_ColliderDecalsAllowedMap.Add(hitCollider, surfaceIdentifier.AllowDecals);
                 }
             }
 
@@ -359,25 +369,25 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <summary>
         /// Returns the SurfaceType of a single material and no texture regions.
         /// </summary>
-        /// <param name="collider">The surface collider.</param>
+        /// <param name="hitCollider">The surface collider.</param>
         /// <returns>The SurfaceType of a single material with no texture regions. Can be null.</returns>
-        private SurfaceType GetSimpleSurfaceType(Collider collider)
+        private SurfaceType GetSimpleSurfaceType(Collider hitCollider)
         {
-            if (collider == null) {
+            if (hitCollider == null) {
                 return null;
             }
 
             SurfaceType surfaceType;
-            if (!m_ColliderSurfacesTypesMap.TryGetValue(collider, out surfaceType)) {
+            if (!m_ColliderSurfacesTypesMap.TryGetValue(hitCollider, out surfaceType)) {
                 // A simple surface will only have a single material.
-                if (!HasComplexMaterial(collider)) {
-                    var texture = GetMainTexture(collider);
+                if (!HasComplexMaterial(hitCollider)) {
+                    var texture = GetMainTexture(hitCollider);
                     if (texture != null && !m_TextureUVTextureMap.ContainsKey(texture)) {
                         surfaceType = GetNonUVSurfaceType(texture);
                     }
                 }
 
-                m_ColliderSurfacesTypesMap.Add(collider, surfaceType);
+                m_ColliderSurfacesTypesMap.Add(hitCollider, surfaceType);
             }
 
             return surfaceType;
@@ -386,111 +396,109 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <summary>
         /// Returns true if the object associated with the specified collider has a complex material. A complex material includes multiple materials or materials with a secondary map.
         /// </summary>
-        /// <param name="collider">The collider to determine if it has a complex material.</param>
+        /// <param name="hitCollider">The collider to determine if it has a complex material.</param>
         /// <returns>True if the object associated with the specified collider has complex material.</returns>
-        private bool HasComplexMaterial(Collider collider)
+        private bool HasComplexMaterial(Collider hitCollider)
         {
-            if (collider == null) {
+            if (hitCollider == null) {
                 return false;
             }
 
-            var complexMaterials = false;
-            if (!m_ColliderComplexMaterialsMap.TryGetValue(collider, out complexMaterials)) {
-                var renderer = GetRenderer(collider);
-                if (renderer != null) {
-                    complexMaterials = renderer.sharedMaterials.Length > 1;
+            if (!m_ColliderComplexMaterialsMap.TryGetValue(hitCollider, out var complexMaterials)) {
+                var hitRenderer = GetRenderer(hitCollider);
+                if (hitRenderer != null) {
+                    complexMaterials = hitRenderer.sharedMaterials.Length > 1;
                 }
 
                 // A complex material also includes a secondary map.
-                if (!complexMaterials && renderer != null) {
-                    var material = renderer.sharedMaterials[0];
+                if (!complexMaterials && hitRenderer != null && hitRenderer.sharedMaterials.Length > 0) {
+                    var material = hitRenderer.sharedMaterials[0];
                     complexMaterials = material != null && material.HasProperty(s_MaskID) && material.HasProperty(s_SecondaryTextureID);
                 }
 
-                m_ColliderComplexMaterialsMap.Add(collider, complexMaterials);
+                m_ColliderComplexMaterialsMap.Add(hitCollider, complexMaterials);
             }
 
             return complexMaterials;
         }
 
-
         /// <summary>
         /// Returns the main renderer of the specified collider.
         /// </summary>
-        /// <param name="colllider">The collider to get the renderer of.</param>
+        /// <param name="hitCollider">The collider to get the renderer of.</param>
         /// <returns>The main Renderer of the specified collider. Can be null.</returns>
-        private Renderer GetRenderer(Collider collider)
+        private Renderer GetRenderer(Collider hitCollider)
         {
             // Ignore null colliders and triggers.
-            if (collider == null || collider.isTrigger) {
+            if (hitCollider == null || hitCollider.isTrigger) {
                 return null;
             }
 
             // Unity terrains have no renderers.
-            if (collider is TerrainCollider) {
+            if (hitCollider is TerrainCollider) {
                 return null;
             }
 
-            Renderer renderer;
-            if (!m_ColliderRendererMap.TryGetValue(collider, out renderer)) {
+            Renderer hitRenderer;
+            if (!m_ColliderRendererMap.TryGetValue(hitCollider, out hitRenderer)) {
                 // Try to get a renderer on the collider's GameObject.
-                renderer = collider.GetComponent<Renderer>();
+                hitRenderer = hitCollider.GetComponent<Renderer>();
 
                 // If no renderer exists, try to find a renderer in the collider's children.
-                if (renderer == null || !renderer.enabled || renderer is SkinnedMeshRenderer) {
-                    var childRenderers = collider.GetComponentsInChildren<Renderer>();
+                if (hitRenderer == null || !hitRenderer.enabled || hitRenderer is SkinnedMeshRenderer) {
+                    var childRenderers = hitCollider.GetComponentsInChildren<Renderer>();
                     for (int i = 0; i < childRenderers.Length; ++i) {
-                        if (childRenderers[i] == renderer || !childRenderers[i].enabled || renderer is SkinnedMeshRenderer) {
+                        if (childRenderers[i] == hitRenderer || !childRenderers[i].enabled || hitRenderer is SkinnedMeshRenderer) {
                             continue;
                         }
-                        renderer = childRenderers[i];
+                        hitRenderer = childRenderers[i];
                         break;
                     }
                 }
 
                 // If no renderer exists, try to find a renderer in the collider's parent.
-                if (renderer == null || !renderer.enabled || renderer is SkinnedMeshRenderer) {
-                    var parentRenderers = collider.GetComponentsInParent<Renderer>();
+                if (hitRenderer == null || !hitRenderer.enabled || hitRenderer is SkinnedMeshRenderer) {
+                    var parentRenderers = hitCollider.GetComponentsInParent<Renderer>();
                     for (int i = 0; i < parentRenderers.Length; ++i) {
-                        if (parentRenderers[i] == renderer || !parentRenderers[i].enabled || renderer is SkinnedMeshRenderer) {
+                        if (parentRenderers[i] == hitRenderer || !parentRenderers[i].enabled || hitRenderer is SkinnedMeshRenderer) {
                             continue;
                         }
-                        renderer = parentRenderers[i];
+                        hitRenderer = parentRenderers[i];
                         break;
                     }
                 }
 
                 // SkinnedMeshRenderers can not have their triangles fetched.
-                if (renderer != null && (!renderer.enabled || renderer is SkinnedMeshRenderer)) {
-                    renderer = null;
+                if (hitRenderer != null && (!hitRenderer.enabled || hitRenderer is SkinnedMeshRenderer)) {
+                    hitRenderer = null;
                 }
 
-                m_ColliderRendererMap.Add(collider, renderer);
+                m_ColliderRendererMap.Add(hitCollider, hitRenderer);
             }
 
-            return renderer;
+            return hitRenderer;
         }
 
         /// <summary>
         /// Returns the texture of the specified collider.
         /// </summary>
-        /// <param name="colllider">The collider to get the texture of.</param>
+        /// <param name="hitCollider">The collider to get the texture of.</param>
         /// <returns>The texture of the specified collider. Can be null.</returns>
-        private Texture GetMainTexture(Collider collider)
+        private Texture GetMainTexture(Collider hitCollider)
         {
-            if (collider == null) {
+            if (hitCollider == null) {
                 return null;
             }
 
             Texture texture;
-            if (!m_ColliderMainTextureMap.TryGetValue(collider, out texture)) {
+            if (!m_ColliderMainTextureMap.TryGetValue(hitCollider, out texture)) {
                 // The texture is retrieved from the renderer.
-                var renderer = GetRenderer(collider);
-                if (renderer != null && renderer.sharedMaterial != null && renderer.sharedMaterial.mainTexture != null) {
-                    texture = renderer.sharedMaterial.mainTexture;
+                var hitRenderer = GetRenderer(hitCollider);
+                if (hitRenderer != null && hitRenderer.sharedMaterial != null && hitRenderer.sharedMaterial.HasProperty(m_MainTexturePropertyID)) {
+                    texture = hitRenderer.sharedMaterial.GetTexture(m_MainTexturePropertyID);
                 }
 
-                m_ColliderMainTextureMap.Add(collider, texture);
+                m_ColliderMainTextureMap.Add(hitCollider, texture);
             }
 
             return texture;
@@ -499,15 +507,16 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <summary>
         /// Returns if the specified collider can spawn decals.
         /// </summary>
+        /// <param name="hitCollider">The collider that may be able to spawn decals.</param>
         /// <returns>False if the specified collider contains the SurfaceIdentifier component and it does not allow decals, otherwise true.</returns>
-        private bool ShouldSpawnDecals(Collider collider)
+        private bool ShouldSpawnDecals(Collider hitCollider)
         {
-            if (collider == null) {
+            if (hitCollider == null) {
                 return false;
             }
 
             var allowed = true;
-            if (!m_ColliderDecalsAllowedMap.TryGetValue(collider, out allowed)) {
+            if (!m_ColliderDecalsAllowedMap.TryGetValue(hitCollider, out allowed)) {
                 return true;
             }
             return allowed;
@@ -540,42 +549,44 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// A complex surface is a mesh which has a UV texture region or a secondary map.
         /// </summary>
         /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
+        /// <param name="hitCollider">The collider that contains the complex surface.</param>
         /// <returns>The SurfaceType of the complex surface. Can be null.</returns>
-        private SurfaceType GetComplexSurfaceType(RaycastHit hit, Collider collider)
+        private SurfaceType GetComplexSurfaceType(RaycastHit hit, Collider hitCollider)
         {
             // GetHitMaterial will only return a value if the hit collider is a MeshCollider.
-            var material = GetHitMaterial(hit, collider);
+            var material = GetHitMaterial(hit, hitCollider);
             if (material == null) {
                 return null;
             }
 
-            return GetComplexSurfaceType(material, hit, collider);
+            return GetComplexSurfaceType(material, hit, hitCollider);
         }
 
         /// <summary>
         /// Returns the material for the specified RaycastHit.
         /// </summary>
         /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
+        /// <param name="hitCollider">The collider that contains was hit.</param>
         /// <returns>The material for the specified RaycastHit. Can be null.</returns>
-        private Material GetHitMaterial(RaycastHit hit, Collider collider)
+        private Material GetHitMaterial(RaycastHit hit, Collider hitCollider)
         {
             // triangleIndex will be -1 for any non-MeshCollider.
             if (hit.triangleIndex < 0) {
                 return null;
             }
 
-            var renderer = GetRenderer(collider);
-            if (renderer == null || renderer.sharedMaterials == null) {
+            var hitRenderer = GetRenderer(hitCollider);
+            if (hitRenderer == null || hitRenderer.sharedMaterials == null) {
                 return null;
             }
 
             // If the renderer only has one material then the uvs do not need to be used.
-            if (renderer.sharedMaterials.Length == 1) {
-                return renderer.sharedMaterials[0];
+            if (hitRenderer.sharedMaterials.Length == 1) {
+                return hitRenderer.sharedMaterials[0];
             }
 
             // The mesh not be null.
-            var mesh = GetMesh(collider);
+            var mesh = GetMesh(hitCollider);
             if (mesh == null || hit.triangleIndex * 3 + 2 >= mesh.triangles.Length) {
                 return null;
             }
@@ -590,13 +601,13 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
                 for (int j = 0; j < subMeshTriangles.Length; j += 3) {
                     if ((subMeshTriangles[j] == m_MaterialHitTriangle[0]) && (subMeshTriangles[j + 1] == m_MaterialHitTriangle[1])
                         && (subMeshTriangles[j + 2] == m_MaterialHitTriangle[2])) {
-                        if (renderer.sharedMaterials.Length < i + 1) {
+                        if (hitRenderer.sharedMaterials.Length < i + 1) {
                             continue;
                         }
-                        if (renderer.sharedMaterials[i] == null) {
+                        if (hitRenderer.sharedMaterials[i] == null) {
                             continue;
                         }
-                        return renderer.sharedMaterials[i];
+                        return hitRenderer.sharedMaterials[i];
                     }
                 }
             }
@@ -607,33 +618,34 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <summary>
         /// Returns the mesh of the specified collider.
         /// </summary>
-        /// <param name="colllider">The collider to get the mesh of.</param>
+        /// <param name="hitCollider">The collider to get the mesh of.</param>
         /// <returns>The mesh of the specified collider. Can be null.</returns>
-        private Mesh GetMesh(Collider collider)
+        private Mesh GetMesh(Collider hitCollider)
         {
             // Ignore null colliders and triggers.
-            if (collider == null || collider.isTrigger) {
+            if (hitCollider == null || hitCollider.isTrigger) {
                 return null;
             }
 
             Mesh mesh;
-            if (!m_ColliderMeshMap.TryGetValue(collider, out mesh)) {
+            if (!m_ColliderMeshMap.TryGetValue(hitCollider, out mesh)) {
                 // If no MeshCollider exists then try to get the mesh based off of the MeshFilter.
-                var meshFilter = collider.GetComponent<MeshFilter>();
+                var meshFilter = hitCollider.GetComponent<MeshFilter>();
 
                 // If no MeshFilter exists, try to find a MeshFilter in the collider's children.
                 if (meshFilter == null) {
-                    meshFilter = collider.GetComponentInChildren<MeshFilter>();
+                    meshFilter = hitCollider.GetComponentInChildren<MeshFilter>();
                 }
 
                 // If no MeshFilter exists, try to find a MeshFilter in the collider's parent.
                 if (meshFilter == null) {
-                    meshFilter = collider.GetComponentInParent<MeshFilter>();
+                    meshFilter = hitCollider.GetComponentInParent<MeshFilter>();
                 }
 
                 // Get the mesh of the non-null MeshFilter.
-                if (meshFilter != null) {
-                    mesh = meshFilter.sharedMesh != null ? meshFilter.sharedMesh : meshFilter.mesh;
+                if (meshFilter != null){
+                    var sharedMesh = meshFilter.sharedMesh;
+                    mesh = sharedMesh != null ? sharedMesh : meshFilter.mesh;
 
                     // The mesh can't be used if it's not readable or has no triangles.
                     if (!mesh.isReadable || mesh.triangles == null) {
@@ -643,7 +655,7 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
 
                 if (mesh == null) {
                     // If a mesh doesn't exist then use the MeshCollider (if it exists).
-                    var meshCollider = collider.GetComponent<MeshCollider>();
+                    var meshCollider = hitCollider.GetComponent<MeshCollider>();
                     if (meshCollider != null) {
                         mesh = meshCollider.sharedMesh;
 
@@ -654,7 +666,7 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
                     }
                 }
 
-                m_ColliderMeshMap.Add(collider, mesh);
+                m_ColliderMeshMap.Add(hitCollider, mesh);
             }
 
             return mesh;
@@ -665,21 +677,24 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// </summary>
         /// <param name="material">The material used to lookup the SurfaceType.</param>
         /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
-        /// <param name="collider">The collider of the object that was hit.</param>
+        /// <param name="hitCollider">The collider of the object that was hit.</param>
         /// <returns>The SurfaceType of the UVTexture. Cna be null.</returns>
-        private SurfaceType GetComplexSurfaceType(Material material, RaycastHit hit, Collider collider)
+        private SurfaceType GetComplexSurfaceType(Material material, RaycastHit hit, Collider hitCollider)
         {
             if (material == null) {
                 return null;
             }
 
-            if (!(collider is MeshCollider)) {
-                Debug.LogWarning("Warning: Surface UV regions on " + collider.name + " only support MeshColliders.");
+            if (!(hitCollider is MeshCollider)) {
+                Debug.LogWarning($"Warning: Surface UV regions on {hitCollider.name} only support MeshColliders.");
                 return null;
             }
 
+            Texture texture = null;
+            if (material.HasProperty(m_MainTexturePropertyID)) {
+                texture = material.GetTexture(m_MainTexturePropertyID);
+            }
             // The location may be on the secondary map.
-            var texture = material.mainTexture;
             if (material.HasProperty(s_MaskID) && material.HasProperty(s_SecondaryTextureID)) {
                 var maskTexture = material.GetTexture(s_MaskID) as Texture2D;
                 if (maskTexture != null) {
@@ -755,17 +770,33 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// Returns the terrain SurfaceType from the specified RaycastHit.
         /// </summary>
         /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
-        /// <param name="collider">The collider of the object that was hit.</param>
+        /// <param name="hitCollider">The collider of the object that was hit.</param>
         /// <returns>The terrain SurfaceType from the specified RaycastHit. Can be null.</returns>
-        private SurfaceType GetTerrainSurfaceType(RaycastHit hit, Collider collider)
+        private SurfaceType GetTerrainSurfaceType(RaycastHit hit, Collider hitCollider)
         {
-            if (!m_HasTerrain) {
+            if (!m_HasTerrain || hitCollider == null) {
                 return null;
             }
 
-            var texture = GetTerrainTexture(collider, hit.point);
-            if (texture == null) {
+            // Retrieve the terrain based off of the collider.
+            Terrain terrain;
+            if (!m_ColliderTerrainMap.TryGetValue(hitCollider, out terrain)) {
+                terrain = hitCollider.GetComponent<Terrain>();
+                m_ColliderTerrainMap.Add(hitCollider, terrain);
+            }
+
+            if (terrain == null) {
                 return null;
+            }
+
+            // The raycast may have hit a tree.
+            var texture = GetTreeTexture(hit, terrain);
+            if (texture == null) {
+                // The raycast did not hit a tree. Test the terrain.
+                texture = GetTerrainTexture(hit.point, terrain);
+                if (texture == null) {
+                    return null;
+                }
             }
 
             SurfaceType surfaceType;
@@ -774,43 +805,75 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         }
 
         /// <summary>
+        /// Returns the tree texture from the specified collider and position.
+        /// </summary>
+        /// <param name="hit">The RaycastHit which caused the SurfaceEffect to spawn.</param>
+        /// <param name="terrain">The terrain that was hit.</param>
+        /// <returns>The tree texture from the specified RaycastHit and terrain. Can be null.</returns>
+        private Texture GetTreeTexture(RaycastHit hit, Terrain terrain)
+        {
+            if (!m_DetectTerrainTreeTextures) {
+                return null;
+            }
+
+            var terrainData = terrain.terrainData;
+            if (terrainData.treeInstanceCount == 0) {
+                return null;
+            }
+
+            // At least one tree exists. Determine if the raycast hit a tree.
+            Texture texture = null;
+            for (int i = 0; i < terrainData.treeInstanceCount; ++i) {
+                var treeInstance = terrainData.treeInstances[i];
+                var position = Vector3.Scale(terrainData.size, treeInstance.position) + terrain.GetPosition();
+                var treePrototype = terrainData.treePrototypes[treeInstance.prototypeIndex];
+                if (treePrototype.prefab == null) {
+                    continue;
+                }
+
+                // Determine if the raycast hit a tree. This is done by instantiating a tree from the prototype index and placing it in the world.
+                var tree = ObjectPoolBase.Instantiate(treePrototype.prefab);
+                var treeCollider = tree.GetCachedComponent<Collider>();
+                if (treeCollider == null) {
+                    ObjectPoolBase.Destroy(tree);
+                    continue;
+                }
+
+                tree.transform.position = position;
+                // The transforms need to be synced so the new tree position will respawn to tree raycasts.
+                if (!Physics.autoSyncTransforms) {
+                    Physics.SyncTransforms();
+                }
+
+                // Perform a raycast on the tree to determine if the tree was hit.
+                if (treeCollider.Raycast(new Ray(hit.point + hit.normal * hit.distance, -hit.normal), out var treeHit, hit.distance + 1)) {
+                    texture = GetMainTexture(treeCollider);
+                }
+
+                ObjectPoolBase.Destroy(tree);
+                if (texture == null) {
+                    continue;
+                }
+                return texture;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Returns the terrain texture from the specified collider and position.
         /// </summary>
-        /// <param name="collider">The collider to get the texture from.</param>
         /// <param name="worldPosition">The position to retrieve the texture of.</param>
-        /// <returns>The terrain texture from the specified collider and position. Can be null.</returns>
-        private Texture GetTerrainTexture(Collider collider, Vector3 worldPosition)
+        /// <param name="terrain">The terrain that was hit.</param>
+        /// <returns>The terrain texture from the specified position and terrain. Can be null.</returns>
+        private Texture GetTerrainTexture(Vector3 worldPosition, Terrain terrain)
         {
-            if (collider == null) {
-                return null;
-            }
-
-            // Retrieve the terrain based off of the collider.
-            Terrain terrain;
-            if (!m_ColliderTerrainMap.TryGetValue(collider, out terrain)) {
-                terrain = collider.GetComponent<Terrain>();
-                m_ColliderTerrainMap.Add(collider, terrain);
-            }
-
-            if (terrain == null) {
-                return null;
-            }
-
             // Return the dominant ground texture at the world position in terrain.
             var terrainTextureID = GetDominantTerrainTexture(worldPosition, terrain);
-#if UNITY_2018_3_OR_NEWER
-            if (terrain.terrainData.terrainLayers == null || terrainTextureID > terrain.terrainData.terrainLayers.Length- 1) {
+            if (terrain.terrainData.terrainLayers == null || terrainTextureID > terrain.terrainData.terrainLayers.Length - 1) {
                 return null;
             }
 
             return terrain.terrainData.terrainLayers[terrainTextureID].diffuseTexture;
-#else
-            if (terrainTextureID > terrain.terrainData.splatPrototypes.Length - 1) {
-                return null;
-            }
-
-            return terrain.terrainData.splatPrototypes[terrainTextureID].texture;
-#endif
         }
 
         /// <summary>
@@ -996,7 +1059,6 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
             SceneManager.sceneUnloaded += SceneUnloaded;
         }
 
-#if UNITY_2019_3_OR_NEWER
         /// <summary>
         /// Reset the static variables for domain reloading.
         /// </summary>
@@ -1006,6 +1068,5 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
             s_Initialized = false;
             s_Instance = null;
         }
-#endif
     }
 }

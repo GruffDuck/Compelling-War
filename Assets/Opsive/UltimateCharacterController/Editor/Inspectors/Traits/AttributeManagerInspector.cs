@@ -4,19 +4,21 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.StateSystem;
-using Opsive.UltimateCharacterController.Traits;
-using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-using System.Collections.Generic;
-using Attribute = Opsive.UltimateCharacterController.Traits.Attribute;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.Shared.Editor.Inspectors.StateSystem;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.StateSystem;
+    using Opsive.UltimateCharacterController.Traits;
+    using System;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
+    using Attribute = Opsive.UltimateCharacterController.Traits.Attribute;
+
     /// <summary>
     /// Shows a custom inspector for the AttributeManager.
     /// </summary>
@@ -51,7 +53,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
                                                             OnAttributeListDrawHeader, OnAttributeListDraw, null, OnAttributeListAdd, OnAttributeListRemove, OnAttributeListSelect,
                                                             DrawSelectedAttribute, SelectedAttributeIndexKey, false, false);
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -93,27 +95,27 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             }
 
             var attribute = Activator.CreateInstance(typeof(Attribute)) as Attribute;
-            var name = "New Attribute";
+            var attributeName = "New Attribute";
             // Use the name of the last attribute element.
             if (m_ReorderableAttributeList.index > -1 && m_ReorderableAttributeList.index < attributes.Length - 1) {
-                name = attributes[m_ReorderableAttributeList.index].Name;
+                attributeName = attributes[m_ReorderableAttributeList.index].Name;
             }
             // The name must be unique.
-            if (!IsUniqueName(attributes, name)) {
+            if (!IsUniqueName(attributes, attributeName)) {
                 var postfixIndex = 1;
-                while (!IsUniqueName(attributes, name + " " + postfixIndex)) {
+                while (!IsUniqueName(attributes, attributeName + " " + postfixIndex)) {
                     postfixIndex++;
                 }
-                name += " " + postfixIndex;
+                attributeName += " " + postfixIndex;
             }
-            attribute.Name = name;
+            attribute.Name = attributeName;
             attributes[attributes.Length - 1] = attribute;
             m_AttributeManager.Attributes = attributes;
 
             // Select the newly added attribute.
             m_ReorderableAttributeList.index = attributes.Length - 1;
             EditorPrefs.SetInt(SelectedAttributeIndexKey, m_ReorderableAttributeList.index);
-            InspectorUtility.SetDirty(m_AttributeManager);
+            Shared.Editor.Utility.EditorUtility.SetDirty(m_AttributeManager);
         }
 
         /// <summary>
@@ -144,7 +146,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             var attributes = new List<Attribute>(m_AttributeManager.Attributes);
 
             // Remove the element.
-            InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
             attributes.RemoveAt(list.index);
             m_AttributeManager.Attributes = attributes.ToArray();
 
@@ -155,7 +157,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
                 list.index = 0;
             }
             EditorPrefs.SetInt(SelectedAttributeIndexKey, list.index);
-            InspectorUtility.SetDirty(m_AttributeManager);
+            Shared.Editor.Utility.EditorUtility.SetDirty(m_AttributeManager);
         }
 
         /// <summary>
@@ -182,10 +184,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             }
 
             // The name must be unique.
-            var name = attributeProperty.FindPropertyRelative("m_Name");
-            var desiredName = EditorGUILayout.TextField(new GUIContent("Name", "The name of the attribute."), name.stringValue);
-            if (name.stringValue != desiredName && IsUniqueName(m_AttributeManager.Attributes, desiredName)) {
-                name.stringValue = desiredName;
+            var attributeName = attributeProperty.FindPropertyRelative("m_Name");
+            var desiredName = EditorGUILayout.TextField(new GUIContent("Name", "The name of the attribute."), attributeName.stringValue);
+            if (attributeName.stringValue != desiredName && IsUniqueName(m_AttributeManager.Attributes, desiredName)) {
+                attributeName.stringValue = desiredName;
             }
             var minValue = attributeProperty.FindPropertyRelative("m_MinValue");
             var maxValue = attributeProperty.FindPropertyRelative("m_MaxValue");
@@ -222,15 +224,15 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
 
             if (EditorGUI.EndChangeCheck()) {
                 serializedObject.ApplyModifiedProperties();
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
             }
 
             var attribute = m_AttributeManager.Attributes[index];
-            if (InspectorUtility.Foldout(attribute, new GUIContent("States"), false)) {
+            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(attribute, new GUIContent("States"), false)) {
                 // The Attribute class derives from system.object at the base level and reorderable lists can only operate on Unity objects. To get around this restriction
                 // create a dummy array within a Unity object that corresponds to the number of elements within the view type's state list. When the reorderable list is drawn
                 // the view type object will be used so it's like the dummy object never existed.
-                var selectedAttribute = attribute as Attribute;
+                var selectedAttribute = attribute;
                 var gameObject = new GameObject();
                 var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
                 stateIndexHelper.StateIndexData = new int[selectedAttribute.States.Length];
@@ -270,7 +272,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
 
             StateInspector.OnStateListDraw(attribute, attribute.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
 
                 StateInspector.UpdateDefaultStateValues(attribute.States);
             }
@@ -293,7 +295,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             var states = StateInspector.AddExistingPreset(attribute.GetType(), attribute.States, m_ReorderableAttributeStateList, GetSelectedAttributeStateIndexKey(attribute));
             if (attribute.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableAttributeStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 attribute.States = states;
             }
         }
@@ -307,7 +309,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             var states = StateInspector.CreatePreset(attribute, attribute.States, m_ReorderableAttributeStateList, GetSelectedAttributeStateIndexKey(attribute));
             if (attribute.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableAttributeStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 attribute.States = states;
             }
         }
@@ -320,7 +322,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             var attribute = m_AttributeManager.Attributes[EditorPrefs.GetInt(SelectedAttributeIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new UltimateCharacterController.StateSystem.State[attribute.States.Length];
+            var copiedStates = new Shared.StateSystem.State[attribute.States.Length];
             Array.Copy(attribute.States, copiedStates, attribute.States.Length);
             for (int i = 0; i < attribute.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -333,7 +335,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             var states = StateInspector.OnStateListReorder(attribute.States);
             if (attribute.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableAttributeStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 attribute.States = states;
             }
         }
@@ -347,7 +349,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             var states = StateInspector.OnStateListRemove(attribute.States, GetSelectedAttributeStateIndexKey(attribute), list);
             if (attribute.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableAttributeStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 attribute.States = states;
             }
         }

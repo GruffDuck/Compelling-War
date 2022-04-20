@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Motion;
-
 namespace Opsive.UltimateCharacterController.Character.Effects
 {
+    using Opsive.Shared.Events;
+    using Opsive.UltimateCharacterController.Motion;
+    using UnityEngine;
+
     /// <summary>
     /// Shakes the camera, item, or character based on a force magnitude.
     /// </summary>
@@ -18,6 +18,7 @@ namespace Opsive.UltimateCharacterController.Character.Effects
         /// <summary>
         /// Specifies which objects to apply the shaking force to.
         /// </summary>
+        [System.Flags]
         public enum ShakeTarget
         {
             Camera = 1,     // Shakes the camera.
@@ -119,12 +120,12 @@ namespace Opsive.UltimateCharacterController.Character.Effects
             // Add the force to the camera.
             if ((m_Target & ShakeTarget.Camera) != 0 && m_CameraController != null) {
                 m_CameraController.AddPositionalForce(force * m_PositionalFactor);
-                m_CameraController.AddRotationalForce(-force * 2 * m_RotationalFactor);
+                m_CameraController.AddRotationalForce(2 * m_RotationalFactor * -force);
             }
 
             // Add the force to the item.
             if ((m_Target & ShakeTarget.Item) != 0) {
-                var positionalForce = Vector3.forward * force.x * 0.015f;
+                var positionalForce = force.x * 0.015f * Vector3.forward;
                 var rotationalForce = positionalForce;
                 rotationalForce.Set(force.y * 2, -force.x, force.x * 2);
                 EventHandler.ExecuteEvent(m_GameObject, "OnAddSecondaryForce", -1, positionalForce, rotationalForce, true);

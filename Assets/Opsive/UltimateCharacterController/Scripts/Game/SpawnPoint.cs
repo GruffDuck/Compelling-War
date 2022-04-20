@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.Game
 {
+    using UnityEngine;
+
     /// <summary>
     /// Specifies a location that the object can spawn.
     /// </summary>
@@ -68,6 +68,7 @@ namespace Opsive.UltimateCharacterController.Game
         public float GroundSnapHeight { get { return m_GroundSnapHeight; } set { m_GroundSnapHeight = value; } }
         public bool RandomDirection { get { return m_RandomDirection; } set { m_RandomDirection = value; } }
         public bool CheckForObstruction { get { return m_CheckForObstruction; } set { m_CheckForObstruction = value; } }
+        public LayerMask ObstructionLayers { get { return m_ObstructionLayers; } set { m_ObstructionLayers = value; } }
         public int PlacementAttempts { get { return m_PlacementAttempts; } set { m_PlacementAttempts = value; } }
 #if UNITY_EDITOR
         public Color GizmoColor { get { return m_GizmoColor; } set { m_GizmoColor = value; } }
@@ -134,15 +135,16 @@ namespace Opsive.UltimateCharacterController.Game
                         var extents = Vector3.zero;
                         extents.x = extents.z = m_Size / 2;
                         extents.y = m_GroundSnapHeight / 2;
-                        var boxPosition = m_Transform.TransformPoint(extents);
 
                         // Ignore any collisions with itself.
-                        var overlapCount = Physics.OverlapBoxNonAlloc(boxPosition, extents, m_ObstructionColliders, m_Transform.rotation, m_ObstructionLayers, QueryTriggerInteraction.Ignore);
-                        for (int i = overlapCount - 1; i > -1; --i) {
-                            if (!m_ObstructionColliders[i].transform.IsChildOf(spawningObject.transform)) {
-                                break;
+                        var overlapCount = Physics.OverlapBoxNonAlloc(position, extents, m_ObstructionColliders, m_Transform.rotation, m_ObstructionLayers, QueryTriggerInteraction.Ignore);
+                        if (spawningObject != null) {
+                            for (int i = overlapCount - 1; i > -1; --i) {
+                                if (!m_ObstructionColliders[i].transform.IsChildOf(spawningObject.transform)) {
+                                    break;
+                                }
+                                overlapCount--;
                             }
-                            overlapCount--;
                         }
                         success = overlapCount == 0;
                         if (success) {

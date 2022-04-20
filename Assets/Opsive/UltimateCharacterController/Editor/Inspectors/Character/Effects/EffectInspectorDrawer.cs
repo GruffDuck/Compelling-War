@@ -4,12 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character.Effects;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 {
+    using Opsive.Shared.Editor.Inspectors;
+    using Opsive.UltimateCharacterController.Character.Effects;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Draws a custom inspector for the base Effect type.
     /// </summary>
@@ -35,7 +36,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// <param name="parent">The Unity Object that the object belongs to.</param>
         protected virtual void DrawInspectorDrawerFields(object target, Object parent)
         {
-            ObjectInspector.DrawFields(target, false);
+            Shared.Editor.Inspectors.Utility.ObjectInspector.DrawFields(target, false);
         }
     }
 }

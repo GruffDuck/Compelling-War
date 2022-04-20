@@ -4,16 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Objects
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
+    using UnityEngine;
+
     /// <summary>
     /// Shows an object which slowly fades out with time. Can optionally attach a light to the GameObject and that light will be faded as well.
     /// </summary>
@@ -62,9 +62,9 @@ namespace Opsive.UltimateCharacterController.Objects
 #endif
             m_TintColorPropertyID = Shader.PropertyToID(m_TintColorPropertyName);
 
-            var renderer = GetComponent<Renderer>();
-            if (renderer != null) {
-                m_Material = renderer.sharedMaterial;
+            var muzzleRenderer = GetComponent<Renderer>();
+            if (muzzleRenderer != null) {
+                m_Material = muzzleRenderer.sharedMaterial;
             }
             m_Light = GetComponent<Light>();
             m_Particles = GetComponent<ParticleSystem>();
@@ -86,6 +86,9 @@ namespace Opsive.UltimateCharacterController.Objects
             }
             if (m_Light != null) {
                 m_Light.intensity = 0;
+            }
+            if (m_Particles != null) {
+                m_Particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
         }
 
@@ -160,7 +163,7 @@ namespace Opsive.UltimateCharacterController.Objects
                 }
             } else {
                 if (m_Pooled) {
-                    ObjectPool.Destroy(m_GameObject);
+                    ObjectPoolBase.Destroy(m_GameObject);
                 } else {
                     m_GameObject.SetActive(false);
                 }

@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Character.Effects
 {
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
+
     /// <summary>
     /// Moves the camera downward similar to how a large boss would shake the camera as they are stomping on the ground.
     /// </summary>
@@ -64,11 +64,12 @@ namespace Opsive.UltimateCharacterController.Character.Effects
         private void Stomp()
         {
             m_CameraController.AddSecondaryPositionalForce(m_PositionalStompDirection * m_PositionalStrength.RandomValue, 0);
-            m_CameraController.AddSecondaryRotationalForce(m_RotationalStompDirection * m_RotationalStrength.RandomValue * (Random.value > 0.5f ? 1 : -1), 0);
+            m_CameraController.AddSecondaryRotationalForce(m_RotationalStrength.RandomValue * (Random.value > 0.5f ? 1 : -1) * m_RotationalStompDirection, 0);
             m_StopCount++;
+            m_StopEvent = null;
 
             if (m_RepeatCount == -1 || m_StopCount < m_RepeatCount) {
-                m_StopEvent = Scheduler.ScheduleFixed(m_RepeatDelay, Stomp);
+                m_StopEvent = SchedulerBase.ScheduleFixed(m_RepeatDelay, Stomp);
             } else {
                 StopEffect();
             }
@@ -81,7 +82,7 @@ namespace Opsive.UltimateCharacterController.Character.Effects
         {
             base.EffectStopped();
 
-            Scheduler.Cancel(m_StopEvent);
+            SchedulerBase.Cancel(m_StopEvent);
             m_StopEvent = null;
         }
     }

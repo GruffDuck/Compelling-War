@@ -1,10 +1,10 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.UltimateCharacterController.Input
+namespace Opsive.Shared.Input
 {
     /// <summary>
     /// The ActiveInputEvent class allows the object to receive input callbacks while the object is active.

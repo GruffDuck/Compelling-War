@@ -1,32 +1,30 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using System.Collections.Generic;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Utility;
-
-namespace Opsive.UltimateCharacterController.StateSystem
+namespace Opsive.Shared.StateSystem
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using System.Collections.Generic;
+    using UnityEngine;
+    using UnityEngine.SceneManagement;
+
     /// <summary>
     /// Handles the activation and deactivation of states.
     /// </summary>
     public class StateManager : MonoBehaviour
     {
-        [Tooltip("Should the OnStateChange event be sent when the state changes active status?")]
+        [Tooltip("Should the global OnStateChange event be sent when the state changes active status?")]
         [SerializeField] protected bool m_SendStateChangeEvent;
 
         public bool SendStateChangeEvent { get { return m_SendStateChangeEvent; } set { m_SendStateChangeEvent = value; } }
 
         private static StateManager s_Instance;
-        private static StateManager Instance
-        {
-            get
-            {
+        private static StateManager Instance {
+            get {
                 if (!s_Initialized) {
                     s_Instance = new GameObject("State Manager").AddComponent<StateManager>();
                     s_Initialized = true;
@@ -70,10 +68,10 @@ namespace Opsive.UltimateCharacterController.StateSystem
         /// <summary>
         /// Internal method which initializes the states belonging to the owner on the GameObject.
         /// </summary>
-        /// <param name="gameObject">The GameObject to enable or disable all of the states on.</param>
+        /// <param name="stateGameObject">The GameObject to enable or disable all of the states on.</param>
         /// <param name="owner">The object that state belongs to.</param>
         /// <param name="states">A list of all of the states which the owner contains.</param>
-        private void InitializeInternal(GameObject gameObject, IStateOwner owner, State[] states)
+        private void InitializeInternal(GameObject stateGameObject, IStateOwner owner, State[] states)
         {
             // The last state will always be reserved for the default state.
             if (states[states.Length - 1] == null) {
@@ -81,48 +79,44 @@ namespace Opsive.UltimateCharacterController.StateSystem
             }
             states[states.Length - 1].Preset = DefaultPreset.CreateDefaultPreset();
 
-            Dictionary<string, State> nameStateMap;
-            if (!m_ObjectNameStateMap.TryGetValue(owner, out nameStateMap)) {
+            if (!m_ObjectNameStateMap.TryGetValue(owner, out var nameStateMap)) {
                 nameStateMap = new Dictionary<string, State>();
                 m_ObjectNameStateMap.Add(owner, nameStateMap);
             }
 
             // Populate the maps for quick lookup based on owner and GameObject.
             GameObject characterGameObject = null;
-            var characterLocomotion = gameObject.GetCachedParentComponent<Character.UltimateCharacterLocomotion>();
+            var characterLocomotion = stateGameObject.GetCachedParentComponent<Character.ICharacter>();
             if (characterLocomotion != null) {
-                characterGameObject = characterLocomotion.gameObject;
-            } else {
-                var cameraController = gameObject.GetCachedParentComponent<Camera.CameraController>();
-                if (cameraController != null) {
-                    characterGameObject = cameraController.Character;
+                characterGameObject = characterLocomotion.GameObject;
+            }
+            if (characterGameObject == null) { // The state may be beneath the camera.
+                var camera = stateGameObject.GetCachedParentComponent<Shared.Camera.ICamera>();
+                if (camera != null) {
+                    characterGameObject = camera.Character;
                 }
             }
             for (int i = 0; i < states.Length; ++i) {
                 if (states[i].Preset == null) {
-                    Debug.LogError(string.Format("Error: The state {0} on {1} does not have a preset. Ensure each non-default state contains a preset.", states[i].Name, owner));
+                    Debug.LogError(string.Format("Error: The state {0} on {1} does not have a preset. Ensure each non-default state contains a preset.", states[i].Name, owner), owner as Object);
                 }
                 nameStateMap.Add(states[i].Name, states[i]);
 
-                Dictionary<string, List<State>> nameStateList;
-                if (!m_GameObjectNameStateList.TryGetValue(gameObject, out nameStateList)) {
+                if (!m_GameObjectNameStateList.TryGetValue(stateGameObject, out var nameStateList)) {
                     nameStateList = new Dictionary<string, List<State>>();
-                    m_GameObjectNameStateList.Add(gameObject, nameStateList);
+                    m_GameObjectNameStateList.Add(stateGameObject, nameStateList);
                 }
 
                 // Child GameObjects should listen for states set on the parent. This for example allows an item to react to a state change even if that state change
                 // is set on the character. The character GameObject does not need to be made aware of the Default state.
                 if (i != states.Length - 1) {
-
-                    if (characterGameObject != null && gameObject != characterGameObject) {
-                        Dictionary<string, List<State>> characterNameStateList;
-                        if (!m_GameObjectNameStateList.TryGetValue(characterGameObject, out characterNameStateList)) {
+                    if (characterGameObject != null && stateGameObject != characterGameObject) {
+                        if (!m_GameObjectNameStateList.TryGetValue(characterGameObject, out var characterNameStateList)) {
                             characterNameStateList = new Dictionary<string, List<State>>();
                             m_GameObjectNameStateList.Add(characterGameObject, characterNameStateList);
                         }
 
-                        List<State> characterStateList;
-                        if (!characterNameStateList.TryGetValue(states[i].Name, out characterStateList)) {
+                        if (!characterNameStateList.TryGetValue(states[i].Name, out var characterStateList)) {
                             characterStateList = new List<State>();
                             characterNameStateList.Add(states[i].Name, characterStateList);
                         }
@@ -131,8 +125,7 @@ namespace Opsive.UltimateCharacterController.StateSystem
                     }
                 }
 
-                List<State> stateList;
-                if (!nameStateList.TryGetValue(states[i].Name, out stateList)) {
+                if (!nameStateList.TryGetValue(states[i].Name, out var stateList)) {
                     stateList = new List<State>();
                     nameStateList.Add(states[i].Name, stateList);
                 }
@@ -153,18 +146,17 @@ namespace Opsive.UltimateCharacterController.StateSystem
             // can start the correct states. As an example an item could be picked up after the character is already aiming. That item should go directly
             // into the aim state instead of requring the character to aim again.
             if (characterGameObject != null) {
-                if (characterGameObject == gameObject) {
+                if (characterGameObject == stateGameObject) {
                     // If the current GameObject is the character then the active states should be tracked.
-                    if (!m_ActiveCharacterStates.ContainsKey(gameObject)) {
-                        m_ActiveCharacterStates.Add(gameObject, new HashSet<string>());
+                    if (!m_ActiveCharacterStates.ContainsKey(stateGameObject)) {
+                        m_ActiveCharacterStates.Add(stateGameObject, new HashSet<string>());
                     }
                 } else {
                     // If the current GameObject is not the character then the active character states should be applied to the child object.
-                    HashSet<string> activeStates;
-                    if (m_ActiveCharacterStates.TryGetValue(characterGameObject, out activeStates)) {
+                    if (m_ActiveCharacterStates.TryGetValue(characterGameObject, out var activeStates)) {
                         if (activeStates.Count > 0) {
                             foreach (var stateName in activeStates) {
-                                SetState(gameObject, stateName, true);
+                                SetState(stateGameObject, stateName, true);
                             }
                         }
                     }
@@ -193,8 +185,7 @@ namespace Opsive.UltimateCharacterController.StateSystem
         /// <param name="link">Should the GameObjects be linked. If fales the GameObjects will be unlinked.</param>
         private void LinkGameObjectsInternal(GameObject original, GameObject linkedGameObject, bool link)
         {
-            List<GameObject> linkedGameObjectList;
-            if (!m_LinkedGameObjectList.TryGetValue(original, out linkedGameObjectList) && link) {
+            if (!m_LinkedGameObjectList.TryGetValue(original, out var linkedGameObjectList) && link) {
                 linkedGameObjectList = new List<GameObject>();
                 m_LinkedGameObjectList.Add(original, linkedGameObjectList);
             }
@@ -204,8 +195,7 @@ namespace Opsive.UltimateCharacterController.StateSystem
                     linkedGameObjectList.Add(linkedGameObject);
 
                     // If the current GameObject is not the character then the active character states should be applied to the child object.
-                    HashSet<string> activeStates;
-                    if (m_ActiveCharacterStates.TryGetValue(original, out activeStates)) {
+                    if (m_ActiveCharacterStates.TryGetValue(original, out var activeStates)) {
                         if (activeStates.Count > 0) {
                             foreach (var stateName in activeStates) {
                                 SetState(linkedGameObject, stateName, true);
@@ -240,16 +230,14 @@ namespace Opsive.UltimateCharacterController.StateSystem
         private void SetStateInternal(object owner, State[] states, string stateName, bool active)
         {
             // Lookup the state by owner.
-            Dictionary<string, State> nameStateMap;
-            if (!m_ObjectNameStateMap.TryGetValue(owner, out nameStateMap)) {
-                Debug.LogWarning("Warning: Unable to find the name state map on object " + owner);
+            if (!m_ObjectNameStateMap.TryGetValue(owner, out var nameStateMap)) {
+                Debug.LogWarning($"Warning: Unable to find the name state map on object {owner}.");
                 return;
             }
 
             // Lookup the state by name.
-            State state;
-            if (!nameStateMap.TryGetValue(stateName, out state)) {
-                Debug.LogWarning("Warning: Unable to find the state with name " + stateName);
+            if (!nameStateMap.TryGetValue(stateName, out var state)) {
+                Debug.LogWarning($"Warning: Unable to find the state with name {stateName}.");
                 return;
             }
 
@@ -273,16 +261,15 @@ namespace Opsive.UltimateCharacterController.StateSystem
         /// <summary>
         /// Internal method which activates or deactivates all of the states on the specified GameObject with the specified name.
         /// </summary>
-        /// <param name="gameObject">The GameObject to enable or disable all of the states on.</param>
+        /// <param name="stateGameObject">The GameObject to enable or disable all of the states on.</param>
         /// <param name="stateName">The name of the state to change the active status of.</param>
         /// <param name="active">Should the state be activated?</param>
-        private void SetStateInternal(GameObject gameObject, string stateName, bool active)
+        private void SetStateInternal(GameObject stateGameObject, string stateName, bool active)
         {
             // Remember the active character status.
-            var characterLocomotion = gameObject.GetCachedComponent<Character.UltimateCharacterLocomotion>();
-            if (characterLocomotion != null) {
-                HashSet<string> activeStates;
-                if (m_ActiveCharacterStates.TryGetValue(gameObject, out activeStates)) {
+            var character = stateGameObject.GetCachedComponent<Character.ICharacter>();
+            if (character != null) {
+                if (m_ActiveCharacterStates.TryGetValue(stateGameObject, out var activeStates)) {
                     // If the state name appears within the set then the state is active.
                     if (active) {
                         activeStates.Add(stateName);
@@ -293,32 +280,29 @@ namespace Opsive.UltimateCharacterController.StateSystem
             }
 
             // Lookup the states by GameObject.
-            Dictionary<string, List<State>> nameStateList;
-            if (!m_GameObjectNameStateList.TryGetValue(gameObject, out nameStateList)) {
-                SetLinkStateInternal(gameObject, stateName, active);
+            if (!m_GameObjectNameStateList.TryGetValue(stateGameObject, out var nameStateList)) {
+                SetLinkStateInternal(stateGameObject, stateName, active);
                 return;
             }
 
             // Lookup the states by name.
-            List<State> stateList;
-            if (!nameStateList.TryGetValue(stateName, out stateList)) {
-                SetLinkStateInternal(gameObject, stateName, active);
+            if (!nameStateList.TryGetValue(stateName, out var stateList)) {
+                SetLinkStateInternal(stateGameObject, stateName, active);
                 return;
             }
 
             // An event can be sent when the active status changes. This is useful for multiplayer in that it allows the networking implementation
             // to send the state changes across the network.
             if (m_SendStateChangeEvent) {
-                Events.EventHandler.ExecuteEvent("OnStateChange", gameObject, stateName, active);
+                EventHandler.ExecuteEvent("OnStateChange", stateGameObject, stateName, active);
             }
 
             // The states have been found, activate or deactivate the states.
             for (int i = 0; i < stateList.Count; ++i) {
                 if (stateList[i].Active != active) {
                     // The state array must exist to be able to apply the changes.
-                    State[] states;
-                    if (!m_StateArrayMap.TryGetValue(stateList[i], out states)) {
-                        Debug.LogWarning("Warning: Unable to find the state array with state name " + stateName);
+                    if (!m_StateArrayMap.TryGetValue(stateList[i], out var states)) {
+                        Debug.LogWarning($"Warning: Unable to find the state array with state name {stateName}.");
                         return;
                     }
 
@@ -332,19 +316,18 @@ namespace Opsive.UltimateCharacterController.StateSystem
                 }
             }
 
-            SetLinkStateInternal(gameObject, stateName, active);
+            SetLinkStateInternal(stateGameObject, stateName, active);
         }
 
         /// <summary>
         /// Internal method which activates or deactivates all of the states on the GameObjects linked from the GameObject with the specified name.
         /// </summary>
-        /// <param name="gameObject">The GameObject to enable or disable all of the states on.</param>
+        /// <param name="stateGameObject">The GameObject to enable or disable all of the states on.</param>
         /// <param name="stateName">The name of the state to change the active status of.</param>
         /// <param name="active">Should the state be activated?</param>
-        private void SetLinkStateInternal(GameObject gameObject, string stateName, bool active)
+        private void SetLinkStateInternal(GameObject stateGameObject, string stateName, bool active)
         {
-            List<GameObject> linkedGameObjects;
-            if (m_LinkedGameObjectList.TryGetValue(gameObject, out linkedGameObjects)) {
+            if (m_LinkedGameObjectList.TryGetValue(stateGameObject, out var linkedGameObjects)) {
                 for (int i = 0; i < linkedGameObjects.Count; ++i) {
                     SetStateInternal(linkedGameObjects[i], stateName, active);
                 }
@@ -370,6 +353,10 @@ namespace Opsive.UltimateCharacterController.StateSystem
         /// <param name="states">The array of states that the state belongs to.</param>
         private void ActivateStateInternal(State state, bool active, State[] states)
         {
+            if (!Application.isPlaying) {
+                return;
+            }
+
             // Return early if there no work needs to be done.
             if (state.Active == active) {
                 return;
@@ -433,49 +420,130 @@ namespace Opsive.UltimateCharacterController.StateSystem
         /// <summary>
         /// Internal method which activates the state and then deactivates the state after the specified amount of time.
         /// </summary>
-        /// <param name="gameObject">The Gameobject to set the state on.</param>
+        /// <param name="stateGameObject">The GameObject to set the state on.</param>
         /// <param name="stateName">The name of the state to activate and then deactivate.</param>
         /// <param name="time">The amount of time that should elapse before the state is disabled.</param>
-        private void DeactivateStateTimerInternal(GameObject gameObject, string stateName, float time)
+        private void DeactivateStateTimerInternal(GameObject stateGameObject, string stateName, float time)
         {
             if (m_DisableStateTimerMap == null) {
                 m_DisableStateTimerMap = new Dictionary<GameObject, Dictionary<string, ScheduledEventBase>>();
             }
 
-            Dictionary<string, ScheduledEventBase> stateNameEventMap;
-            if (m_DisableStateTimerMap.TryGetValue(gameObject, out stateNameEventMap)) {
-                ScheduledEventBase disableEvent;
-                if (stateNameEventMap.TryGetValue(stateName, out disableEvent)) {
+            if (m_DisableStateTimerMap.TryGetValue(stateGameObject, out var stateNameEventMap)) {
+                if (stateNameEventMap.TryGetValue(stateName, out var disableEvent)) {
                     // The state name exists. This means that the timer is currently active and should first been cancelled.
-                    Scheduler.Cancel(disableEvent);
-                    disableEvent = Scheduler.Schedule(time, DeactivateState, gameObject, stateName);
+                    SchedulerBase.Cancel(disableEvent);
+                    disableEvent = SchedulerBase.Schedule(time, DeactivateState, stateGameObject, stateName);
                 } else {
                     // The state name hasn't been added yet. Add it to the map.
-                    disableEvent = Scheduler.Schedule(time, DeactivateState, gameObject, stateName);
+                    disableEvent = SchedulerBase.Schedule(time, DeactivateState, stateGameObject, stateName);
                     stateNameEventMap.Add(stateName, disableEvent);
                 }
             } else {
                 // Neither the GameObject nor the state has been activated. Create the maps.
                 stateNameEventMap = new Dictionary<string, ScheduledEventBase>();
-                var disableEvent = Scheduler.Schedule(time, DeactivateState, gameObject, stateName);
+                var disableEvent = SchedulerBase.Schedule(time, DeactivateState, stateGameObject, stateName);
                 stateNameEventMap.Add(stateName, disableEvent);
-                m_DisableStateTimerMap.Add(gameObject, stateNameEventMap);
+                m_DisableStateTimerMap.Add(stateGameObject, stateNameEventMap);
             }
         }
 
         /// <summary>
         /// Deactives the specified state and removes it form the timer map.
         /// </summary>
-        /// <param name="gameObject">The GameObject to set the state on.</param>
+        /// <param name="stateGameObject">The GameObject to set the state on.</param>
         /// <param name="stateName">The name of the state to set.</param>
-        private void DeactivateState(GameObject gameObject, string stateName)
+        private void DeactivateState(GameObject stateGameObject, string stateName)
         {
-            SetState(gameObject, stateName, false);
+            SetState(stateGameObject, stateName, false);
 
-            Dictionary<string, ScheduledEventBase> stateNameEventMap;
-            if (m_DisableStateTimerMap.TryGetValue(gameObject, out stateNameEventMap)) {
+            if (m_DisableStateTimerMap.TryGetValue(stateGameObject, out var stateNameEventMap)) {
                 stateNameEventMap.Remove(stateName);
             }
+        }
+
+        /// <summary>
+        /// Adds a state to the state array.
+        /// </summary>
+        /// <param name="ownerGameObject">The GameObject that state belongs to.</param>
+        /// <param name="owner">The object that state belongs to.</param>
+        /// <param name="existingStates">A list of all of the states which the owner contains.</param>
+        /// <param name="newState">The new state.</param>
+        /// <param name="index">The index that the state should be added to.</param>
+        public static void AddState(GameObject ownerGameObject, IStateOwner owner, State[] existingStates, State newState, int index)
+        {
+            Instance.AddStateInternal(ownerGameObject, owner, existingStates, newState, index);
+        }
+
+        /// <summary>
+        /// Internal method which adds a state to the state array.
+        /// </summary>
+        /// <param name="ownerGameObject">The GameObject that state belongs to.</param>
+        /// <param name="owner">The object that state belongs to.</param>
+        /// <param name="states">A list of all of the states which the owner contains.</param>
+        /// <param name="state">The new state.</param>
+        /// <param name="index">The index that the state should be added to.</param>
+        private void AddStateInternal(GameObject ownerGameObject, IStateOwner owner, State[] states, State state, int index)
+        {
+            // There are many reasons why a new state cannot be added.
+            if (!Application.isPlaying || m_ObjectNameStateMap == null) {
+                return;
+            }
+            if (states == null || state == null) {
+                Debug.LogError("Error: Unable to add an uninitialized state.");
+                return;
+            }
+            if (index < 0 || index >= states.Length) {
+                Debug.LogError($"Error: Unable to add the state {state.Name} to index {index}. The index is out of range.");
+                return;
+            }
+            if (state.Default) {
+                Debug.LogError("Error: Unable to add a default state after initialization.");
+                return;
+            }
+            if (string.IsNullOrEmpty(state.Name)) {
+                Debug.LogError("Error: The state name cannot be empty.");
+                return;
+            }
+            if (state.Preset == null) {
+                Debug.LogError("Error: The state must have a preset.");
+                return;
+            }
+            for (int i = 0; i < states.Length; ++i) {
+                if (states[i].Name == state.Name) {
+                    Debug.LogError($"Error: A state with the name {state.Name} already exists.");
+                    return;
+                }
+            }
+            if (!m_ObjectNameStateMap.TryGetValue(owner, out var nameStateMap) ||
+                !m_GameObjectNameStateList.TryGetValue(ownerGameObject, out var nameStateList)) {
+                Debug.LogError($"Error: The object {owner} has not been registered with the StateManager.");
+                return;
+            }
+
+            // The state is valid. Add the state to the states array.
+            System.Array.Resize(ref states, states.Length + 1);
+            for (int i = states.Length - 1; i > index; --i) {
+                states[i] = states[i - 1];
+            }
+            states[index] = state;
+            if (owner is StateBehavior) {
+                (owner as StateBehavior).States = states;
+            } else if (owner is StateObject) {
+                (owner as StateObject).States = states;
+            }
+
+            // Update the internal mappings.
+            nameStateMap.Add(state.Name, state);
+            if (!nameStateList.TryGetValue(state.Name, out var stateList)) {
+                stateList = new List<State>();
+                nameStateList.Add(state.Name, stateList);
+            }
+            stateList.Insert(index, state);
+            m_StateArrayMap.Add(state, states);
+
+            // All of the lists have been updated. Initialize the state.
+            state.Initialize(owner, nameStateMap);
         }
 
         /// <summary>
@@ -497,7 +565,6 @@ namespace Opsive.UltimateCharacterController.StateSystem
             SceneManager.sceneUnloaded += SceneUnloaded;
         }
 
-#if UNITY_2019_3_OR_NEWER
         /// <summary>
         /// Reset the static variables for domain reloading.
         /// </summary>
@@ -507,6 +574,5 @@ namespace Opsive.UltimateCharacterController.StateSystem
             s_Initialized = false;
             s_Instance = null;
         }
-#endif
     }
 }

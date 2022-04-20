@@ -1,13 +1,13 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
-namespace Opsive.UltimateCharacterController.Input
+namespace Opsive.Shared.Input
 {
+    using UnityEngine;
+
     /// <summary>
     /// Uses Unity's input system to detect input related actions.
     /// </summary>

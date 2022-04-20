@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-
 namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
 {
+    using UnityEngine;
+
     /// <summary>
     /// The Sequence state will move from one state to the in a sequence order.
     /// </summary>
@@ -19,7 +19,7 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
         public float ResetDelay { get { return m_ResetDelay; } set { m_ResetDelay = value; } }
 
         private int m_CurrentIndex = -1;
-        private float m_EndTime = -1;
+        private float m_LastUsedTime = -1;
 
         /// <summary>
         /// Starts or stops the state selection.
@@ -30,10 +30,8 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
             base.StartStopStateSelection(start);
 
             // The Sequence task can reset which index is returned if the next state is selected too slowly. 
-            if (start && m_ResetDelay != -1 && m_EndTime != -1 && m_EndTime + m_ResetDelay < Time.time) {
+            if (start && m_ResetDelay != -1 && m_LastUsedTime != -1 && m_LastUsedTime + m_ResetDelay < Time.time) {
                 m_CurrentIndex = -1;
-            } else if (!start) {
-                m_EndTime = Time.time;
             }
         }
 
@@ -52,13 +50,22 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
         /// <returns>Was the state changed successfully?</returns>
         public override bool NextState()
         {
+            var lastIndex = m_CurrentIndex;
+            m_LastUsedTime = Time.time;
             var count = 0;
             var size = m_States.Length;
+            if (size == 0) {
+                return false;
+            }
             do {
                 m_CurrentIndex = (m_CurrentIndex + 1) % size;
                 count++;
             } while ((!IsStateValid(m_CurrentIndex) || !m_States[m_CurrentIndex].Enabled) && count <= size);
-            return count <= size;
+            var stateChange = count <= size;
+            if (stateChange) {
+                ChangeStates(lastIndex, m_CurrentIndex);
+            }
+            return stateChange;
         }
     }
 }

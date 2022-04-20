@@ -4,18 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Events;
+namespace Opsive.UltimateCharacterController.Character.Abilities
+{
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
 using Opsive.UltimateCharacterController.Networking;
 #endif
-using Opsive.UltimateCharacterController.Traits;
-using Opsive.UltimateCharacterController.Objects.CharacterAssist;
-using Opsive.UltimateCharacterController.Utility;
+    using Opsive.UltimateCharacterController.Traits;
+    using Opsive.UltimateCharacterController.Objects.CharacterAssist;
+    using Opsive.UltimateCharacterController.Utility;
+    using UnityEngine;
 
-namespace Opsive.UltimateCharacterController.Character.Abilities
-{
     /// <summary>
     /// Interacts with another object within the scene. The object that the ability interacts with must have the Interact component added to it.
     /// </summary>
@@ -24,7 +24,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
     [DefaultAbilityIndex(9)]
     [DefaultAllowPositionalInput(false)]
     [DefaultAllowRotationalInput(false)]
-    [AllowMultipleAbilityTypes]
+    [AllowDuplicateTypes]
     public class Interact : DetectObjectAbilityBase
     {
         [Tooltip("The ID of the Interactable. A value of -1 indicates no ID.")]
@@ -45,7 +45,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         public AnimationEventTrigger InteractCompleteEvent { get { return m_InteractCompleteEvent; } set { m_InteractCompleteEvent = value; } }
 
         private CharacterIKBase m_CharacterIK;
-        private Interactable m_Interactable;
+        protected Interactable m_Interactable;
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
         private INetworkInfo m_NetworkInfo;
 #endif
@@ -71,6 +71,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
 #if UNITY_EDITOR
         public override string AbilityDescription { get { if (m_InteractableID != -1) { return "Interactable " + m_InteractableID; } return string.Empty; } }
 #endif
+        [Shared.Utility.NonSerialized] public Interactable Interactable { get { return m_Interactable; } set { m_Interactable = value; } }
 
         /// <summary>
         /// Initialize the default values.
@@ -102,7 +103,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
 
             // The ability can't start if the Interactable isn't ready. 
-            if (!m_Interactable.CanInteract(m_GameObject)) {
+            if (m_Interactable == null || !m_Interactable.CanInteract(m_GameObject)) {
                 return false;
             }
 
@@ -110,38 +111,42 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         }
 
         /// <summary>
-        /// Returns the possible AbilityStartLocations that the character can move towards.
+        /// Returns the possible MoveTowardsLocations that the character can move towards.
         /// </summary>
-        /// <returns>The possible AbilityStartLocations that the character can move towards.</returns>
-        public override AbilityStartLocation[] GetStartLocations()
+        /// <returns>The possible MoveTowardsLocations that the character can move towards.</returns>
+        public override MoveTowardsLocation[] GetMoveTowardsLocations()
         {
-            return m_Interactable.gameObject.GetCachedComponents<AbilityStartLocation>();
+            return m_Interactable.gameObject.GetCachedComponents<MoveTowardsLocation>();
         }
 
         /// <summary>
         /// Validates the object to ensure it is valid for the current ability.
         /// </summary>
         /// <param name="obj">The object being validated.</param>
-        /// <param name="fromTrigger">Is the object being validated from a trigger?</param>
+        /// <param name="raycastHit">The raycast hit of the detected object. Will be null for trigger detections.</param>
         /// <returns>True if the object is valid. The object may not be valid if it doesn't have an ability-specific component attached.</returns>
-        protected override bool ValidateObject(GameObject obj, bool fromTrigger)
+        protected override bool ValidateObject(GameObject obj, RaycastHit? raycastHit)
         {
-            if (!base.ValidateObject(obj, fromTrigger)) {
+            if (!base.ValidateObject(obj, raycastHit)) {
                 return false;
             }
 
-            if (m_Interactable != null) {
-                return obj == m_Interactable.gameObject;
+            if (m_Interactable != null && raycastHit.HasValue) {
+                return obj == m_Interactable.gameObject || obj.transform.IsChildOf(m_Interactable.transform);
             }
 
             // The object must have the Interactable component.
-            if ((m_Interactable = obj.GetCachedComponent<Interactable>()) != null) {
+            var interactable = obj.GetCachedParentComponent<Interactable>();
+            if (interactable != null) {
                 // If the ID is used then the IDs must match.
-                if (m_InteractableID != -1 && m_Interactable.ID != m_InteractableID) {
-                    m_Interactable = null;
+                if (m_InteractableID != -1 && interactable.ID != m_InteractableID) {
                     return false;
                 }
 
+                // Interactable will not be null if coming from a trigger.
+                if (m_Interactable == null) {
+                    m_Interactable = interactable;
+                }
                 return true;
             }
             return false;
@@ -179,7 +184,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             m_ExitedTrigger = false;
 
             if (!m_InteractEvent.WaitForAnimationEvent) {
-                Scheduler.ScheduleFixed(m_InteractEvent.Duration, DoInteract);
+                SchedulerBase.ScheduleFixed(m_InteractEvent.Duration, DoInteract);
             }
 
             // The interactable can move the limbs to a specific location.
@@ -187,7 +192,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 for (int i = 0; i < m_Interactable.IKTargets.Length; ++i) {
                     var ikTarget = m_Interactable.IKTargets[i];
                     if (ikTarget.Goal != CharacterIKBase.IKGoal.Last) {
-                        Scheduler.ScheduleFixed<AbilityIKTarget, Transform>(ikTarget.Delay, SetIKTarget, ikTarget, ikTarget.Transform);
+                        SchedulerBase.ScheduleFixed<AbilityIKTarget, Transform>(ikTarget.Delay, SetIKTarget, ikTarget, ikTarget.Transform);
                     }
                 }
             }
@@ -210,7 +215,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 }
                 for (int i = 0; i < m_DisableIKInteractionEvents.Length; ++i) {
                     if (m_DisableIKInteractionEvents[i] == null) {
-                        m_DisableIKInteractionEvents[i] = Scheduler.ScheduleFixed<AbilityIKTarget, Transform>(ikTarget.Duration, (AbilityIKTarget abilityIKTarget, Transform target) =>
+                        m_DisableIKInteractionEvents[i] = SchedulerBase.ScheduleFixed<AbilityIKTarget, Transform>(ikTarget.Duration, (AbilityIKTarget abilityIKTarget, Transform target) =>
                         {
                             SetIKTarget(ikTarget, target);
                             m_DisableIKInteractionEvents[i] = null;
@@ -241,7 +246,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             m_HasInteracted = true;
 
             if (!m_InteractCompleteEvent.WaitForAnimationEvent) {
-                Scheduler.ScheduleFixed(m_InteractCompleteEvent.Duration, InteractComplete);
+                SchedulerBase.ScheduleFixed(m_InteractCompleteEvent.Duration, InteractComplete);
             }
         }
         
@@ -270,7 +275,12 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
 
             if (base.TriggerExit(other)) {
-                m_Interactable = null;
+                // The character may have been in multiple triggers.
+                if (m_DetectedObject == null) {
+                    m_Interactable = null;
+                } else {
+                    m_Interactable = m_DetectedObject.GetCachedParentComponent<Interactable>();
+                }
                 return true;
             }
             return false;
@@ -287,7 +297,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             if (m_ExitedTrigger) {
                 m_Interactable = null;
                 m_DetectedTriggerObjectsCount = 0;
-                m_DetectedObject = null;
+                DetectedObject = null;
                 m_ExitedTrigger = false;
             }
             // The ability may end before the interaction duration has elapsed.
@@ -297,7 +307,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                         continue;
                     }
                     m_DisableIKInteractionEvents[i].Invoke();
-                    Scheduler.Cancel(m_DisableIKInteractionEvents[i]);
+                    SchedulerBase.Cancel(m_DisableIKInteractionEvents[i]);
                     m_DisableIKInteractionEvents[i] = null;
                 }
             }

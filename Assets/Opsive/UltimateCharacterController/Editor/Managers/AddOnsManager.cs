@@ -4,14 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEditor;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Editor.Managers
 {
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using System;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEngine;
+
     /// <summary>
     /// Draws the inspector for an add-on that has been installed.
     /// </summary>
@@ -33,32 +33,17 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
     public class AddOnsManager : Manager
     {
         private string[] m_ToolbarStrings = { "Installed Add-Ons", "Available Add-Ons" };
-        [SerializeField] private bool m_DrawInstalledAddOns = true;
+        [SerializeField] private bool m_DrawInstalledAddOns;
+        [SerializeField] private bool m_Initialized;
 
         private AddOnInspector[] m_AddOnInspectors;
         private string[] m_AddOnNames;
-
-        private static GUIStyle s_AddOnTitle;
-        private static GUIStyle AddOnTitle
-        {
-            get
-            {
-                if (s_AddOnTitle == null) {
-                    s_AddOnTitle = new GUIStyle(InspectorStyles.CenterBoldLabel);
-                    s_AddOnTitle.fontSize = 14;
-                    s_AddOnTitle.alignment = TextAnchor.MiddleLeft;
-                }
-                return s_AddOnTitle;
-            }
-        }
 
         /// <summary>
         /// Stores the information about the add-on.
         /// </summary>
         private class AvailableAddOn
         {
-            private const int c_IconSize = 78;
-
             private int m_ID;
             private string m_Name;
             private string m_AddOnURL;
@@ -67,12 +52,8 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             private Texture2D m_Icon;
             private MainManagerWindow m_MainManagerWindow;
 
-#if UNITY_2018_3_OR_NEWER
             private UnityEngine.Networking.UnityWebRequest m_IconRequest;
             private UnityEngine.Networking.DownloadHandlerTexture m_TextureDownloadHandler;
-#else
-            private WWW m_IconRequest;
-#endif
 
             /// <summary>
             /// Constructor for the AvailableAddOn class.
@@ -84,18 +65,14 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 m_AddOnURL = addOnURL;
                 m_Description = description;
                 // The add-on is installed if the type exists.
-                m_Installed = !string.IsNullOrEmpty(type) && UltimateCharacterController.Utility.UnityEngineUtility.GetType(type) != null;
+                m_Installed = !string.IsNullOrEmpty(type) && Shared.Utility.TypeUtility.GetType(type) != null;
                 m_MainManagerWindow = mainManagerWindow;
 
                 // Start loading the icon as soon as the url is retrieved.
-#if UNITY_2018_3_OR_NEWER
                 m_TextureDownloadHandler = new UnityEngine.Networking.DownloadHandlerTexture();
                 m_IconRequest = UnityEngine.Networking.UnityWebRequest.Get(iconURL);
                 m_IconRequest.downloadHandler = m_TextureDownloadHandler;
                 m_IconRequest.SendWebRequest();
-#else
-                m_IconRequest = new WWW(iconURL);
-#endif
             }
 
             /// <summary>
@@ -106,11 +83,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 if (m_IconRequest != null) {
                     if (m_IconRequest.isDone) {
                         if (string.IsNullOrEmpty(m_IconRequest.error)) {
-#if UNITY_2018_3_OR_NEWER
                             m_Icon = m_TextureDownloadHandler.texture;
-#else
-                            m_Icon = m_IconRequest.texture;
-#endif
                         }
                         m_IconRequest = null;
                     } else {
@@ -129,7 +102,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 if (m_Installed) {
                     name += " (INSTALLED)";
                 }
-                EditorGUILayout.LabelField(name, InspectorStyles.BoldLabel, GUILayout.Height(20));
+                EditorGUILayout.LabelField(name, Shared.Editor.Inspectors.Utility.InspectorStyles.BoldLabel, GUILayout.Height(20));
                 EditorGUILayout.BeginHorizontal();
                 if (!string.IsNullOrEmpty(m_AddOnURL) && GUILayout.Button("Overview", GUILayout.MaxWidth(150))) {
                     Application.OpenURL(m_AddOnURL);
@@ -139,7 +112,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 }
                 EditorGUILayout.EndHorizontal();
                 GUILayout.Space(5);
-                EditorGUILayout.LabelField(m_Description, InspectorStyles.WordWrapLabel);
+                EditorGUILayout.LabelField(m_Description, Shared.Editor.Inspectors.Utility.InspectorStyles.WordWrapLabel);
                 EditorGUILayout.EndVertical();
 
                 EditorGUILayout.EndHorizontal();
@@ -148,11 +121,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
 
         private Vector2 m_InstalledScrollPosition;
         private Vector2 m_AvailableScrollPosition;
-#if UNITY_2018_3_OR_NEWER
         private UnityEngine.Networking.UnityWebRequest m_AddOnsReqest;
-#else
-        private WWW m_AddOnsReqest;
-#endif
         private AvailableAddOn[] m_AvailableAddOns;
 
         /// <summary>
@@ -163,46 +132,11 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             base.Initialize(mainManagerWindow);
 
             BuildInstalledAddOns();
-        }
 
-        /// <summary>
-        /// Draws the Manager.
-        /// </summary>
-        public override void OnGUI()
-        {
-            var toolbarSelection = GUILayout.Toolbar(m_DrawInstalledAddOns ? 0 : 1, m_ToolbarStrings, EditorStyles.toolbarButton);
-            m_DrawInstalledAddOns = toolbarSelection == 0;
-            GUILayout.Space(10);
-
-            if (m_DrawInstalledAddOns) {
-                DrawInstalledAddOns();
-            } else {
-                DrawAvailableAddOns();
+            if (!m_Initialized) {
+                m_DrawInstalledAddOns = m_AvailableAddOns != null && m_AvailableAddOns.Length > 0;
+                m_Initialized = true;
             }
-        }
-
-        /// <summary>
-        /// Draws the inspector for all installed add-ons.
-        /// </summary>
-        private void DrawInstalledAddOns()
-        {
-            if (m_AddOnInspectors == null || m_AddOnInspectors.Length == 0) {
-                GUILayout.Label("No add-ons are currently installed.\n\nSelect the \"Available Add-Ons\" tab to see a list of all of the available add-ons.");
-                return;
-            }
-
-            m_InstalledScrollPosition = EditorGUILayout.BeginScrollView(m_InstalledScrollPosition);
-            for (int i = 0; i < m_AddOnInspectors.Length; ++i) {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                GUILayout.Label(m_AddOnNames[i], InspectorStyles.LargeBoldLabel);
-                GUILayout.Space(4);
-                m_AddOnInspectors[i].DrawInspector();
-                EditorGUILayout.EndVertical();
-                if (i != m_AddOnInspectors.Length - 1) {
-                    GUILayout.Space(20);
-                }
-            }
-            EditorGUILayout.EndScrollView();
         }
 
         /// <summary>
@@ -254,7 +188,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 m_AddOnInspectors[i] = Activator.CreateInstance(inspectorTypes[i]) as AddOnInspector;
                 m_AddOnInspectors[i].MainManagerWindow = m_MainManagerWindow;
 
-                var name = InspectorUtility.SplitCamelCase(inspectorTypes[i].Name);
+                var name = Shared.Editor.Utility.EditorUtility.SplitCamelCase(inspectorTypes[i].Name);
                 if (addOnInspectors[i].GetCustomAttributes(typeof(OrderedEditorItem), true).Length > 0) {
                     var item = inspectorTypes[i].GetCustomAttributes(typeof(OrderedEditorItem), true)[0] as OrderedEditorItem;
                     name = item.Name;
@@ -264,23 +198,55 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         }
 
         /// <summary>
+        /// Draws the Manager.
+        /// </summary>
+        public override void OnGUI()
+        {
+            var toolbarSelection = GUILayout.Toolbar(m_DrawInstalledAddOns ? 0 : 1, m_ToolbarStrings, EditorStyles.toolbarButton);
+            m_DrawInstalledAddOns = toolbarSelection == 0;
+            GUILayout.Space(10);
+
+            if (m_DrawInstalledAddOns) {
+                DrawInstalledAddOns();
+            } else {
+                DrawAvailableAddOns();
+            }
+        }
+
+        /// <summary>
+        /// Draws the inspector for all installed add-ons.
+        /// </summary>
+        private void DrawInstalledAddOns()
+        {
+            if (m_AddOnInspectors == null || m_AddOnInspectors.Length == 0) {
+                GUILayout.Label("No add-ons are currently installed.\n\nSelect the \"Available Add-Ons\" tab to see a list of all of the available add-ons.");
+                return;
+            }
+
+            m_InstalledScrollPosition = EditorGUILayout.BeginScrollView(m_InstalledScrollPosition);
+            for (int i = 0; i < m_AddOnInspectors.Length; ++i) {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                GUILayout.Label(m_AddOnNames[i], Shared.Editor.Inspectors.Utility.InspectorStyles.LargeBoldLabel);
+                GUILayout.Space(4);
+                m_AddOnInspectors[i].DrawInspector();
+                EditorGUILayout.EndVertical();
+                if (i != m_AddOnInspectors.Length - 1) {
+                    GUILayout.Space(20);
+                }
+            }
+            EditorGUILayout.EndScrollView();
+        }
+
+        /// <summary>
         /// Draws all of the add-ons that are currently available.
         /// </summary>
         private void DrawAvailableAddOns()
         {
             if (m_AvailableAddOns == null && m_AddOnsReqest == null) {
-#if UNITY_2018_3_OR_NEWER
                 m_AddOnsReqest = UnityEngine.Networking.UnityWebRequest.Get("https://opsive.com/asset/UltimateCharacterController/AddOnsList.txt");
                 m_AddOnsReqest.SendWebRequest();
-#else
-                m_AddOnsReqest = new WWW("https://opsive.com/asset/UltimateCharacterController/AddOnsList.txt");
-#endif
             } else if (m_AvailableAddOns == null && m_AddOnsReqest.isDone && string.IsNullOrEmpty(m_AddOnsReqest.error) && Event.current.type == EventType.Layout) {
-#if UNITY_2018_3_OR_NEWER
                 var splitAddOns = m_AddOnsReqest.downloadHandler.text.Split('\n');
-#else
-                var splitAddOns = m_AddOnsReqest.text.Split('\n');
-#endif
                 m_AvailableAddOns = new AvailableAddOn[splitAddOns.Length];
                 var count = 0;
                 for (int i = 0; i < splitAddOns.Length; ++i) {

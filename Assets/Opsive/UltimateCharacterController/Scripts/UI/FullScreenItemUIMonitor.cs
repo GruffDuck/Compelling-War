@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.UI
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using UnityEngine;
+
     /// <summary>
     /// The FullScreenItemUIMonitor will show the full screen item UI when the OnItemShowFullScreenUI event is triggered.
     /// </summary>
@@ -54,6 +54,7 @@ namespace Opsive.UltimateCharacterController.UI
 
             EventHandler.RegisterEvent<int, bool>(m_Character, "OnItemShowFullScreenUI", OnShowItemUI);
             m_CharacterController = m_Character.GetCachedComponent<UltimateCharacterLocomotion>();
+            gameObject.SetActive(CanShowUI());
         }
 
         /// <summary>
@@ -82,7 +83,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <returns>True if the UI can be shown.</returns>
         protected override bool CanShowUI()
         {
-            return m_FullScreenUIShown;
+            return base.CanShowUI() && m_FullScreenUIShown;
         }
     }
 }

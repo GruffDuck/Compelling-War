@@ -4,103 +4,38 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using System;
-using System.Reflection;
-using System.Collections.Generic;
-using Opsive.UltimateCharacterController.Camera;
-using Opsive.UltimateCharacterController.Game;
-
 namespace Opsive.UltimateCharacterController.Utility
 {
+    using Opsive.Shared.Game;
+    using System;
+    using System.Collections.Generic;
+    using UnityEngine;
+
     /// <summary>
     /// Contains a set of utility functions useful for interacting with the Unity Engine.
     /// </summary>
     public class UnityEngineUtility
     {
-        private static Dictionary<string, Type> s_TypeLookup = new Dictionary<string, Type>();
-        private static List<Assembly> s_LoadedAssemblies = null;
-        private static Dictionary<GameObject, UnityEngine.Camera> s_GameObjectCameraMap = new Dictionary<GameObject, UnityEngine.Camera>();
         public static HashSet<object> s_ObjectUpdated = new HashSet<object>();
         public static ScheduledEventBase s_ObjectClearEvent;
-        private static Dictionary<FieldInfo, Dictionary<Type, bool>> s_FieldAttributeMap;
-        private static Dictionary<PropertyInfo, Dictionary<Type, bool>> s_PropertyAttributeMap;
 
         /// <summary>
-        /// Searches through all of the loaded assembies for the specified type.
-        /// </summary>
-        /// <param name="name">The string value of the type.</param>
-        /// <returns>The found Type. Can be null.</returns>
-        public static Type GetType(string name)
-        {
-            if (string.IsNullOrEmpty(name)) {
-                return null;
-            }
-
-            Type type;
-            // Cache the results for quick repeated lookup.
-            if (s_TypeLookup.TryGetValue(name, out type)) {
-                return type;
-            }
-
-            type = Type.GetType(name);
-            // Look in the loaded assemblies.
-            if (type == null) {
-                if (s_LoadedAssemblies == null || s_LoadedAssemblies.Count == 0) {
-#if NETFX_CORE && !UNITY_EDITOR
-                    s_LoadedAssemblies = GetStorageFileAssemblies(typeName).Result;
-#else
-                    s_LoadedAssemblies = new List<Assembly>();
-                    var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-                    for (int i = 0; i < assemblies.Length; ++i) {
-                        s_LoadedAssemblies.Add(assemblies[i]);
-                    }
-#endif
-                }
-                // Continue until the type is found.
-                for (int i = 0; i < s_LoadedAssemblies.Count; ++i) {
-                    type = s_LoadedAssemblies[i].GetType(name);
-                    if (type != null) {
-                        break;
-                    }
-                }
-            }
-            if (type == null) {
-                // TODO: QuickStart and QuickStop were renamed in version 2.1.3.
-                if (name == "Opsive.UltimateCharacterController.Character.Abilities.StartMovement") {
-                    return GetType("Opsive.UltimateCharacterController.Character.Abilities.QuickStart");
-                }
-                if (name == "Opsive.UltimateCharacterController.Character.Abilities.StopMovement") {
-                    return GetType("Opsive.UltimateCharacterController.Character.Abilities.QuickStop");
-                }
-                // TODO: Add-on directory was renamed in 2.1.5.
-                if (name.Contains("Opsive.UltimateCharacterController.Addons.")) {
-                    return GetType(name.Replace("Opsive.UltimateCharacterController.Addons.", "Opsive.UltimateCharacterController.AddOns."));
-                }
-            }
-            if (type != null) {
-                s_TypeLookup.Add(name, type);
-            }
-            return type;
-        }
-
-        /// <summary>
-        /// Returns a friendly name for the specified type.
+        /// Returns a display name for the specified type.
         /// </summary>
         /// <param name="type">The type to retieve the name of.</param>
-        /// <returns>A friendly name for the specified type.</returns>
-        public static string GetFriendlyName(Type type)
+        /// <returns>A display name for the specified type.</returns>
+        public static string GetDisplayName(Type type)
         {
-            return GetFriendlyName(type.FullName, type.Name);
+            return GetDisplayName(type.FullName, type.Name);
         }
 
         /// <summary>
-        /// Returns a friendly name for the specified type.
+        /// Returns a display name for the specified type.
         /// </summary>
         /// <param name="fullName">The full name of the type.</param>
         /// <param name="name">The name of the type.</param>
-        /// <returns>A friendly name for the specified type.</returns>
-        public static string GetFriendlyName(string fullName, string name)
+        /// <returns>A display name for the specified type.</returns>
+        public static string GetDisplayName(string fullName, string name)
         {
             if (fullName.Contains("FirstPersonController")) {
                 return "First Person " + name;
@@ -108,131 +43,6 @@ namespace Opsive.UltimateCharacterController.Utility
                 return "Third Person " + name;
             }
             return name;
-        }
-
-        /// <summary>
-        /// Returns true if the field has the specified attribute.
-        /// </summary>
-        /// <param name="field">The field to determine if it has the attribute.</param>
-        /// <param name="attribute">The attribute to compare against.</param>
-        /// <returns>Tue if the field has the specified attribute.</returns>
-        public static bool HasAttribute(FieldInfo field, Type attribute)
-        {
-            if (field == null) {
-                return false;
-            }
-
-            // Cache the results for quick repeated lookup.
-            if (s_FieldAttributeMap == null) {
-                s_FieldAttributeMap = new Dictionary<FieldInfo, Dictionary<Type, bool>>();
-            }
-
-            Dictionary<Type, bool> typeLookup;
-            if (!s_FieldAttributeMap.TryGetValue(field, out typeLookup)) {
-                typeLookup = new Dictionary<Type, bool>();
-                s_FieldAttributeMap.Add(field, typeLookup);
-            }
-
-            // The static field attribute map contains a dictionary of attributes that the specified type has. Add to that dictionary if the current
-            // attribute type hasn't been retrieved before.
-            var hasAttribute = false;
-            if (!typeLookup.TryGetValue(attribute, out hasAttribute)) {
-                hasAttribute = field.GetCustomAttributes(attribute, false).Length > 0;
-                typeLookup.Add(attribute, hasAttribute);
-            }
-
-            return hasAttribute;
-        }
-
-        /// <summary>
-        /// Returns true if the property has the specified attribute.
-        /// </summary>
-        /// <param name="property">The property to determine if it has the attribute.</param>
-        /// <param name="attribute">The attribute to compare against.</param>
-        /// <returns>Tue if the property has the specified attribute.</returns>
-        public static bool HasAttribute(PropertyInfo property, Type attribute)
-        {
-            if (property == null) {
-                return false;
-            }
-
-            // Cache the results for quick repeated lookup.
-            if (s_PropertyAttributeMap == null) {
-                s_PropertyAttributeMap = new Dictionary<PropertyInfo, Dictionary<Type, bool>>();
-            }
-
-            Dictionary<Type, bool> typeLookup;
-            if (!s_PropertyAttributeMap.TryGetValue(property, out typeLookup)) {
-                typeLookup = new Dictionary<Type, bool>();
-                s_PropertyAttributeMap.Add(property, typeLookup);
-            }
-
-            // The static property attribute map contains a dictionary of attributes that the specified type has. Add to that dictionary if the current
-            // attribute type hasn't been retrieved before.
-            var hasAttribute = false;
-            if (!typeLookup.TryGetValue(attribute, out hasAttribute)) {
-                hasAttribute = property.GetCustomAttributes(attribute, false).Length > 0;
-                typeLookup.Add(attribute, hasAttribute);
-            }
-
-            return hasAttribute;
-        }
-
-        /// <summary>
-        /// Returns the camera with the MainCamera tag or the camera with the CameraController attached.
-        /// </summary>
-        /// <param name="character">The character that the camera is attached to.</param>
-        /// <returns>The found camera (if any).</returns>
-        public static UnityEngine.Camera FindCamera(GameObject character)
-        {
-            UnityEngine.Camera camera;
-            if (character != null) {
-                if (s_GameObjectCameraMap.TryGetValue(character, out camera)) {
-                    // The reference may be null if the scene changed.
-                    if (camera != null) {
-                        return camera;
-                    }
-                    // The reference is null - search for the camera again.
-                    s_GameObjectCameraMap.Remove(character);
-                }
-            }
-            // First try to find the camera with the character attached. If no camera has the character attached the return the first camera with the CameraController.
-            camera = SearchForCamera(character);
-            if (camera == null) {
-                camera = SearchForCamera(null);
-                if (camera != null) {
-                    // The camera controller's character field must be null or equal to the existing character.
-                    var cameraController = camera.GetComponent<CameraController>();
-                    if (cameraController.Character != null && cameraController.Character != character) {
-                        camera = null;
-                    }
-                }
-            }
-            if (camera != null && character != null) {
-                s_GameObjectCameraMap.Add(character, camera);
-            }
-            return camera;
-        }
-
-        /// <summary>
-        /// Loops through the cameras searching for a camera with the character assigned.
-        /// </summary>
-        /// <param name="character">The character to search for. Can be null.</param>
-        /// <returns>The camera with the character assigned.</returns>
-        private static UnityEngine.Camera SearchForCamera(GameObject character)
-        {
-            CameraController cameraController;
-            UnityEngine.Camera mainCamera;
-            if ((mainCamera = UnityEngine.Camera.main) != null && (cameraController = mainCamera.GetComponent<CameraController>()) != null && (character == null || cameraController.Character == character)) {
-                return mainCamera;
-            }
-            var cameraControllers = UnityEngine.Object.FindObjectsOfType<CameraController>();
-            for (int i = 0; i < cameraControllers.Length; ++i) {
-                if (character == null || cameraControllers[i].Character == character) {
-                    return cameraControllers[i].GetComponent<UnityEngine.Camera>();
-                }
-            }
-            return null;
         }
 
         /// <summary>
@@ -264,7 +74,7 @@ namespace Opsive.UltimateCharacterController.Utility
             s_ObjectUpdated.Add(obj);
 
             if (autoClear && s_ObjectClearEvent == null) {
-                s_ObjectClearEvent = Scheduler.Schedule(0.0001f, ClearUpdatedObjectsEvent);
+                s_ObjectClearEvent = SchedulerBase.Schedule(0.0001f, ClearUpdatedObjectsEvent);
             }
         }
 
@@ -304,17 +114,10 @@ namespace Opsive.UltimateCharacterController.Utility
         /// Clears the Unity Engine Utility cache.
         /// </summary>
         /// 
-#if UNITY_2019_3_OR_NEWER
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-#endif
         public static void ClearCache()
         {
-            if (s_TypeLookup != null) { s_TypeLookup.Clear(); }
-            if (s_GameObjectCameraMap != null) { s_GameObjectCameraMap.Clear(); }
             if (s_ObjectUpdated != null) { s_ObjectUpdated.Clear(); }
-            if (s_LoadedAssemblies != null) { s_LoadedAssemblies.Clear(); }
-            if (s_FieldAttributeMap != null) { s_FieldAttributeMap.Clear(); }
-            if (s_PropertyAttributeMap != null) { s_PropertyAttributeMap.Clear(); }
         }
 
         /// <summary>
@@ -530,7 +333,7 @@ namespace Opsive.UltimateCharacterController.Utility
                 if (m_RandomSpin) {
                     rotation *= Quaternion.AngleAxis(UnityEngine.Random.Range(0, 360), normal);
                 }
-                var instantiatedObject = ObjectPool.Instantiate(m_Object, position, rotation);
+                var instantiatedObject = ObjectPoolBase.Instantiate(m_Object, position, rotation);
                 // If the DirectionalConstantForce component exists then the gravity direction should be set so the object will move in the correct direction.
                 var directionalConstantForce = instantiatedObject.GetCachedComponent<Traits.DirectionalConstantForce>();
                 if (directionalConstantForce != null) {
@@ -539,6 +342,75 @@ namespace Opsive.UltimateCharacterController.Utility
                 return instantiatedObject;
             }
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Struct which stores the material values to revert back to after the material has been faded.
+    /// </summary>
+    public struct OriginalMaterialValue
+    {
+        [Tooltip("The color of the material.")]
+        private Color m_Color;
+        [Tooltip("Does the material have a mode property?")]
+        private bool m_ContainsMode;
+        [Tooltip("The render mode of the material.")]
+        private float m_Mode;
+        [Tooltip("The SourceBlend BlendMode of the material.")]
+        private int m_SrcBlend;
+        [Tooltip("The DestinationBlend BlendMode of the material.")]
+        private int m_DstBlend;
+        [Tooltip("Is alpha blend enabled?")]
+        private bool m_AlphaBlend;
+        [Tooltip("The render queue of the material.")]
+        private int m_RenderQueue;
+
+        public Color Color { get { return m_Color; } set { m_Color = value; } }
+        public bool ContainsMode { get { return m_ContainsMode; } set { m_ContainsMode = value; } }
+        public float Mode { get { return m_Mode; } set { m_Mode = value; } }
+        public int SrcBlend { get { return m_SrcBlend; } set { m_SrcBlend = value; } }
+        public int DstBlend { get { return m_DstBlend; } set { m_DstBlend = value; } }
+        public bool AlphaBlend { get { return m_AlphaBlend; } set { m_AlphaBlend = value; } }
+        public int RenderQueue { get { return m_RenderQueue; } set { m_RenderQueue = value; } }
+
+        private static int s_ModeID;
+        private static int s_SrcBlendID;
+        private static int s_DstBlendID;
+        private static string s_AlphaBlendString = "_ALPHABLEND_ON";
+
+        public static int ModeID { get { return s_ModeID; } }
+        public static int SrcBlendID { get { return s_SrcBlendID; } }
+        public static int DstBlendID { get { return s_DstBlendID; } }
+        public static string AlphaBlendString { get { return s_AlphaBlendString; } }
+
+        /// <summary>
+        /// Initializes the OriginalMaterialValue.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod]
+        private static void Initialize()
+        {
+            s_ModeID = Shader.PropertyToID("_Mode");
+            s_SrcBlendID = Shader.PropertyToID("_SrcBlend");
+            s_DstBlendID = Shader.PropertyToID("_DstBlend");
+        }
+
+        /// <summary>
+        /// Initializes the OriginalMaterialValue to the material values.
+        /// </summary>
+        /// <param name="material">The material to initialize.</param>
+        /// <param name="colorID">The id of the color property.</param>
+        /// <param name="containsMode">Does the material have a Mode property?</param>
+        public void Initialize(Material material, int colorID, bool containsMode)
+        {
+            m_Color = material.GetColor(colorID);
+            m_AlphaBlend = material.IsKeywordEnabled(s_AlphaBlendString);
+            m_RenderQueue = material.renderQueue;
+            m_ContainsMode = containsMode;
+            if (containsMode) {
+                m_Mode = material.GetFloat(s_ModeID);
+                m_SrcBlend = material.GetInt(s_SrcBlendID);
+                m_DstBlend = material.GetInt(s_DstBlendID);
+            }
         }
     }
 
@@ -574,16 +446,35 @@ namespace Opsive.UltimateCharacterController.Utility
     }
 
     /// <summary>
-    /// Attribute which allows the inspector to draw a foldout without the need of a custom editor.
+    /// Determines if an animation event should be triggered for a specified slot.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
-    public class InspectorFoldout : Attribute
+    [System.Serializable]
+    public class AnimationSlotEventTrigger : AnimationEventTrigger
     {
-        private string m_Title;
-        public string Title { get { return m_Title; } }
-        public InspectorFoldout(string title)
-        {
-            m_Title = title;
-        }
+        [Tooltip("Specifies if the item should wait for the specific slot animation event.")]
+        [SerializeField] private bool m_WaitForSlotEvent;
+
+        public bool WaitForSlotEvent { get { return m_WaitForSlotEvent; } set { m_WaitForSlotEvent = value; } }
+
+        /// <summary>
+        /// Default constructor.
+        /// </summary>
+        public AnimationSlotEventTrigger() { }
+
+        /// <summary>
+        /// Two parameter constructor for AnimationSlotEventTrigger.
+        /// </summary>
+        /// <param name="waitForAnimationEvent">Is the event triggered with a Unity animation event?</param>
+        /// <param name="duration">The amount of time it takes to trigger the event if not using an animation event.</param>
+        public AnimationSlotEventTrigger(bool waitForAnimationEvent, float duration) : base(waitForAnimationEvent, duration) { }
+    }
+
+    /// <summary>
+    /// Attribute which allows the same type to be added multiple times.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
+    public class AllowDuplicateTypes : Attribute
+    {
+        // Intentionally left blank.
     }
 }

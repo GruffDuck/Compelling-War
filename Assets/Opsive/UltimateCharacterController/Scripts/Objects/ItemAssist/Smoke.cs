@@ -4,22 +4,21 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-using Opsive.UltimateCharacterController.Items;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Utility;
-
 namespace Opsive.UltimateCharacterController.Objects.ItemAssist
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Character;
+    using Opsive.UltimateCharacterController.Game;
+    using Opsive.UltimateCharacterController.Items;
+    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
+    using UnityEngine;
+
     /// <summary>
     /// The Smoke component is attached to a GameObject with the a ParticleSystem attached representing smoke. 
     /// </summary>
     public class Smoke : MonoBehaviour
     {
-#if FIRST_PERSON_CONTROLLER && THIRD_PERSON_CONTROLLER
         private GameObject m_GameObject;
         private Transform m_Transform;
         private Item m_Item;
@@ -41,7 +40,6 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
             m_SimulationSpace = new ParticleSystemSimulationSpace[m_Particles.Length];
             m_StartLayer = m_GameObject.layer;
         }
-#endif
 
         /// <summary>
         /// A weapon has been fired and the smoke needs to show. 
@@ -51,7 +49,6 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
         /// <param name="characterLocomotion">The character that the smoke is attached to.</param>
         public void Show(Item item, int itemActionID, UltimateCharacterLocomotion characterLocomotion)
         {
-#if FIRST_PERSON_CONTROLLER && THIRD_PERSON_CONTROLLER
             m_Character = characterLocomotion.gameObject;
             EventHandler.RegisterEvent<bool>(m_Character, "OnCharacterChangePerspectives", OnChangePerspectives);
 
@@ -69,17 +66,15 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
                 }
             }
 
-            Scheduler.Schedule(maxLifeTime, DestroySelf);
-#endif
+            SchedulerBase.Schedule(maxLifeTime, DestroySelf);
         }
 
-#if FIRST_PERSON_CONTROLLER && THIRD_PERSON_CONTROLLER
         /// <summary>
         /// Place itself back in the ObjectPool.
         /// </summary>
         public void DestroySelf()
         {
-            ObjectPool.Destroy(m_GameObject);
+            ObjectPoolBase.Destroy(m_GameObject);
         }
 
         /// <summary>
@@ -125,6 +120,5 @@ namespace Opsive.UltimateCharacterController.Objects.ItemAssist
             }
             m_Character = null;
         }
-#endif
     }
 }

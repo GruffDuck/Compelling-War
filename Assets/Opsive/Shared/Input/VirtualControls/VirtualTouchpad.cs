@@ -1,16 +1,16 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
-using Opsive.UltimateCharacterController.Game;
-
-namespace Opsive.UltimateCharacterController.Input.VirtualControls
+namespace Opsive.Shared.Input.VirtualControls
 {
+    using Opsive.Shared.Game;
+    using UnityEngine;
+    using UnityEngine.EventSystems;
+    using UnityEngine.UI;
+
     /// <summary>
     /// A virtual touchpad that will move the axis based on the position of the press relative to the starting press position.
     /// </summary>
@@ -58,9 +58,9 @@ namespace Opsive.UltimateCharacterController.Input.VirtualControls
                 var canvasScale = m_CanvasScalarTransform == null ? Vector3.one : m_CanvasScalarTransform.localScale;
                 m_DeltaPosition.x += data.delta.x / canvasScale.x;
                 m_DeltaPosition.y += data.delta.y / canvasScale.y;
-                Scheduler.Cancel(m_ActiveDragScheduler);
+                SchedulerBase.Cancel(m_ActiveDragScheduler);
                 if (m_RequireActiveDrag) {
-                    m_ActiveDragScheduler = Scheduler.Schedule(Time.fixedDeltaTime, DampenDeltaPosition);
+                    m_ActiveDragScheduler = SchedulerBase.Schedule(Time.fixedDeltaTime, DampenDeltaPosition);
                 }
             }
         }
@@ -72,22 +72,22 @@ namespace Opsive.UltimateCharacterController.Input.VirtualControls
         {
             m_DeltaPosition /= (1 + m_ActiveDragDamping);
             if (m_DeltaPosition.sqrMagnitude > 0.1f) {
-                m_ActiveDragScheduler = Scheduler.Schedule(Time.fixedDeltaTime, DampenDeltaPosition);
+                m_ActiveDragScheduler = SchedulerBase.Schedule(Time.fixedDeltaTime, DampenDeltaPosition);
             }
         }
 
         /// <summary>
         /// Returns the value of the axis.
         /// </summary>
-        /// <param name="name">The name of the axis.</param>
+        /// <param name="buttonName">The name of the axis.</param>
         /// <returns>The value of the axis.</returns>
-        public override float GetAxis(string name)
+        public override float GetAxis(string buttonName)
         {
             if (!m_Pressed) {
                 return 0;
             }
 
-            if (name == m_HorizontalInputName) {
+            if (buttonName == m_HorizontalInputName) {
                 return m_DeltaPosition.x / (m_RectTransform.sizeDelta.x - m_LocalStartPosition.x);
             }
             return m_DeltaPosition.y / (m_RectTransform.sizeDelta.y - m_LocalStartPosition.y);

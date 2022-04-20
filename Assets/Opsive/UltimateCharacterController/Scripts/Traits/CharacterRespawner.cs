@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Events;
-
 namespace Opsive.UltimateCharacterController.Traits
 {
+    using Opsive.Shared.Events;
+    using UnityEngine;
+
     /// <summary>
     /// Extends the Respawner by listening/executing character related events.
     /// </summary>
@@ -62,6 +62,9 @@ namespace Opsive.UltimateCharacterController.Traits
         private void OnActivate(bool activate)
         {
             m_Active = activate;
+            if (!m_Active) {
+                CancelRespawn();
+            }
         }
 
         /// <summary>

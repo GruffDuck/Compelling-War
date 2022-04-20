@@ -4,20 +4,21 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Audio;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Game;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-using Opsive.UltimateCharacterController.Networking.Game;
-#endif
-
 namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
 {
+    using Opsive.Shared.Audio;
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.UltimateCharacterController.Game;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+    using Opsive.UltimateCharacterController.Networking.Game;
+#endif
+    using UnityEngine;
+
     /// <summary>
     /// Base class for any object that can be picked up.
     /// </summary>
-    public abstract class ObjectPickup : MonoBehaviour
+    public abstract class ObjectPickup : MonoBehaviour, IObjectPickup
     {
         [Tooltip("The amount of time to enable the trigger after the object has been enabled and the rigidbody has stopped moving.")]
         [SerializeField] protected float m_TriggerEnableDelay = 4;
@@ -104,12 +105,12 @@ namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
                     // the event should be scheduled immediately.
                     if (m_Rigidbody != null) {
                         if (m_TriggerEnableEvent != null) {
-                            Scheduler.Cancel(m_TriggerEnableEvent);
+                            SchedulerBase.Cancel(m_TriggerEnableEvent);
                             m_TriggerEnableEvent = null;
                         }
-                        Scheduler.Schedule(0.2f, CheckVelocity);
+                        SchedulerBase.Schedule(0.2f, CheckVelocity);
                     } else {
-                        m_TriggerEnableEvent = Scheduler.Schedule(m_TriggerEnableDelay, EnableTrigger);
+                        m_TriggerEnableEvent = SchedulerBase.Schedule(m_TriggerEnableDelay, EnableTrigger);
                     }
                 } else {
                     // If the object isn't initialized yet then this is the first time the object has spawned.
@@ -125,11 +126,11 @@ namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
         private void CheckVelocity()
         {
             if (m_Rigidbody.velocity.sqrMagnitude < 0.01f) {
-                m_TriggerEnableEvent = Scheduler.Schedule(m_TriggerEnableDelay, EnableTrigger);
+                m_TriggerEnableEvent = SchedulerBase.Schedule(m_TriggerEnableDelay, EnableTrigger);
                 return;
             }
             // The Rigidbody hasn't settled yet - check the velocity again in the future.
-            Scheduler.Schedule(0.2f, CheckVelocity);
+            SchedulerBase.Schedule(0.2f, CheckVelocity);
         }
 
         /// <summary>
@@ -171,6 +172,12 @@ namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
         public abstract void TriggerEnter(GameObject other);
 
         /// <summary>
+        /// Picks up the object.
+        /// </summary>
+        /// <param name="target">The object doing the pickup.</param>
+        public abstract void DoPickup(GameObject target);
+
+        /// <summary>
         /// The object has been picked up.
         /// </summary>
         /// <param name="pickedUpBy">A reference to the object that picked up the object.</param>
@@ -188,19 +195,19 @@ namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
 
             // Optionally play a pickup sound if the object picking up the item is attached to a camera.
             // A null GameObject indicates that the clip will play from the AudioManager.
-            var camera = Utility.UnityEngineUtility.FindCamera(pickedUpBy);
-            if (camera != null) {
-                m_PickupAudioClipSet.PlayAudioClip(null);
+            var foundCamera = Shared.Camera.CameraUtility.FindCamera(pickedUpBy);
+            if (foundCamera != null) {
+                m_PickupAudioClipSet.PlayAtPosition(m_Transform.position);
             }
 
-            if (ObjectPool.InstantiatedWithPool(m_GameObject)) {
+            if (ObjectPoolBase.InstantiatedWithPool(m_GameObject)) {
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
                 if (NetworkObjectPool.IsNetworkActive()) {
                     NetworkObjectPool.Destroy(m_GameObject);
                     return;
                 }
 #endif
-                ObjectPool.Destroy(m_GameObject);
+                ObjectPoolBase.Destroy(m_GameObject);
             } else {
                 // Deactivate the pickup for now. It can appear again if a Respawner component is attached to the GameObject.
                 m_GameObject.SetActive(false);

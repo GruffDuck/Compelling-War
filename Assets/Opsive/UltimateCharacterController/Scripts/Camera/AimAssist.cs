@@ -4,14 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using Opsive.UltimateCharacterController.Character;
-using Opsive.UltimateCharacterController.Events;
-using Opsive.UltimateCharacterController.Utility;
-using Opsive.UltimateCharacterController.StateSystem;
-
 namespace Opsive.UltimateCharacterController.Camera
 {
+    using Opsive.Shared.Events;
+    using Opsive.Shared.Game;
+    using Opsive.Shared.StateSystem;
+    using Opsive.UltimateCharacterController.Character;
+    using UnityEngine;
+
     /// <summary>
     /// The AimAssist component allows for the camera and character to automatically to face the specified target.
     /// </summary>
@@ -103,7 +103,7 @@ namespace Opsive.UltimateCharacterController.Camera
         /// <summary>
         /// The Aim ability has started or stopped.
         /// </summary>
-        /// <param name="start">Has the Aim ability started?</param>
+        /// <param name="aim">Has the Aim ability started?</param>
         /// <param name="inputStart">Was the ability started from input?</param>
         private void OnAim(bool aim, bool inputStart)
         {

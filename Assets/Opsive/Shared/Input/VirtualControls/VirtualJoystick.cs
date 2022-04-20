@@ -1,15 +1,15 @@
 ﻿/// ---------------------------------------------
-/// Ultimate Character Controller
+/// Opsive Shared
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
-
-namespace Opsive.UltimateCharacterController.Input.VirtualControls
+namespace Opsive.Shared.Input.VirtualControls
 {
+    using UnityEngine;
+    using UnityEngine.EventSystems;
+    using UnityEngine.UI;
+
     /// <summary>
     /// A virtual joystick that stays within the specified radius range. When the press is released the joystick knob will snap back to the starting position.
     /// </summary>
@@ -75,15 +75,15 @@ namespace Opsive.UltimateCharacterController.Input.VirtualControls
         /// <summary>
         /// Returns the value of the axis.
         /// </summary>
-        /// <param name="name">The name of the axis.</param>
+        /// <param name="buttonName">The name of the axis.</param>
         /// <returns>The value of the axis.</returns>
-        public override float GetAxis(string name)
+        public override float GetAxis(string buttonName)
         {
             if (!m_Pressed) {
                 return 0;
             }
 
-            if (name == m_HorizontalInputName) {
+            if (buttonName == m_HorizontalInputName) {
                 if (Mathf.Abs(m_DeltaPosition.x) > m_DeadzoneRadius) {
                     return m_DeltaPosition.x / m_Radius;
                 }

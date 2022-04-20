@@ -4,18 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using UnityEditor;
-using UnityEngine;
-using UnityEditorInternal;
-using Opsive.UltimateCharacterController.Items.Actions;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState;
-using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
-using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-using System;
-using System.Collections.Generic;
-
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 {
+    using Opsive.Shared.Editor.Inspectors.StateSystem;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState;
+    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+    using Opsive.UltimateCharacterController.Items.Actions;
+    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
+    using System;
+    using System.Collections.Generic;
+    using UnityEditor;
+    using UnityEditorInternal;
+    using UnityEngine;
+
     /// <summary>
     /// Shows a custom inspector for the MeleeWeapon component.
     /// </summary>
@@ -39,6 +40,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             base.OnEnable();
 
             m_MeleeWeapon = target as MeleeWeapon;
+            if (m_MeleeWeapon == null) {
+                return;
+            }
             var characterLocomotion = m_Item.GetComponentInParent<UltimateCharacterController.Character.UltimateCharacterLocomotion>();
             if (characterLocomotion != null) {
                 m_MeleeWeapon.RecoilAnimatorAudioStateSet.DeserializeAnimatorAudioStateSelector(m_Item, characterLocomotion);
@@ -59,7 +63,6 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                     EditorGUI.indentLevel++;
                     EditorGUILayout.PropertyField(PropertyFromName("m_RequireInAirMeleeAbilityInAir"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_RequireCounterAttackAbility"));
-                    EditorGUILayout.PropertyField(PropertyFromName("m_ConsumableItemType"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_AimItemSubstateIndexAddition"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_MaxCollisionCount"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_ForwardShieldSensitivity"));
@@ -81,6 +84,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                     EditorGUI.indentLevel++;
                     EditorGUILayout.PropertyField(PropertyFromName("m_ImpactLayers"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_TriggerInteraction"));
+                    EditorGUILayout.PropertyField(PropertyFromName("m_DamageProcessor"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_DamageAmount"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_ImpactForce"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_ImpactForceFrames"));
@@ -93,7 +97,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                 if (Foldout("Recoil")) {
                     EditorGUI.indentLevel++;
                     EditorGUILayout.PropertyField(PropertyFromName("m_ApplyRecoil"));
-                    if (Foldout("Animator Audio")) {
+                    if (Foldout("Animator Audio", "Recoil")) {
                         EditorGUI.indentLevel++;
                         AnimatorAudioStateSetInspector.DrawAnimatorAudioStateSet(m_MeleeWeapon, m_MeleeWeapon.RecoilAnimatorAudioStateSet, "m_RecoilAnimatorAudioStateSet", false,
                                     ref m_ReorderableRecoilAnimatorAudioStateSetList, OnRecoilAnimatorAudioStateListDraw, OnRecoilAnimatorAudioStateListSelect,
@@ -121,7 +125,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 
                 if (Foldout("Events")) {
                     EditorGUI.indentLevel++;
-                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnImpactEvent"));
+                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnImpactEvent"));
                     EditorGUI.indentLevel--;
                 }
             };
@@ -210,7 +214,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
 
             StateInspector.OnStateListDraw(animatorAudioState, animatorAudioState.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 StateInspector.UpdateDefaultStateValues(animatorAudioState.States);
             }
         }
@@ -232,7 +236,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.AddExistingPreset(animatorAudioState.GetType(), animatorAudioState.States, m_ReorderableRecoilAnimatorAudioStateSetStateList, GetSelectedRecoilAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedRecoilAnimatorAudioStateSetIndexKey)));
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableRecoilAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -246,7 +250,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.CreatePreset(animatorAudioState, animatorAudioState.States, m_ReorderableRecoilAnimatorAudioStateSetStateList, GetSelectedRecoilAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedRecoilAnimatorAudioStateSetIndexKey)));
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableRecoilAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -259,7 +263,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var animatorAudioState = m_MeleeWeapon.RecoilAnimatorAudioStateSet.States[EditorPrefs.GetInt(SelectedRecoilAnimatorAudioStateSetIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new UltimateCharacterController.StateSystem.State[animatorAudioState.States.Length];
+            var copiedStates = new Shared.StateSystem.State[animatorAudioState.States.Length];
             Array.Copy(animatorAudioState.States, copiedStates, animatorAudioState.States.Length);
             for (int i = 0; i < animatorAudioState.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -272,21 +276,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var states = StateInspector.OnStateListReorder(animatorAudioState.States);
             if (animatorAudioState.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableRecoilAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
-                animatorAudioState.States = states;
-            }
-        }
-
-        /// <summary>
-        /// The ReordableList remove button has been pressed. Remove the selected state.
-        /// </summary>
-        private void OnRecoilAnimatorAudioStateSetStateListRemove(ReorderableList list)
-        {
-            var animatorAudioState = m_MeleeWeapon.RecoilAnimatorAudioStateSet.States[EditorPrefs.GetInt(SelectedRecoilAnimatorAudioStateSetIndexKey)];
-            var states = StateInspector.OnStateListRemove(animatorAudioState.States, GetSelectedRecoilAnimatorAudioStateSetStateIndexKey(EditorPrefs.GetInt(SelectedRecoilAnimatorAudioStateSetIndexKey)), list);
-            if (animatorAudioState.States.Length != states.Length) {
-                InspectorUtility.SynchronizePropertyCount(states, m_ReorderableRecoilAnimatorAudioStateSetStateList.serializedProperty);
-                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
                 animatorAudioState.States = states;
             }
         }
@@ -321,7 +311,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             list.list = meleePerspective.Hitboxes;
             list.index = hitboxes.Length - 1;
             EditorPrefs.SetInt(selectedKey, list.index);
-            InspectorUtility.SetDirty(meleePerspective as UnityEngine.Object);
+            Shared.Editor.Utility.EditorUtility.SetDirty(meleePerspective as UnityEngine.Object);
         }
 
         /// <summary>
@@ -332,7 +322,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             var hitboxes = new List<MeleeWeapon.MeleeHitbox>(meleePerspective.Hitboxes);
 
             // Remove the element.
-            InspectorUtility.RecordUndoDirtyObject(meleePerspective as UnityEngine.Object, "Change Value");
+            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(meleePerspective as UnityEngine.Object, "Change Value");
             hitboxes.RemoveAt(list.index);
             list.list = meleePerspective.Hitboxes = hitboxes.ToArray();
 
@@ -342,7 +332,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
                 list.index = 0;
             }
             EditorPrefs.SetInt(selectedKey, list.index);
-            InspectorUtility.SetDirty(meleePerspective as UnityEngine.Object);
+            Shared.Editor.Utility.EditorUtility.SetDirty(meleePerspective as UnityEngine.Object);
         }
 
         /// <summary>
@@ -369,12 +359,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions
             EditorGUILayout.PropertyField(hitboxProperty.FindPropertyRelative("m_DamageMultiplier"));
             EditorGUILayout.PropertyField(hitboxProperty.FindPropertyRelative("m_MinimumYOffset"));
             EditorGUILayout.PropertyField(hitboxProperty.FindPropertyRelative("m_MinimumZOffset"));
+            EditorGUILayout.PropertyField(hitboxProperty.FindPropertyRelative("m_RequireMovement"));
             EditorGUILayout.PropertyField(hitboxProperty.FindPropertyRelative("m_SingleHit"));
             EditorGUILayout.PropertyField(hitboxProperty.FindPropertyRelative("m_SurfaceImpact"));
 
             if (EditorGUI.EndChangeCheck()) {
                 hitboxProperty.serializedObject.ApplyModifiedProperties();
-                InspectorUtility.RecordUndoDirtyObject(meleePerspective as UnityEngine.Object, "Change Value");
+                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(meleePerspective as UnityEngine.Object, "Change Value");
             }
         }
     }
