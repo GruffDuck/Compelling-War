@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Game;
+
 namespace Opsive.UltimateCharacterController.Traits
 {
-    using Opsive.Shared.Game;
-    using UnityEngine;
-
     /// <summary>
     /// Places the object back in the ObjectPool after the specified number of seconds.
     /// </summary>
@@ -33,7 +33,7 @@ namespace Opsive.UltimateCharacterController.Traits
         /// </summary>
         private void OnEnable()
         {
-            m_RemoveEvent = SchedulerBase.Schedule(m_Lifetime, Remove);
+            m_RemoveEvent = Scheduler.Schedule(m_Lifetime, Remove);
         }
 
         /// <summary>
@@ -42,7 +42,7 @@ namespace Opsive.UltimateCharacterController.Traits
         public void CancelRemoveEvent()
         {
             if (m_RemoveEvent != null) {
-                SchedulerBase.Cancel(m_RemoveEvent);
+                Scheduler.Cancel(m_RemoveEvent);
                 m_RemoveEvent = null;
             }
         }
@@ -60,7 +60,7 @@ namespace Opsive.UltimateCharacterController.Traits
         /// </summary>
         private void Remove()
         {
-            ObjectPoolBase.Destroy(m_GameObject);
+            ObjectPool.Destroy(m_GameObject);
             m_RemoveEvent = null;
         }
     }

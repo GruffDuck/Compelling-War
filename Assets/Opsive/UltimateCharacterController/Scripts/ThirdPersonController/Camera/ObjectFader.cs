@@ -4,20 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Camera;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Items;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Camera;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Character.Identifiers;
-    using Opsive.UltimateCharacterController.Items;
-    using Opsive.UltimateCharacterController.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// Can fade the character's materials if the camera gets too close or any materials which are obstructing the view between the camera and the character.
     /// </summary>
@@ -74,11 +72,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         private CharacterLayerManager m_CharacterLayerManager;
         private Transform m_CharacterTransform;
         private Material[] m_CharacterFadeMaterials;
-
-        private int m_IndependentCharacterFadeCount;
-        private int m_CharacterFadeMaterialsCount;
+        private int m_CharacterFadeMaterialsIndex;
         private HashSet<Material> m_RegisteredMaterial;
-        private Vector3 m_FadeOffset;
         private bool m_CharacterFaded;
         private Dictionary<Material, OriginalMaterialValue> m_OriginalMaterialValuesMap = new Dictionary<Material, OriginalMaterialValue>();
         private RaycastHit[] m_RaycastsHit;
@@ -92,8 +87,54 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         private float m_CharacterFadeCooldownElapsedTime;
 
         private int m_ColorID;
+        private static int s_ModeID;
+        private static int s_SrcBlendID;
+        private static int s_DstBlendID;
+        private static string s_AlphaBlendString = "_ALPHABLEND_ON";
 
-        public int IndependentCharacterFadeCount { get { return m_IndependentCharacterFadeCount; } set { m_IndependentCharacterFadeCount = value; } }
+        /// <summary>
+        /// Struct which stores the material values to revert back to after the material has been faded.
+        /// </summary>
+        private struct OriginalMaterialValue
+        {
+            [Tooltip("The color of the material.")]
+            private Color m_Color;
+            [Tooltip("The render mode of the material.")]
+            private float m_Mode;
+            [Tooltip("The SourceBlend BlendMode of the material.")]
+            private int m_SrcBlend;
+            [Tooltip("The DestinationBlend BlendMode of the material.")]
+            private int m_DstBlend;
+            [Tooltip("Is alpha blend enabled?")]
+            private bool m_AlphaBlend;
+            [Tooltip("The render queue of the material.")]
+            private int m_RenderQueue;
+
+            public Color Color { get { return m_Color; } set { m_Color = value; } }
+            public float Mode { get { return m_Mode; } set { m_Mode = value; } }
+            public int SrcBlend { get { return m_SrcBlend; } set { m_SrcBlend = value; } }
+            public int DstBlend { get { return m_DstBlend; } set { m_DstBlend = value; } }
+            public bool AlphaBlend { get { return m_AlphaBlend; } set { m_AlphaBlend = value; } }
+            public int RenderQueue { get { return m_RenderQueue; } set { m_RenderQueue = value; } }
+
+            /// <summary>
+            /// Initializes the OriginalMaterialValue to the material values.
+            /// </summary>
+            /// <param name="color">The material to initialize.</param>
+            /// <param name="colorID">The id of the color property.</param>
+            /// <param name="mode">Does the material have a Mode property?</param>
+            public void Initialize(Material material, int colorID, bool containsMode)
+            {
+                m_Color = material.GetColor(colorID);
+                m_AlphaBlend = material.IsKeywordEnabled(s_AlphaBlendString);
+                m_RenderQueue = material.renderQueue;
+                if (containsMode) {
+                    m_Mode = material.GetFloat(s_ModeID);
+                    m_SrcBlend = material.GetInt(s_SrcBlendID);
+                    m_DstBlend = material.GetInt(s_DstBlendID);
+                }
+            }
+        }
 
         /// <summary>
         /// Initialize the default values.
@@ -102,6 +143,10 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         {
             // PropertyToID cannot be initialized within a MonoBehaviour constructor.
             m_ColorID = Shader.PropertyToID(m_ColorPropertyName);
+            s_ModeID = Shader.PropertyToID("_Mode");
+            s_SrcBlendID = Shader.PropertyToID("_SrcBlend");
+            s_DstBlendID = Shader.PropertyToID("_DstBlend");
+            s_AlphaBlendString = "_ALPHABLEND_ON";
 
             base.Awake();
 
@@ -143,10 +188,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                     if (m_CharacterFadeMaterials != null) {
                         if (m_CacheCharacterMaterials) {
                             for (int i = 0; i < m_CharacterFadeMaterials.Length; ++i) {
-                                if (!m_OriginalMaterialValuesMap.ContainsKey(m_CharacterFadeMaterials[i])) {
-                                    continue;
-                                }
-                                GenericObjectPool.Return(m_OriginalMaterialValuesMap[m_CharacterFadeMaterials[i]]);
+                                ObjectPool.Return(m_OriginalMaterialValuesMap[m_CharacterFadeMaterials[i]]);
                                 m_OriginalMaterialValuesMap.Remove(m_CharacterFadeMaterials[i]);
                             }
                         }
@@ -155,7 +197,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                     m_OriginalMaterialValuesMap.Clear();
 
                     EventHandler.UnregisterEvent<bool>(m_Character, "OnCameraChangePerspectives", OnChangePerspectives);
-                    EventHandler.UnregisterEvent<bool, bool>(m_Character, "OnCharacterIndependentFade", OnIndependentFade);
                     EventHandler.UnregisterEvent<Item>(m_Character, "OnInventoryAddItem", OnAddItem);
                     EventHandler.UnregisterEvent<GameObject, bool>(m_Character, "OnShootableWeaponShowProjectile", OnShowProjectile);
                     EventHandler.UnregisterEvent(m_Character, "OnRespawn", OnRespawn);
@@ -174,10 +215,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                     var count = 0;
                     var renderers = m_Character.GetComponentsInChildren<Renderer>(true);
                     for (int i = 0; i < renderers.Length; ++i) {
-                        // The renderer fade can be ignored.
-                        if (renderers[i].gameObject.GetCachedComponent<IgnoreFadeIdentifier>() != null) {
-                            continue;
-                        }
                         var materials = renderers[i].materials;
                         for (int j = 0; j < materials.Length; ++j) {
                             if (materials[j].HasProperty(m_ColorID)) {
@@ -193,7 +230,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                             if (m_CacheCharacterMaterials) {
                                 // The mapping may exist from a previous character.
                                 for (int i = 0; i < m_CharacterFadeMaterials.Length; ++i) {
-                                    GenericObjectPool.Return(m_OriginalMaterialValuesMap[m_CharacterFadeMaterials[i]]);
+                                    ObjectPool.Return(m_OriginalMaterialValuesMap[m_CharacterFadeMaterials[i]]);
                                     m_OriginalMaterialValuesMap.Remove(m_CharacterFadeMaterials[i]);
                                 }
                             }
@@ -201,28 +238,23 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                         }
 
                         // Cache a reference to all of the faded materials.
-                        m_CharacterFadeMaterialsCount = 0;
+                        m_CharacterFadeMaterialsIndex = 0;
                         for (int i = 0; i < renderers.Length; ++i) {
-                            // The renderer fade can be ignored.
-                            if (renderers[i].gameObject.GetCachedComponent<IgnoreFadeIdentifier>() != null) {
-                                continue;
-                            }
-
                             var materials = renderers[i].materials;
                             for (int j = 0; j < materials.Length; ++j) {
                                 if (m_RegisteredMaterial.Contains(materials[j])) {
                                     continue;
                                 }
                                 if (materials[j].HasProperty(m_ColorID)) {
-                                    if (materials[j].HasProperty(OriginalMaterialValue.ModeID)) {
+                                    if (materials[j].HasProperty(s_ModeID)) {
                                         m_MaterialModeSet.Add(materials[j]);
                                     }
-                                    m_CharacterFadeMaterials[m_CharacterFadeMaterialsCount] = materials[j];
+                                    m_CharacterFadeMaterials[m_CharacterFadeMaterialsIndex] = materials[j];
                                     m_RegisteredMaterial.Add(materials[j]);
-                                    m_CharacterFadeMaterialsCount++;
+                                    m_CharacterFadeMaterialsIndex++;
 
                                     if (m_CacheCharacterMaterials) {
-                                        var originalMaterialValues = GenericObjectPool.Get<OriginalMaterialValue>();
+                                        var originalMaterialValues = ObjectPool.Get<OriginalMaterialValue>();
                                         originalMaterialValues.Initialize(materials[j], m_ColorID, m_MaterialModeSet.Contains(materials[j]));
                                         m_OriginalMaterialValuesMap.Add(materials[j], originalMaterialValues);
                                     }
@@ -234,7 +266,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                     EventHandler.RegisterEvent<bool>(m_Character, "OnCameraChangePerspectives", OnChangePerspectives);
                     EventHandler.RegisterEvent<Item>(m_Character, "OnInventoryAddItem", OnAddItem);
                     EventHandler.RegisterEvent<GameObject, bool>(m_Character, "OnShootableWeaponShowProjectile", OnShowProjectile);
-                    EventHandler.RegisterEvent<bool, bool>(m_Character, "OnCharacterIndependentFade", OnIndependentFade);
                     EventHandler.RegisterEvent(m_Character, "OnRespawn", OnRespawn);
                 }
 
@@ -248,7 +279,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         /// <summary>
         /// Update the fade values after the scene has finished positioning.
         /// </summary>
-        private void Update()
+        private void FixedUpdate()
         {
             FadeCharacter();
 
@@ -264,31 +295,11 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                 return;
             }
 
-            m_FadeOffset = MathUtility.InverseTransformPoint(m_CharacterTransform.TransformPoint(m_TransformOffset), m_CharacterTransform.rotation, m_Transform.position);
-            // Other components can control when the materials fade.
-            if (m_IndependentCharacterFadeCount != 0) {
-                return;
-            }
-            if (m_FadeOffset.magnitude <= m_StartFadeDistance) {
-                EnableCharacterFade(m_FadeOffset.magnitude);
+            var offset = MathUtility.InverseTransformPoint(m_CharacterTransform.TransformPoint(m_TransformOffset), m_CharacterTransform.rotation, m_Transform.position);
+            if (offset.magnitude <= m_StartFadeDistance) {
+                EnableCharacterFade(offset.magnitude);
             } else if (m_CharacterFaded) {
                 // The camera is not near the character - no fade necessary.
-                DisableCharacterFade();
-            }
-        }
-
-        /// <summary>
-        /// The MaterialSwapper component has started or stopped rendering.
-        /// </summary>
-        /// <param name="start">Did the MaterialSwapper component start to render?</param>
-        public void MultiCameraRender(bool start)
-        {
-            if (!enabled) {
-                return;
-            }
-            if (start && m_FadeOffset.magnitude <= m_StartFadeDistance) {
-                EnableCharacterFade(m_FadeOffset.magnitude);
-            } else if (!start) {
                 DisableCharacterFade();
             }
         }
@@ -302,7 +313,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
             if (m_CharacterFadeMaterials != null) {
                 // Slowly fade the character away as the camera gets closer.
                 var amount = Mathf.Clamp01((distance - m_EndFadeDistance) / (m_StartFadeDistance - m_EndFadeDistance));
-                for (int i = 0; i < m_CharacterFadeMaterialsCount; ++i) {
+                for (int i = 0; i < m_CharacterFadeMaterialsIndex; ++i) {
                     if (!m_CharacterFaded) {
                         EnableFadeMaterial(m_CharacterFadeMaterials[i]);
                     }
@@ -322,17 +333,17 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         {
             // If the character's materials change at runtime then the values need to be saved every time fading is enabled.
             if (!m_CacheCharacterMaterials && !m_OriginalMaterialValuesMap.ContainsKey(material)) {
-                var originalMaterialValues = GenericObjectPool.Get<OriginalMaterialValue>();
+                var originalMaterialValues = ObjectPool.Get<OriginalMaterialValue>();
                 originalMaterialValues.Initialize(material, m_ColorID, m_MaterialModeSet.Contains(material));
                 m_OriginalMaterialValuesMap.Add(material, originalMaterialValues);
             }
 
             if (m_MaterialModeSet.Contains(material)) {
-                material.SetFloat(OriginalMaterialValue.ModeID, 2);
-                material.SetInt(OriginalMaterialValue.SrcBlendID, (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                material.SetInt(OriginalMaterialValue.DstBlendID, (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                material.SetFloat(s_ModeID, 2);
+                material.SetInt(s_SrcBlendID, (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                material.SetInt(s_DstBlendID, (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             }
-            material.EnableKeyword(OriginalMaterialValue.AlphaBlendString);
+            material.EnableKeyword(s_AlphaBlendString);
             material.renderQueue = 3000;
         }
 
@@ -342,8 +353,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         private void DisableCharacterFade()
         {
             if (m_CharacterFadeMaterials != null) {
-                for (int i = 0; i < m_CharacterFadeMaterialsCount; ++i) {
-                    if (m_OriginalMaterialValuesMap.TryGetValue(m_CharacterFadeMaterials[i], out var materialValue)) {
+                for (int i = 0; i < m_CharacterFadeMaterialsIndex; ++i) {
+                    OriginalMaterialValue materialValue;
+                    if (m_OriginalMaterialValuesMap.TryGetValue(m_CharacterFadeMaterials[i], out materialValue)) {
                         RevertMaterial(m_CharacterFadeMaterials[i], materialValue);
                         if (!m_CacheCharacterMaterials) {
                             m_OriginalMaterialValuesMap.Remove(m_CharacterFadeMaterials[i]);
@@ -362,13 +374,13 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         private void RevertMaterial(Material material, OriginalMaterialValue originalMaterialValue)
         {
             material.SetColor(m_ColorID, originalMaterialValue.Color);
-            if (originalMaterialValue.ContainsMode) {
-                material.SetFloat(OriginalMaterialValue.ModeID, originalMaterialValue.Mode);
-                material.SetInt(OriginalMaterialValue.SrcBlendID, originalMaterialValue.SrcBlend);
-                material.SetInt(OriginalMaterialValue.DstBlendID, originalMaterialValue.DstBlend);
+            if (m_MaterialModeSet.Contains(material)) {
+                material.SetFloat(s_ModeID, originalMaterialValue.Mode);
+                material.SetInt(s_SrcBlendID, originalMaterialValue.SrcBlend);
+                material.SetInt(s_DstBlendID, originalMaterialValue.DstBlend);
             }
             if (!originalMaterialValue.AlphaBlend) {
-                material.DisableKeyword(OriginalMaterialValue.AlphaBlendString);
+                material.DisableKeyword(s_AlphaBlendString);
             }
             material.renderQueue = originalMaterialValue.RenderQueue;
         }
@@ -409,9 +421,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                     for (int j = 0; j < renderers.Length; ++j) {
                         var materials = renderers[j].materials;
                         for (int k = 0; k < materials.Length; ++k) {
-                            if (!m_CanObstructionFade.TryGetValue(materials[k], out var canFade)) {
-                                // Objects can fade if they have the color property and can be transparent.
-                                canFade = materials[k].HasProperty(m_ColorID) && (m_AutoSetMode || materials[k].renderQueue >= (int)UnityEngine.Rendering.RenderQueue.Transparent);
+                            bool canFade;
+                            if (!m_CanObstructionFade.TryGetValue(materials[k], out canFade)) {
+                                canFade = materials[k].HasProperty(m_ColorID);
                                 m_CanObstructionFade.Add(materials[k], canFade);
                             }
 
@@ -426,10 +438,10 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                                 // The same material may be applied to multiple renderers.
                                 if (!m_OriginalMaterialValuesMap.ContainsKey(material)) {
                                     // Don't set the mode automatically just because it has the property - not all objects in the environment should fade.
-                                    if (m_AutoSetMode && material.HasProperty(OriginalMaterialValue.ModeID)) {
+                                    if (m_AutoSetMode && material.HasProperty(s_ModeID)) {
                                         m_MaterialModeSet.Add(material);
                                     }
-                                    var originalMaterialValues = GenericObjectPool.Get<OriginalMaterialValue>();
+                                    var originalMaterialValues = ObjectPool.Get<OriginalMaterialValue>();
                                     originalMaterialValues.Initialize(material, m_ColorID, m_MaterialModeSet.Contains(material));
                                     m_OriginalMaterialValuesMap.Add(material, originalMaterialValues);
 
@@ -472,7 +484,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
             // - The material has the Mode property AND
             // - The Mode property can be set to fade OR
             // - The Mode property is already set to fade.
-            return m_DisableCollider && material.HasProperty(OriginalMaterialValue.ModeID) && (m_AutoSetMode || material.GetInt(OriginalMaterialValue.ModeID) == 2);
+            return m_DisableCollider && material.HasProperty(s_ModeID) && (m_AutoSetMode || material.GetInt(s_ModeID) == 2);
         }
 
         /// <summary>
@@ -509,7 +521,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         {
             var originalMaterialValue = m_OriginalMaterialValuesMap[m_ObstructingMaterials[index]];
             RevertMaterial(m_ObstructingMaterials[index], originalMaterialValue);
-            GenericObjectPool.Return(originalMaterialValue);
+            ObjectPool.Return(originalMaterialValue);
             m_OriginalMaterialValuesMap.Remove(m_ObstructingMaterials[index]);
 
             // The object is no longer faded. Move the array elements down one.
@@ -544,7 +556,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         {
             // While in a first person view no objects should be faded.
             if (firstPersonPerspective) {
-                DisableFades();
+                // Disable the fading within the update loop to prevent it from being disabled too early.
+                Scheduler.Schedule(Time.fixedDeltaTime, DisableFades);
             }
             enabled = !firstPersonPerspective;
         }
@@ -567,23 +580,10 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
             // All of the item's materials should be faded when it is added to the character.
             if (m_CharacterFade) {
                 var perspectiveItem = item.GetComponent<Items.ThirdPersonPerspectiveItem>();
-                if (perspectiveItem == null || perspectiveItem.Object == null) {
+                if (perspectiveItem == null) {
                     return;
                 }
                 InitializeCharacterFadeRenderers(perspectiveItem.Object.GetComponentsInChildren<Renderer>(true));
-            }
-        }
-
-        /// <summary>
-        /// Another object has started or stopped taking control of the character fade.
-        /// </summary>
-        /// <param name="enable">Is the component controlling the fade?</param>
-        /// <param name="revertFade">Should the fade be reverted?</param>
-        private void OnIndependentFade(bool enable, bool revertFade)
-        {
-            m_IndependentCharacterFadeCount += enable ? 1 : -1;
-            if (enable && revertFade) {
-                DisableCharacterFade();
             }
         }
 
@@ -595,10 +595,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
         {
             var count = 0;
             for (int i = 0; i < renderers.Length; ++i) {
-                // The renderer fade can be ignored.
-                if (renderers[i].gameObject.GetCachedComponent<IgnoreFadeIdentifier>() != null) {
-                    continue;
-                }
                 var materials = renderers[i].materials;
                 for (int j = 0; j < materials.Length; ++j) {
                     if (!m_RegisteredMaterial.Contains(materials[j]) && materials[j].HasProperty(m_ColorID)) {
@@ -608,31 +604,25 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
             }
 
             if (count > 0) {
-                var totalCount = m_CharacterFadeMaterialsCount + count;
-                if (m_CharacterFadeMaterials == null) {
-                    m_CharacterFadeMaterials = new Material[totalCount];
-                } else if (totalCount >= m_CharacterFadeMaterials.Length) {
+                var totalCount = m_CharacterFadeMaterialsIndex + count;
+                if (totalCount >= m_CharacterFadeMaterials.Length) {
                     System.Array.Resize(ref m_CharacterFadeMaterials, totalCount);
                 }
 
                 // Cache a reference to all of the faded materials.
                 for (int i = 0; i < renderers.Length; ++i) {
-                    // The renderer fade can be ignored.
-                    if (renderers[i].gameObject.GetCachedComponent<IgnoreFadeIdentifier>() != null) {
-                        continue;
-                    }
                     var materials = renderers[i].materials;
                     for (int j = 0; j < materials.Length; ++j) {
                         if (!m_RegisteredMaterial.Contains(materials[j]) && materials[j].HasProperty(m_ColorID)) {
-                            if (materials[j].HasProperty(OriginalMaterialValue.ModeID)) {
+                            if (materials[j].HasProperty(s_ModeID)) {
                                 m_MaterialModeSet.Add(materials[j]);
                             }
-                            m_CharacterFadeMaterials[m_CharacterFadeMaterialsCount] = materials[j];
+                            m_CharacterFadeMaterials[m_CharacterFadeMaterialsIndex] = materials[j];
                             m_RegisteredMaterial.Add(materials[j]);
-                            m_CharacterFadeMaterialsCount++;
+                            m_CharacterFadeMaterialsIndex++;
 
                             if (m_CacheCharacterMaterials && !m_OriginalMaterialValuesMap.ContainsKey(materials[j])) {
-                                var originalMaterialValues = GenericObjectPool.Get<OriginalMaterialValue>();
+                                var originalMaterialValues = ObjectPool.Get<OriginalMaterialValue>();
                                 originalMaterialValues.Initialize(materials[j], m_ColorID, m_MaterialModeSet.Contains(materials[j]));
                                 m_OriginalMaterialValuesMap.Add(materials[j], originalMaterialValues);
                             }
@@ -669,20 +659,21 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera
                         // Remove the material from the array. The array won't resize when the material is removed so start from the end to 
                         // reduce the number of likely iterations.
                         var index = -1;
-                        for (int k = m_CharacterFadeMaterialsCount - 1; k > -1; --k) {
+                        for (int k = m_CharacterFadeMaterialsIndex - 1; k > -1; --k) {
                             if (m_CharacterFadeMaterials[k] == materials[j]) {
                                 index = k;
                                 break;
                             }
                         }
-                        for (int k = index; k < m_CharacterFadeMaterialsCount - 1; ++k) {
+                        for (int k = index; k < m_CharacterFadeMaterialsIndex - 1; ++k) {
                             m_CharacterFadeMaterials[k] = m_CharacterFadeMaterials[k + 1];
                         }
-                        m_CharacterFadeMaterialsCount--;
-                        m_CharacterFadeMaterials[m_CharacterFadeMaterialsCount] = null;
+                        m_CharacterFadeMaterialsIndex--;
+                        m_CharacterFadeMaterials[m_CharacterFadeMaterialsIndex] = null;
                         m_RegisteredMaterial.Remove(materials[j]);
 
-                        if (m_OriginalMaterialValuesMap.TryGetValue(materials[j], out var materialValue)) {
+                        OriginalMaterialValue materialValue;
+                        if (m_OriginalMaterialValuesMap.TryGetValue(materials[j], out materialValue)) {
                             RevertMaterial(materials[j], materialValue);
                             if (!m_CacheCharacterMaterials) {
                                 m_OriginalMaterialValuesMap.Remove(materials[j]);

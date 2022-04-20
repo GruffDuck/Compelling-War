@@ -4,21 +4,20 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Game;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+using Opsive.UltimateCharacterController.Networking;
+using Opsive.UltimateCharacterController.Networking.Game;
+#endif
+using Opsive.UltimateCharacterController.Objects;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Demo.Objects
 {
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Game;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-    using Opsive.UltimateCharacterController.Networking;
-    using Opsive.UltimateCharacterController.Networking.Game;
-#endif
-    using Opsive.UltimateCharacterController.Objects;
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using Opsive.UltimateCharacterController.Traits;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// A simple turret which will fire a projectile towards the character. This turret is setup for the demo scene and will likely require modifications if used in other areas.
     /// </summary>
@@ -86,6 +85,7 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
             if (m_TurretHead == null) {
                 m_TurretHead = m_Transform;
             }
+            m_LastFireTime = -m_FireDelay;
         }
 
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
@@ -99,14 +99,6 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
             }
         }
 #endif
-
-        /// <summary>
-        /// The turret has been enabled.
-        /// </summary>
-        private void OnEnable()
-        {
-            m_LastFireTime = Time.time;
-        }
 
         /// <summary>
         /// Rotates the turret head and attacks if the character is within range.
@@ -149,18 +141,18 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
             m_LastFireTime = Time.time;
 
             // Spawn a projectile which will move in the direction that the turret is facing
-            var projectile = ObjectPoolBase.Instantiate(m_Projectile, m_FireLocation.position, m_Transform.rotation).GetCachedComponent<Projectile>();
-            projectile.Initialize(m_FireLocation.forward * m_VelocityMagnitude, Vector3.zero, null, m_DamageAmount, m_ImpactForce, m_ImpactForceFrames,
+            var projectile = ObjectPool.Instantiate(m_Projectile, m_FireLocation.position, m_Transform.rotation).GetCachedComponent<Projectile>();
+            projectile.Initialize(m_FireLocation.forward * m_VelocityMagnitude, Vector3.zero, m_DamageAmount, m_ImpactForce, m_ImpactForceFrames,
                                     m_ImpactLayers, string.Empty, 0, m_SurfaceImpact, m_GameObject);
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             if (m_NetworkInfo != null) {
-                NetworkObjectPool.NetworkSpawn(m_Projectile, projectile.gameObject, true);
+                NetworkObjectPool.NetworkSpawn(m_Projectile, projectile.gameObject);
             }
 #endif
 
             // Spawn a muzzle flash.
             if (m_MuzzleFlash) {
-                var muzzleFlash = ObjectPoolBase.Instantiate(m_MuzzleFlash, m_MuzzleFlashLocation.position, m_MuzzleFlashLocation.rotation, m_Transform).GetCachedComponent<MuzzleFlash>();
+                var muzzleFlash = ObjectPool.Instantiate(m_MuzzleFlash, m_MuzzleFlashLocation.position, m_MuzzleFlashLocation.rotation, m_Transform).GetCachedComponent<MuzzleFlash>();
                 muzzleFlash.Show(null, 0, true, null);
             }
 
@@ -196,7 +188,7 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
         /// <param name="other">The collider that exited the trigger.</param>
         private void OnTriggerExit(Collider other)
         {
-            if (m_Target == null || other.gameObject != m_Target.gameObject) {
+            if (other.gameObject != m_Target) {
                 return;
             }
 

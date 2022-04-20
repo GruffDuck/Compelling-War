@@ -4,18 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Objects.CharacterAssist;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+using Opsive.UltimateCharacterController.Networking;
+using Opsive.UltimateCharacterController.Networking.Traits;
+#endif
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Traits
 {
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-    using Opsive.Shared.Game;
-#endif
-    using Opsive.UltimateCharacterController.Objects.CharacterAssist;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-    using Opsive.UltimateCharacterController.Networking;
-    using Opsive.UltimateCharacterController.Networking.Traits;
-#endif
-    using UnityEngine;
-
     /// <summary>
     /// Represents any object that can be interacted with by the character. Acts as a link between the character and IInteractableTarget.
     /// </summary>
@@ -67,8 +65,8 @@ namespace Opsive.UltimateCharacterController.Traits
         /// Determines if the character can interact with the InteractableTarget.
         /// </summary>
         /// <param name="character">The character that wants to interactact with the target.</param>
-        /// <returns>True if the character can interact with the InteractableTarget.</returns>
-        public virtual bool CanInteract(GameObject character)
+        /// <returns>True if the character can interact with the InteractableTarget</returns>
+        public bool CanInteract(GameObject character)
         {
             for (int i = 0; i < m_InteractableTargets.Length; ++i) {
                 if (m_InteractableTargets[i] == null || !m_InteractableTargets[i].CanInteract(character)) {
@@ -83,7 +81,7 @@ namespace Opsive.UltimateCharacterController.Traits
         /// Performs the interaction.
         /// </summary>
         /// <param name="character">The character that wants to interactact with the target.</param>
-        public virtual void Interact(GameObject character)
+        public void Interact(GameObject character)
         {
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             var characterNetworkInfo = character.GetCachedComponent<INetworkInfo>();

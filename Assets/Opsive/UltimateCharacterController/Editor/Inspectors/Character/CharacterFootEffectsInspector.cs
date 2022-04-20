@@ -4,14 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEditor;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
+using System;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 {
-    using Opsive.Shared.Editor.Inspectors.StateSystem;
-    using Opsive.UltimateCharacterController.Character;
-    using System;
-    using UnityEditor;
-
-    [CustomEditor(typeof(CharacterFootEffects), true)]
+    [CustomEditor(typeof(CharacterFootEffects))]
     public class CharacterFootEffectsInspector : StateBehaviorInspector
     {
         /// <summary>
@@ -27,6 +27,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                 if (Foldout("Footprint")) {
                     EditorGUI.indentLevel++;
                     EditorGUILayout.PropertyField(PropertyFromName("m_SurfaceImpact"));
+                    EditorGUILayout.PropertyField(PropertyFromName("m_MinVelocity"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_FootstepMode"));
                     var mode = (CharacterFootEffects.FootstepPlacementMode)PropertyFromName("m_FootstepMode").enumValueIndex;
                     EditorGUILayout.PropertyField(PropertyFromName("m_FootOffset"));
@@ -37,16 +38,11 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                         EditorGUI.indentLevel--;
                     } else if (mode == CharacterFootEffects.FootstepPlacementMode.FixedInterval) {
                         EditorGUI.indentLevel++;
-                        EditorGUILayout.PropertyField(PropertyFromName("m_FixedInterval"));
+                        EditorGUILayout.PropertyField(PropertyFromName("m_Interval"));
                         EditorGUI.indentLevel--;
                     } else if (mode == CharacterFootEffects.FootstepPlacementMode.CameraBob) {
                         EditorGUI.indentLevel++;
                         EditorGUILayout.PropertyField(PropertyFromName("m_MinBobInterval"));
-                        EditorGUI.indentLevel--;
-                    } else if (mode == CharacterFootEffects.FootstepPlacementMode.Trigger) {
-                        EditorGUI.indentLevel++;
-                        EditorGUILayout.PropertyField(PropertyFromName("m_MinTriggerInterval"));
-                        EditorGUILayout.PropertyField(PropertyFromName("m_RequireMovement"));
                         EditorGUI.indentLevel--;
                     }
                     EditorGUI.indentLevel--;

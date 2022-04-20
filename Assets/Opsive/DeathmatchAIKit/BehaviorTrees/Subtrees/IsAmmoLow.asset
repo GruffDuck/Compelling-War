@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b23f08d2ae4cba14087c1ed36193d82b, type: 3}
+  m_Name: IsAmmoLow
+  m_EditorClassIdentifier: 
+  mBehaviorSource:
+    behaviorName: Behavior
+    behaviorDescription: 
+    mTaskData:
+      types: []
+      parentIndex: 
+      startIndex: 
+      variableStartIndex: 
+      JSONSerialization: '{"EntryTask":{"Type":"BehaviorDesigner.Runtime.Tasks.EntryTask","NodeData":{"Offset":"(-451.179749,-196.331818)"},"ID":0,"Name":"Entry","Instant":true},"RootTask":{"Type":"BehaviorDesigner.Runtime.Tasks.Sequence","NodeData":{"Offset":"(-1.17974854,103.668182)","Comment":"Search
+        for ammo if the agent is low"},"ID":1,"Name":"Sequence","Instant":true,"AbortTypeabortType":"None","Children":[{"Type":"BehaviorDesigner.Runtime.Tasks.Selector","NodeData":{"Offset":"(-93.74715,114.47908)"},"ID":2,"Name":"Selector","Instant":true,"AbortTypeabortType":"None","Children":[{"Type":"Opsive.DeathmatchAIKit.AI.Conditions.IsAmmoLow","NodeData":{"Offset":"(-112.972992,112.432472)","Comment":"Is
+        the primary or secondary ammo low?"},"ID":3,"Name":"Is Ammo Low","Instant":true,"SharedIntm_Amount":{"Type":"BehaviorDesigner.Runtime.SharedInt","Name":"","Int32mValue":5},"SharedBoolm_PowerWeapon":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":false},"SharedBoolm_TotalAmmo":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":false},"SharedItemDefinitionBasem_LowAmmoItemDefinition":{"Type":"BehaviorDesigner.Runtime.Tasks.UltimateCharacterController.SharedItemDefinitionBase","Name":"Item","IsShared":true}},{"Type":"BehaviorDesigner.Runtime.Tasks.Sequence","NodeData":{"Offset":"(81.92847,105.289909)"},"ID":4,"Name":"Sequence","Instant":true,"AbortTypeabortType":"None","Children":[{"Type":"BehaviorDesigner.Runtime.Tasks.RandomProbability","NodeData":{"Offset":"(-126.449707,138.533081)","Comment":"Should
+        the power weapon ammo be checked?"},"ID":5,"Name":"Random Probability","Instant":true,"SharedFloatsuccessProbability":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":null,"SinglemValue":0.1},"SharedIntseed":{"Type":"BehaviorDesigner.Runtime.SharedInt","Name":null,"Int32mValue":0},"SharedBooluseSeed":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":null,"BooleanmValue":false}},{"Type":"Opsive.DeathmatchAIKit.AI.Conditions.IsAmmoLow","NodeData":{"Offset":"(107.29718,135.1351)","Comment":"Is
+        the power weapon ammo low?"},"ID":6,"Name":"Is Ammo Low","Instant":true,"SharedIntm_Amount":{"Type":"BehaviorDesigner.Runtime.SharedInt","Name":"","Int32mValue":1},"SharedBoolm_PowerWeapon":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":true},"SharedBoolm_TotalAmmo":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":false},"SharedItemDefinitionBasem_LowAmmoItemDefinition":{"Type":"BehaviorDesigner.Runtime.Tasks.UltimateCharacterController.SharedItemDefinitionBase","Name":"Item","IsShared":true}}]}]},{"Type":"Opsive.DeathmatchAIKit.AI.Actions.SearchForAmmo","NodeData":{"Offset":"(125.158112,107.274429)","Comment":"Ammo
+        is low - do the search"},"ID":7,"Name":"Search For Ammo","Instant":true,"SharedItemDefinitionBasem_LowAmmoItemDefinition":{"Type":"BehaviorDesigner.Runtime.Tasks.UltimateCharacterController.SharedItemDefinitionBase","Name":"Item","IsShared":true},"SharedFloatm_MaxDistance":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":20},"SharedFloatm_StartSpeedChangeProbability":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":null,"SinglemValue":0.9},"SharedFloatspeed":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":10},"SharedFloatangularSpeed":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":120},"SharedFloatarriveDistance":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":0.2},"SharedBoolstopOnTaskEnd":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":true},"SharedBoolupdateRotation":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":null,"BooleanmValue":true}}]},"Variables":[{"Type":"BehaviorDesigner.Runtime.Tasks.UltimateCharacterController.SharedItemDefinitionBase","Name":"Item","IsShared":true}]}'
+      fieldSerializationData:
+        typeName: []
+        fieldNameHash: 
+        startIndex: 
+        dataPosition: 
+        unityObjects: []
+        byteData: 
+        byteDataArray: 
+      Version: 1.6.7

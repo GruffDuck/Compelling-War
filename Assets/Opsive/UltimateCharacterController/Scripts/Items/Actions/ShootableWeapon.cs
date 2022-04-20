@@ -4,37 +4,31 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.UltimateCharacterController.Items.Actions
-{
-    using Opsive.Shared.Audio;
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.Inventory;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Character.Abilities.Items;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Events;
-    using Opsive.UltimateCharacterController.Inventory;
-    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
-    using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
+using UnityEngine;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Character.Abilities.Items;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Inventory;
+using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
 using Opsive.UltimateCharacterController.Networking.Game;
 #endif
-    using Opsive.UltimateCharacterController.Objects;
-    using Opsive.UltimateCharacterController.Objects.ItemAssist;
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using Opsive.UltimateCharacterController.Traits;
-    using Opsive.UltimateCharacterController.Traits.Damage;
-    using Opsive.UltimateCharacterController.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
+using Opsive.UltimateCharacterController.Objects;
+using Opsive.UltimateCharacterController.Objects.ItemAssist;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
 
+namespace Opsive.UltimateCharacterController.Items.Actions
+{
     /// <summary>
     /// Any weapon that can shoot. This includes pistols, rocket launchers, bow and arrows, etc.
     /// </summary>
-    public class ShootableWeapon : UsableItem, IReloadableItem, IDamageOriginator
+    public class ShootableWeapon : UsableItem, IReloadableItem
     {
         /// <summary>
         /// The mode in which the weapon fires multiple shots.
@@ -86,9 +80,8 @@ using Opsive.UltimateCharacterController.Networking.Game;
             Single  // Reload a single bullet.
         }
 
-        [Tooltip("The ItemIdentifier that is consumed by the item.")]
-        [UnityEngine.Serialization.FormerlySerializedAs("m_ConsumableItemType")]
-        [SerializeField] protected ItemDefinitionBase m_ConsumableItemDefinition;
+        [Tooltip("The ItemType that is consumed by the item.")]
+        [SerializeField] protected ItemType m_ConsumableItemType;
         [Tooltip("The mode in which the weapon fires multiple shots.")]
         [SerializeField] protected FireMode m_FireMode = FireMode.SemiAuto;
         [Tooltip("Specifies when the weapon should be fired.")]
@@ -131,8 +124,6 @@ using Opsive.UltimateCharacterController.Networking.Game;
         [SerializeField] protected int m_DryFireItemSubstateParameterValue = 11;
         [Tooltip("A set of AudioClips that can be played when the weapon is out of ammo.")]
         [SerializeField] protected AudioClipSet m_DryFireAudioClipSet = new AudioClipSet();
-        [Tooltip("The delay until the hitscan is performed after being fired. Set to 0 to fire immediately.")]
-        [SerializeField] protected float m_HitscanFireDelay;
         [Tooltip("The maximum distance in which the hitscan fire can reach.")]
         [SerializeField] protected float m_HitscanFireRange = float.MaxValue;
         [Tooltip("The maximum number of objects the hitscan cast can collide with.")]
@@ -141,8 +132,6 @@ using Opsive.UltimateCharacterController.Networking.Game;
         [SerializeField] protected LayerMask m_ImpactLayers = ~(1 << LayerManager.IgnoreRaycast | 1 << LayerManager.TransparentFX | 1 << LayerManager.UI | 1 << LayerManager.Overlay);
         [Tooltip("Specifies if the hitscan can detect triggers.")]
         [SerializeField] protected QueryTriggerInteraction m_HitscanTriggerInteraction = QueryTriggerInteraction.Ignore;
-        [Tooltip("Processes the damage dealt to a Damage Target.")]
-        [SerializeField] protected DamageProcessor m_DamageProcessor;
         [Tooltip("The amount of damage to apply to the hit object.")]
         [SerializeField] protected float m_DamageAmount = 10;
         [Tooltip("The amount of force to apply to the hit object.")]
@@ -168,13 +157,13 @@ using Opsive.UltimateCharacterController.Networking.Game;
         [Tooltip("Specifies the animator and audio state from a reload.")]
         [SerializeField] protected AnimatorAudioStateSet m_ReloadAnimatorAudioStateSet = new AnimatorAudioStateSet();
         [Tooltip("Specifies if the item should wait for the OnAnimatorItemReload animation event or wait for the specified duration before reloading.")]
-        [SerializeField] protected AnimationSlotEventTrigger m_ReloadEvent = new AnimationSlotEventTrigger(true, 0);
+        [SerializeField] protected AnimationEventTrigger m_ReloadEvent = new AnimationEventTrigger(true, 0);
         [Tooltip("Specifies if the item should wait for the OnAnimatorItemReloadComplete animation event or wait for the specified duration before completing the reload.")]
-        [SerializeField] protected AnimationSlotEventTrigger m_ReloadCompleteEvent = new AnimationSlotEventTrigger(true, 0);
+        [SerializeField] protected AnimationEventTrigger m_ReloadCompleteEvent = new AnimationEventTrigger(true, 0);
         [Tooltip("The clip that should be played after the item has finished reloading.")]
         [SerializeField] protected AudioClipSet m_ReloadCompleteAudioClipSet;
         [Tooltip("Should the weapon clip be detached and attached when reloaded?")]
-        [SerializeField] protected bool m_ReloadDetachAttachClip;
+        [SerializeField] protected bool m_ReloadDetachAttachClip = false;
         [Tooltip("Specifies if the item should wait for the OnAnimatorItemReloadDetachClip animation event or wait for the specified duration before detaching the clip from the weapon.")]
         [SerializeField] protected AnimationEventTrigger m_ReloadDetachClipEvent = new AnimationEventTrigger(true, 0.4f);
         [Tooltip("Specifies if the item should wait for the OnAnimatorItemReloadShowProjectile animation event or wait for the specified duration before showing the projectile.")]
@@ -202,7 +191,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         [Tooltip("The percent of the recoil to accumulate to the camera's rest value.")]
         [Range(0, 1)] [SerializeField] protected float m_CameraRecoilAccumulation;
         [Tooltip("Is the recoil force localized to the direct parent?")]
-        [SerializeField] protected bool m_LocalizeRecoilForce;
+        [SerializeField] protected bool m_LocalizeRecoilForce = false;
         [Tooltip("A reference to the muzzle flash prefab.")]
         [SerializeField] protected GameObject m_MuzzleFlash;
         [Tooltip("Should the muzzle flash be pooled? If false a single muzzle flash object will be used.")]
@@ -230,9 +219,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         [Tooltip("Unity event invoked when the hitscan hits another object.")]
         [SerializeField] protected UnityFloatVector3Vector3GameObjectEvent m_OnHitscanImpactEvent;
 
-        public GameObject Owner { get { return m_Character; } }
-        public GameObject OriginatingGameObject { get { return m_GameObject; } }
-        public ItemDefinitionBase ConsumableItemDefinition { get { return m_ConsumableItemDefinition; } set { m_ConsumableItemDefinition = value; } }
+        public ItemType ConsumableItemType { get { return m_ConsumableItemType; } set { m_ConsumableItemType = value; } }
         public FireMode Mode { get { return m_FireMode; } set { m_FireMode = value; } }
         public FireType Type { get { return m_FireType; } set { m_FireType = value; } }
         public float MinChargeLength { get { return m_MinChargeLength; } set { m_MinChargeLength = value; } }
@@ -251,11 +238,6 @@ using Opsive.UltimateCharacterController.Networking.Game;
         public int ProjectileStartLayer { get { return m_ProjectileStartLayer; } set {
                 m_ProjectileStartLayer = value;
                 if (m_SpawnedProjectile != null) {
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-                    if (m_NetworkInfo != null && !m_NetworkInfo.IsLocalPlayer()) {
-                        return;
-                    }
-#endif
                     m_SpawnedProjectile.layer = m_ProjectileStartLayer;
                 }
             }
@@ -265,11 +247,9 @@ using Opsive.UltimateCharacterController.Networking.Game;
         public float ProjectileEnableDelayAfterOtherUse { get { return m_ProjectileEnableDelayAfterOtherUse; } set { m_ProjectileEnableDelayAfterOtherUse = value; } }
         public int DryFireItemSubstateParameterValue { get { return m_DryFireItemSubstateParameterValue; } set { m_DryFireItemSubstateParameterValue = value; } }
         public AudioClipSet DryFireAudioClipSet { get { return m_DryFireAudioClipSet; } set { m_DryFireAudioClipSet = value; } }
-        public float HitscanFireDelay { get { return m_HitscanFireDelay; } set { m_HitscanFireDelay = value; } }
         public float HitscanFireRange { get { return m_HitscanFireRange; } set { m_HitscanFireRange = value; } }
         public LayerMask ImpactLayers { get { return m_ImpactLayers; } set { m_ImpactLayers = value; } }
         public QueryTriggerInteraction HitscanTriggerInteraction { get { return m_HitscanTriggerInteraction; } set { m_HitscanTriggerInteraction = value; } }
-        public DamageProcessor DamageProcessor { get { return m_DamageProcessor; } set { m_DamageProcessor = value; } }
         public float DamageAmount { get { return m_DamageAmount; } set { m_DamageAmount = value; } }
         public float ImpactForce { get { return m_ImpactForce; } set { m_ImpactForce = value; } }
         public int ImpactForceFrames { get { return m_ImpactForceFrames; } set { m_ImpactForceFrames = value; } }
@@ -282,20 +262,10 @@ using Opsive.UltimateCharacterController.Networking.Game;
         public bool CanCameraZoom { get { return m_ReloadCanCameraZoom; } set { m_ReloadCanCameraZoom = value; } }
         public bool ReloadCrosshairsSpread { get { return m_ReloadCrosshairsSpread; } set { m_ReloadCrosshairsSpread = value; } }
         public AnimatorAudioStateSet ReloadAnimatorAudioStateSet { get { return m_ReloadAnimatorAudioStateSet; } set { m_ReloadAnimatorAudioStateSet = value; } }
-        public AnimationSlotEventTrigger ReloadEvent { get { return m_ReloadEvent; } set { m_ReloadEvent = value; } }
-        public AnimationSlotEventTrigger ReloadCompleteEvent { get { return m_ReloadCompleteEvent; } set { m_ReloadCompleteEvent = value; } }
+        public AnimationEventTrigger ReloadEvent { get { return m_ReloadEvent; } set { m_ReloadEvent = value; } }
+        public AnimationEventTrigger ReloadCompleteEvent { get { return m_ReloadCompleteEvent; } set { m_ReloadCompleteEvent = value; } }
         public AudioClipSet ReloadCompleteAudioClipSet { get { return m_ReloadCompleteAudioClipSet; } set { m_ReloadCompleteAudioClipSet = value; } }
-        public bool ReloadDetachAttachClip { get { return m_ReloadDetachAttachClip; } set { 
-                if (m_Reloading && m_ReloadDetachAttachClip && !value)
-                {
-#if FIRST_PERSON_CONTROLLER
-                    DetachAttachClip(false, m_FirstPersonPerspectiveProperties as IShootableWeaponPerspectiveProperties, true);
-#endif
-                    DetachAttachClip(false, m_ThirdPersonPerspectiveProperties as IShootableWeaponPerspectiveProperties, false);
-                }
-                m_ReloadDetachAttachClip = value; 
-            } 
-        }
+        public bool ReloadDetachAttachClip { get { return m_ReloadDetachAttachClip; } set { m_ReloadDetachAttachClip = value; } }
         public AnimationEventTrigger ReloadDetachClipEvent { get { return m_ReloadDetachClipEvent; } set { m_ReloadDetachClipEvent = value; } }
         public AnimationEventTrigger ReloadShowProjectileEvent { get { return m_ReloadShowProjectileEvent; } set { m_ReloadShowProjectileEvent = value; } }
         public AnimationEventTrigger ReloadAttachProjectileEvent { get { return m_ReloadAttachProjectileEvent; } set { m_ReloadAttachProjectileEvent = value; } }
@@ -326,12 +296,11 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
         private UltimateCharacterLocomotion m_CharacterLocomotion;
         private Transform m_CharacterTransform;
-        private IItemIdentifier m_ConsumableItemIdentifier;
 
         private bool m_FacingTarget;
         private bool m_Firing;
         private bool m_FireModeCanUse = true;
-        private int m_ClipRemaining;
+        private float m_ClipRemaining;
         private int m_UseCount;
         private float m_StartChargeTime = -1;
         private bool m_WaitForCharge;
@@ -349,17 +318,14 @@ using Opsive.UltimateCharacterController.Networking.Game;
         private GameObject m_SpawnedMuzzleFlash;
         private bool m_Aiming;
         private bool m_Reloading;
-        private bool m_SharedConsumableItemIdentifier;
+        private bool m_SharedConsumableItemType;
         private bool m_ReloadInitialized;
         private bool m_TryStopUse;
         private bool m_CanPlayDryFireAnimation;
         private bool m_CanPlayDryFireAudio = true;
-        private int m_ActiveSharedConsumableItemIdentifierAmount;
-        private Dictionary<Item, int> m_SharedConsumableItemIdentifierAmountMap;
-        private int m_TotalReloadAmount;
-        private int m_TotalClipAmount;
-        private int m_TotalConsumableAmount;
-        private bool m_DroppedClip;
+        private int m_ActiveSharedConsumableItemTypeCount;
+        private Dictionary<Item, int> m_SharedConsumableItemTypeCountMap;
+        private float m_TotalReloadAmount;
         private ShowProjectileStatus m_ShowReloadProjectile;
         private Transform m_FirstPersonReloadableClipParent;
         private Vector3 m_FirstPersonReloadableClipLocalPosition;
@@ -370,8 +336,8 @@ using Opsive.UltimateCharacterController.Networking.Game;
         private GameObject m_FirstPersonReloadAddClip;
         private GameObject m_ThirdPersonReloadAddClip;
 
-        public int ClipRemaining { get { return m_ClipRemaining; }
-            private set { m_ClipRemaining = value; EventHandler.ExecuteEvent(m_Character, "OnItemUseConsumableItemIdentifier", m_Item, m_ConsumableItemIdentifier, m_ClipRemaining); } }
+        private float ClipRemaining { get { return m_ClipRemaining; }
+            set { m_ClipRemaining = value; EventHandler.ExecuteEvent(m_Character, "OnItemUseConsumableItemType", m_Item, m_ConsumableItemType, m_ClipRemaining); } }
         public IShootableWeaponPerspectiveProperties ShootableWeaponPerspectiveProperties { get { return m_ShootableWeaponPerspectiveProperties; } }
 
         /// <summary>
@@ -383,11 +349,14 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             m_CharacterLocomotion = m_Character.GetCachedComponent<UltimateCharacterLocomotion>();
             m_CharacterTransform = m_Character.transform;
-
-            if (m_ConsumableItemDefinition != null) {
-                m_ConsumableItemIdentifier = m_ConsumableItemDefinition.CreateItemIdentifier();
+#if FIRST_PERSON_CONTROLLER
+            if (m_Item.FirstPersonPerspectiveItem != null) {
+                AudioManager.SetReserveCount(m_Item.FirstPersonPerspectiveItem.GetVisibleObject(), 1);
             }
-
+#endif
+            if (m_Item.ThirdPersonPerspectiveItem != null) {
+                AudioManager.SetReserveCount(m_Item.ThirdPersonPerspectiveItem.GetVisibleObject(), 1);
+            }
             m_ReloadAnimatorAudioStateSet.DeserializeAnimatorAudioStateSelector(m_Item, m_CharacterLocomotion);
             m_ReloadAnimatorAudioStateSet.Awake(m_Item.gameObject);
             m_ShootableWeaponPerspectiveProperties = m_ActivePerspectiveProperties as IShootableWeaponPerspectiveProperties;
@@ -397,6 +366,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
             EventHandler.RegisterEvent<Item>(m_Character, "OnInventoryAddItem", OnAddItem);
             EventHandler.RegisterEvent<Item, int>(m_Character, "OnInventoryEquipItem", OnEquipItem);
             EventHandler.RegisterEvent<Item, int>(m_Character, "OnInventoryUnequipItem", OnUnequipItem);
+            EventHandler.RegisterEvent<Item, int>(m_Character, "OnInventoryRemoveItem", OnUnequipItem);
 
 #if FIRST_PERSON_CONTROLLER && !FIRST_PERSON_SHOOTER
             Debug.LogError("Error: The first person perspective is imported but the first person shooter weapons do not exist. Ensure the First Person Controller or UFPS is imported.");
@@ -414,8 +384,8 @@ using Opsive.UltimateCharacterController.Networking.Game;
                 m_ShootableWeaponPerspectiveProperties = m_ActivePerspectiveProperties as IShootableWeaponPerspectiveProperties;
 
                 if (m_ShootableWeaponPerspectiveProperties == null) {
-                    Debug.LogError($"Error: The First/Third Person Shootable Weapon Properties component cannot be found for the Item {name}." +
-                                   $"Ensure the component exists and the component's Action ID matches the Action ID of the Item ({m_ID}).");
+                    Debug.LogError("Error: The First/Third Person Shootable Weapon Properties component cannot be found for the Item " + name + "." +
+                                   "Ensure the component exists and the component's Action ID matches the Action ID of the Item (" + m_ID + ")");
                 }
             }
         }
@@ -428,47 +398,46 @@ using Opsive.UltimateCharacterController.Networking.Game;
             var returnedConsumable = false;
             // When the weapon is equipped for the first time it needs to reload so it doesn't need to be reloaded manually.
             if (!m_ReloadInitialized) {
-                ItemSetManagerBase itemSetManager;
-                // Consumable ItemIdentifiers that are shared may need to have their amount redistrubuted for on the first equip. This will allow all items to have an equal
+                ItemSetManager itemSetManager;
+                // Consumable ItemTypes that are shared may need to have their amount redistrubuted for on the first equip. This will allow all items to have an equal
                 // amount on the first run.
-                if (m_SharedConsumableItemIdentifier && (itemSetManager = m_Inventory.GetComponent<ItemSetManagerBase>()) != null) {
+                if (m_SharedConsumableItemType && (itemSetManager = m_Inventory.GetComponent<ItemSetManager>()) != null) {
                     for (int i = 0; i < m_Inventory.SlotCount; ++i) {
-                        // Use the ItemSetManager to determine which ItemIdentifier will be equipped. The current slot cannot be used from the inventory because not all
+                        // Use the ItemSetManager to determine which ItemType will be equipped. The current slot cannot be used from the inventory because not all
                         // items may have been equipped yet.
-                        var itemIdentifier = itemSetManager.GetEquipItemIdentifier(i);
-                        if (itemIdentifier == null) {
+                        var itemType = itemSetManager.GetEquipItemType(i);
+                        if (itemType == null) {
                             continue;
                         }
 
                         // Skip if the item is null or matches the current item. The current item can't give ammo to itself.
-                        var item = m_Inventory.GetItem(itemIdentifier, i);
+                        var item = m_Inventory.GetItem(i, itemType);
                         if (item == null || item == m_Item) {
                             continue;
                         }
 
-                        // Find any ShootableWeapons that may be sharing the same Consumable ItemIdentifier.
+                        // Find any ShootableWeapons that may be sharing the same Consumable ItemType.
                         var itemActions = item.ItemActions;
                         for (int j = 0; j < itemActions.Length; ++j) {
                             var shootableWeapon = itemActions[j] as ShootableWeapon;
-                            // The ShootableWeapon has to share the Consumable ItemIdentifier. The other shootable weapon must have ammo in the clip otherwise it isn't of any use.
-                            if (shootableWeapon == null || shootableWeapon.GetConsumableItemIdentifier() != m_ConsumableItemIdentifier || 
-                                    shootableWeapon.ClipRemaining == 0) {
+                            // The ShootableWeapon has to share the Consumable ItemType. The other shootable weapon must have ammo in the clip otherwise it isn't of any use.
+                            if (shootableWeapon == null || shootableWeapon.ConsumableItemType != m_ConsumableItemType || shootableWeapon.ClipRemaining == 0) {
                                 continue;
                             }
 
-                            // The Consumable ItemIdentifier doesn't need to be shared if there is plenty of ammo for all weapons.
-                            var totalInventoryAmount = m_Inventory.GetItemIdentifierAmount(m_ConsumableItemIdentifier);
-                            if (shootableWeapon.ClipSize + m_ClipSize < totalInventoryAmount) {
+                            // The Consumable ItemType doesn't need to be shared if there is plenty of ammo for all weapons.
+                            var totalInventoryCount = m_Inventory.GetItemTypeCount(m_ConsumableItemType);
+                            if (shootableWeapon.ClipSize + m_ClipSize < totalInventoryCount) {
                                 continue;
                             }
 
                             // The ShootableWeapon needs to share the ammo. Take half of the ammo and return it to the inventory. When the current item is reloaded it will 
-                            // then take the Consumable ItemIdentifier that was returned to the inventory.
-                            var totalConsumable = shootableWeapon.ClipRemaining + m_ClipRemaining + totalInventoryAmount;
+                            // then take the Consumable ItemType that was returned to the inventory.
+                            var totalConsumable = shootableWeapon.ClipRemaining + m_ClipRemaining + totalInventoryCount;
                             var returnConsumable = Mathf.FloorToInt(shootableWeapon.ClipRemaining - (totalConsumable - (totalConsumable / 2)));
                             if (returnConsumable > 0) {
                                 shootableWeapon.ClipRemaining -= returnConsumable;
-                                m_Inventory.Pickup(m_ConsumableItemIdentifier, returnConsumable, -1, false, false, false);
+                                m_Inventory.PickupItemType(m_ConsumableItemType, returnConsumable, -1, false, false, false);
                                 returnedConsumable = true;
                             }
                         }
@@ -477,12 +446,12 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
                 if (CanReloadItem(false)) {
                     // If part of the consumable was returned then the weapon should take as much as it can from the remaining amount. 
-                    var activeCount = m_ActiveSharedConsumableItemIdentifierAmount;
+                    var activeCount = m_ActiveSharedConsumableItemTypeCount;
                     if (returnedConsumable) {
-                        m_ActiveSharedConsumableItemIdentifierAmount--;
+                        m_ActiveSharedConsumableItemTypeCount--;
                     }
                     ReloadItem(true);
-                    m_ActiveSharedConsumableItemIdentifierAmount = activeCount;
+                    m_ActiveSharedConsumableItemTypeCount = activeCount;
                 }
                 m_ReloadInitialized = true;
             }
@@ -508,57 +477,36 @@ using Opsive.UltimateCharacterController.Networking.Game;
         }
 
         /// <summary>
-        /// Set the ItemIdentifier which can be consumed by the item.
+        /// Returns the ItemType which can be used by the item.
         /// </summary>
-        /// <param name="itemIdentifier">The new ItemIdentifier which can be consumed by the item.</param>
-        public override void SetConsumableItemIdentifier(IItemIdentifier itemIdentifier)
+        /// <returns>The ItemType which can be used by the item.</returns>
+        public override ItemType GetConsumableItemType()
         {
-            if (m_ConsumableItemIdentifier == itemIdentifier) { 
-                return;
-            }
-
-            // Add back the previous consumable item to the inventory.
-            m_Inventory.AdjustItemIdentifierAmount(m_ConsumableItemIdentifier, ClipRemaining);
-
-            m_ConsumableItemIdentifier = itemIdentifier;
-            m_ConsumableItemDefinition = itemIdentifier.GetItemDefinition();
-            // Set the ClipRemaining to 0 so the new consumable item can be loaded from the inventory.
-            ClipRemaining = 0;
-
-            ReloadItem(false);
+            return m_ConsumableItemType;
         }
 
         /// <summary>
-        /// Returns the ItemIdentifier which can be used by the item.
+        /// Sets the UsableItemType amount on the UsableItem.
         /// </summary>
-        /// <returns>The ItemIdentifier which can be used by the item.</returns>
-        public override IItemIdentifier GetConsumableItemIdentifier()
+        /// <param name="count">The amount to set the UsableItemType to.</param>
+        public override void SetConsumableItemTypeCount(float count)
         {
-            return m_ConsumableItemIdentifier;
+            ClipRemaining = count;
         }
 
         /// <summary>
-        /// Sets the UsableItemIdentifier amount on the UsableItem.
+        /// Returns the amout of UsableItemType which has been consumed by the UsableItem.
         /// </summary>
-        /// <param name="amount">The amount to set the UsableItemIdentifier to.</param>
-        public override void SetConsumableItemIdentifierAmount(int amount)
-        {
-            ClipRemaining = amount;
-        }
-
-        /// <summary>
-        /// Returns the amout of UsableItemIdentifier which has been consumed by the UsableItem.
-        /// </summary>
-        /// <returns>The amount consumed of the UsableItemIdentifier.</returns>
-        public override int GetConsumableItemIdentifierAmount()
+        /// <returns>The amount consumed of the UsableItemType.</returns>
+        public override float GetConsumableItemTypeCount()
         {
             return ClipRemaining;
         }
 
         /// <summary>
-        /// Removes the amout of UsableItemIdentifier which has been loaded by the UsableItem.
+        /// Removes the amout of UsableItemType which has been loaded by the UsableItem.
         /// </summary>
-        public override void RemoveConsumableItemIdentifierAmount()
+        public override void RemoveConsumableItemTypeCount()
         {
             ClipRemaining = 0;
         }
@@ -571,7 +519,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         {
             // A positive value should always be returned when the item is being fired.
             if (m_Firing) {
-                if (m_ConsumableItemIdentifier != null && m_CanPlayDryFireAnimation) {
+                if (m_ConsumableItemType != null && m_CanPlayDryFireAnimation) {
                     return m_DryFireItemSubstateParameterValue;
                 }
                 if (m_FireType == FireType.Instant) {
@@ -596,7 +544,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <returns>True if the item can be used.</returns>
         public override bool CanUseItem(ItemAbility itemAbility, UseAbilityState abilityState)
         {
-            if (!base.CanUseItem(itemAbility, abilityState, false)) {
+            if (!base.CanUseItem(itemAbility, abilityState)) {
                 return false;
             }
 
@@ -607,6 +555,11 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             // The weapon can't be used if it is reloading and out of ammo.
             if (m_Reloading && (m_ReloadType == ReloadClipType.Full || m_ClipRemaining == 0)) {
+                return false;
+            }
+
+            // The weapon properties can prevent the weapon from firing.
+            if (!m_ShootableWeaponPerspectiveProperties.CanFire(abilityState == UseAbilityState.Update, m_FireInLookSourceDirection && !m_CharacterLocomotion.ActiveMovementType.UseIndependentLook(true))) {
                 return false;
             }
 
@@ -622,11 +575,10 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <summary>
         /// Starts the item use.
         /// </summary>
-        /// <param name="itemAbility">The item ability that is using the item.</param>
-        public override void StartItemUse(ItemAbility itemAbility)
+        public override void StartItemUse()
         {
-            base.StartItemUse(itemAbility);
-
+            base.StartItemUse();
+            
             // An Animator Audio State Set may prevent the item from being used.
             if (!IsItemInUse()) {
                 return;
@@ -639,7 +591,6 @@ using Opsive.UltimateCharacterController.Networking.Game;
             m_WaitForCharge = false;
             m_StartChargeTime = -1;
             DetermineVisibleProjectile(false);
-            BurstReset();
             m_CanPlayDryFireAnimation = ClipRemaining == 0;
             m_CanPlayDryFireAudio = true;
         }
@@ -675,14 +626,14 @@ using Opsive.UltimateCharacterController.Networking.Game;
 #endif
 
             // The weapon may not have any more ammo left. Play a dry fire sound and return immediately so the weapon is not fired.
-            if ((m_ConsumableItemIdentifier != null && ClipRemaining == 0) || InvalidUseAttributes()) {
+            if (m_ConsumableItemType != null && ClipRemaining == 0) {
                 if (!m_Reloading && m_FireModeCanUse && m_CanPlayDryFireAudio) {
                     // If it wasn't for being out of ammo the item would have been able to be used - play a dry fire sound.
                     m_DryFireAudioClipSet.PlayAudioClip(m_Item.GetVisibleObject());
                     m_CanPlayDryFireAnimation = true;
                     m_CanPlayDryFireAudio = false;
                 }
-                m_NextAllowedUseTime = Time.time + (m_UseRate / m_CharacterLocomotion.TimeScale);
+                m_NextAllowedUseTime = Time.time + m_UseRate;
                 m_FireModeCanUse = m_FireMode == FireMode.FullAuto;
                 return;
             }
@@ -693,8 +644,8 @@ using Opsive.UltimateCharacterController.Networking.Game;
                 m_StartChargeTime = Time.time;
                 m_Charged = false;
                 m_WaitForCharge = true;
-                m_ChargeAudioClipSet.PlayAudioClip(m_Item.GetVisibleObject());
-                m_ChargeEvent = SchedulerBase.ScheduleFixed(m_FullChargeLength, OnCharged);
+                m_ChargeAudioClipSet.PlayAudioClip(m_Item.GetVisibleObject(), 0);
+                m_ChargeEvent = Scheduler.ScheduleFixed(m_FullChargeLength, OnCharged);
                 m_CharacterLocomotion.UpdateItemAbilityAnimatorParameters();
             }
         }
@@ -715,13 +666,13 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <summary>
         /// The weapon has finished charging.
         /// </summary>
-        protected virtual void OnCharged()
+        private void OnCharged()
         {
             m_Charged = true;
             m_ChargeEvent = null;
             if (m_FireType == FireType.ChargeAndFire) {
                 m_WaitForCharge = false;
-                m_ChargeAudioClipSet.Stop(m_Item.GetVisibleObject());
+                m_ChargeAudioClipSet.Stop(m_Item.GetVisibleObject(), 0);
                 Fire(1);
             }
         }
@@ -730,19 +681,8 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// Fires the weapon.
         /// </summary>
         /// <param name="strength">(0 - 1) value indicating the amount of strength to apply to the shot.</param>
-        public virtual void Fire(float strength)
+        public void Fire(float strength)
         {
-            if (!m_ShootableWeaponPerspectiveProperties.CanFire(true, m_FireInLookSourceDirection && !m_CharacterLocomotion.ActiveMovementType.UseIndependentLook(true))) {
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-                if (m_NetworkInfo == null || m_NetworkInfo.IsLocalPlayer()) {
-#endif
-                    return;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-                }
-#endif
-            }
-
-            // Call base.UseItem within Fire since this is where the weapon use actually occurs.
             base.UseItem();
 
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
@@ -759,7 +699,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
                     // If the weapon can't be used that means the burst count needs to be reset after the specified delay.
                     if (!m_FireModeCanUse) {
-                        m_BurstEvent = SchedulerBase.ScheduleFixed(m_BurstDelay, BurstReset);
+                        m_BurstEvent = Scheduler.ScheduleFixed(m_BurstDelay, BurstReset);
                     }
                 } else {
                     // Prevent the weapon from continuously firing if it not a fully automatic.
@@ -771,7 +711,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
             }
 #endif
             // Update the clips remaining after the parameters so dry fire doesn't play when there was still a single shot left.
-            if (m_ConsumableItemIdentifier != null) {
+            if (m_ConsumableItemType != null) {
                 ClipRemaining--;
             }
 
@@ -780,7 +720,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
                 if (m_Projectile) {
                     ProjectileFire(strength);
                 } else {
-                    SchedulerBase.Schedule(m_HitscanFireDelay, HitscanFire, strength);
+                    HitscanFire(strength);
                 }
             }
             // The weapon has been fired - add any effects.
@@ -797,7 +737,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
             // Do not spawn the projectile unless on the server. The server will manage the projectile.
             if (m_NetworkInfo != null && !m_NetworkInfo.IsServer()) {
                 if (m_SpawnedProjectile != null) {
-                    ObjectPoolBase.Destroy(m_SpawnedProjectile);
+                    ObjectPool.Destroy(m_SpawnedProjectile);
                     m_SpawnedProjectile = null;
                 }
                 return;
@@ -809,12 +749,12 @@ using Opsive.UltimateCharacterController.Networking.Game;
             var rotation = Quaternion.LookRotation(fireDirection);
             // The projectile will already be spawned if it is always visible.
             if (m_SpawnedProjectile == null) {
-                m_SpawnedProjectile = ObjectPoolBase.Instantiate(m_Projectile, firePoint, rotation * m_Projectile.transform.rotation);
+                m_SpawnedProjectile = ObjectPool.Instantiate(m_Projectile, firePoint, rotation * m_Projectile.transform.rotation);
             } else {
                 // The projectile may be on the other side of an object (especially in the case of separate arms for the first person perspective). Perform a linecast
                 // to ensure the projectile doesn't go through any objects.
                 if (m_FireInLookSourceDirection && !m_CharacterLocomotion.ActiveMovementType.UseIndependentLook(false) && 
-                        Physics.Linecast(m_LookSource.LookPosition(true), m_SpawnedProjectile.transform.position, out m_RaycastHit, m_ImpactLayers, QueryTriggerInteraction.Ignore)) {
+                        Physics.Linecast(m_LookSource.LookPosition(), m_SpawnedProjectile.transform.position, out m_RaycastHit, m_ImpactLayers, QueryTriggerInteraction.Ignore)) {
                     // The cast should not hit the character that it belongs to.
                     var updatePosition = true;
                     var hitGameObject = m_RaycastHit.transform.gameObject;
@@ -839,14 +779,14 @@ using Opsive.UltimateCharacterController.Networking.Game;
             // Optionally change the layer after the object has been fired. This allows the object to change from the first person Overlay layer
             // to the Default layer after it has cleared the first person weapon.
             if (m_ProjectileStartLayer != m_ProjectileFiredLayer) {
-                SchedulerBase.ScheduleFixed(m_LayerChangeDelay, ChangeFiredLayer, m_SpawnedProjectile);
+                Scheduler.ScheduleFixed(m_LayerChangeDelay, ChangeFiredLayer, m_SpawnedProjectile);
             }
             var projectile = m_SpawnedProjectile.GetCachedComponent<Projectile>();
-            projectile.Initialize((m_CharacterLocomotion.Velocity - m_CharacterLocomotion.LocomotionVelocity) + rotation * (m_ProjectileFireVelocityMagnitude * strength * Vector3.forward), 
-                                    Vector3.zero, m_DamageProcessor, m_DamageAmount, m_ImpactForce, m_ImpactForceFrames, m_ImpactLayers, m_ImpactStateName, m_ImpactStateDisableTimer, m_SurfaceImpact, m_Character);
+            projectile.Initialize(rotation * Vector3.forward * m_ProjectileFireVelocityMagnitude * strength, Vector3.zero, m_DamageAmount, m_ImpactForce, m_ImpactForceFrames,
+                                    m_ImpactLayers, m_ImpactStateName, m_ImpactStateDisableTimer, m_SurfaceImpact, m_Character);
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             if (m_NetworkCharacter != null) {
-                NetworkObjectPool.NetworkSpawn(m_Projectile, projectile.gameObject, true);
+                NetworkObjectPool.NetworkSpawn(m_Projectile, projectile.gameObject);
             }
 #endif
             m_SpawnedProjectile = null;
@@ -864,7 +804,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <summary>
         /// Enables or disables the visibile projectile.
         /// </summary>
-        /// <param name="forceDisable">Should the projectile be disabled?</param>
+        /// <param name="enable">Should the projectile be enabled?</param>
         private void DetermineVisibleProjectile(bool forceDisable)
         {
             if (m_Projectile == null || m_ProjectileVisibility == ProjectileVisiblityType.OnFire) {
@@ -887,7 +827,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             if (enable) {
                 if (m_SpawnedProjectile == null) {
-                    m_SpawnedProjectile = ObjectPoolBase.Instantiate(m_Projectile);
+                    m_SpawnedProjectile = ObjectPool.Instantiate(m_Projectile);
                     m_SpawnedProjectile.transform.SetLayerRecursively(m_ProjectileStartLayer);
                     // If the character is reloading the projectile should be shown 
                     if (m_ShowReloadProjectile == ShowProjectileStatus.AttachmentLocation) {
@@ -902,7 +842,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
                 EventHandler.ExecuteEvent(m_Character, "OnShootableWeaponShowProjectile", m_SpawnedProjectile, true);
             } else if (m_SpawnedProjectile != null) {
                 EventHandler.ExecuteEvent(m_Character, "OnShootableWeaponShowProjectile", m_SpawnedProjectile, false);
-                ObjectPoolBase.Destroy(m_SpawnedProjectile);
+                ObjectPool.Destroy(m_SpawnedProjectile);
                 m_SpawnedProjectile = null;
             }
         }
@@ -913,14 +853,14 @@ using Opsive.UltimateCharacterController.Networking.Game;
         private void DetermineVisibleScopeCamera()
         {
             if (m_ShootableWeaponPerspectiveProperties != null && m_ShootableWeaponPerspectiveProperties.ScopeCamera != null) {
-                m_ShootableWeaponPerspectiveProperties.ScopeCamera.SetActive((!m_DisableScopeCameraOnNoAim || m_Aiming) && m_Inventory.GetActiveItem(m_Item.SlotID) == m_Item);
+                m_ShootableWeaponPerspectiveProperties.ScopeCamera.SetActive(!m_DisableScopeCameraOnNoAim || m_Aiming);
             }
         }
 
         /// <summary>
         /// The Aim ability has started or stopped.
         /// </summary>
-        /// <param name="aim">Has the Aim ability started?</param>
+        /// <param name="start">Has the Aim ability started?</param>
         /// <param name="inputStart">Was the ability started from input?</param>
         private void OnAim(bool aim, bool inputStart)
         {
@@ -941,7 +881,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         {
             // The hitscan should be fired from the center of the camera so the hitscan will always hit the correct crosshairs location.
             var useLookPosition = m_FireInLookSourceDirection && !m_CharacterLocomotion.ActiveMovementType.UseIndependentLook(false);
-            var firePoint = useLookPosition ? m_LookSource.LookPosition(true) : m_ShootableWeaponPerspectiveProperties.FirePointLocation.position;
+            var firePoint = useLookPosition ? m_LookSource.LookPosition() : m_ShootableWeaponPerspectiveProperties.FirePointLocation.position;
             var fireDirection = FireDirection(firePoint);
             var fireRay = new Ray(firePoint, fireDirection);
             // Prevent the ray between the character and the look source from causing a false collision.
@@ -955,7 +895,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
 #if UNITY_EDITOR
             if (hitCount == m_MaxHitscanCollisionCount) {
-                Debug.LogWarning($"Warning: The maximum number of colliders have been hit by {m_GameObject.name}. Consider increasing the Max Hitscan Collision Count value.", this);
+                Debug.LogWarning("Warning: The maximum number of colliders have been hit by " + m_GameObject.name + ". Consider increasing the Max Hitscan Collision Count value.");
             }
 #endif
 
@@ -982,42 +922,32 @@ using Opsive.UltimateCharacterController.Networking.Game;
 #endif
 
                 // Allow a custom event to be received.
-                EventHandler.ExecuteEvent<float, Vector3, Vector3, GameObject, object, Collider>(closestRaycastHit.transform.gameObject, "OnObjectImpact", damageAmount, closestRaycastHit.point, m_ImpactForce * strength * fireDirection, m_Character, this, closestRaycastHit.collider);
+                EventHandler.ExecuteEvent(closestRaycastHit.transform.gameObject, "OnObjectImpact", damageAmount, closestRaycastHit.point, fireDirection * m_ImpactForce * strength, m_Character, closestRaycastHit.collider);
+                // TODO: Version 2.1.5 adds another OnObjectImpact parameter. Remove the above event later once there has been a chance to migrate over.
+                EventHandler.ExecuteEvent<float, Vector3, Vector3, GameObject, object, Collider>(closestRaycastHit.transform.gameObject, "OnObjectImpact", damageAmount, closestRaycastHit.point, fireDirection * m_ImpactForce * strength, m_Character, this, closestRaycastHit.collider);
                 if (m_OnHitscanImpactEvent != null) {
-                    m_OnHitscanImpactEvent.Invoke(damageAmount, closestRaycastHit.point, m_ImpactForce * strength * fireDirection, m_Character);
+                    m_OnHitscanImpactEvent.Invoke(damageAmount, closestRaycastHit.point, fireDirection * m_ImpactForce * strength, m_Character);
                 }
 
                 // If the shield didn't absorb all of the damage then it should be applied to the character.
                 if (damageAmount > 0) {
-                    var damageTarget = DamageUtility.GetDamageTarget(hitGameObject);
-                    if (damageTarget != null) {
-                        var pooledDamageData = GenericObjectPool.Get<DamageData>();
-                        pooledDamageData.SetDamage(this, damageAmount, closestRaycastHit.point, fireDirection, m_ImpactForce * strength, m_ImpactForceFrames, 0, closestRaycastHit.collider);
-                        var damageProcessorModule = m_CharacterLocomotion.gameObject.GetCachedComponent<DamageProcessorModule>();
-                        if (damageProcessorModule != null) {
-                            damageProcessorModule.ProcessDamage(m_DamageProcessor, damageTarget, pooledDamageData);
-                        } else {
-                            if (m_DamageProcessor == null) { m_DamageProcessor = DamageProcessor.Default; }
-                            m_DamageProcessor.Process(damageTarget, pooledDamageData);
-                        }
-                        GenericObjectPool.Return(pooledDamageData);
-                    } else {
-                        // If the damage target exists it will apply a force to the rigidbody in addition to procesing the damage. Otherwise just apply the force to the rigidbody. 
-                        if (m_ImpactForce > 0 && closestRaycastHit.rigidbody != null && !closestRaycastHit.rigidbody.isKinematic) {
-                            closestRaycastHit.rigidbody.AddForceAtPosition((m_ImpactForce * strength * MathUtility.RigidbodyForceMultiplier) * fireDirection, closestRaycastHit.point);
-                        }
+                    // If the Health component exists it will apply a force to the rigidbody in addition to deducting the health. Otherwise just apply the force to the rigidbody. 
+                    Health hitHealth;
+                    if ((hitHealth = hitGameObject.GetCachedParentComponent<Health>()) != null) {
+                        hitHealth.Damage(damageAmount, closestRaycastHit.point, fireDirection, m_ImpactForce * strength, m_ImpactForceFrames, 0, m_Character, this, closestRaycastHit.collider);
+                    } else if (m_ImpactForce > 0 && closestRaycastHit.rigidbody != null && !closestRaycastHit.rigidbody.isKinematic) {
+                        closestRaycastHit.rigidbody.AddForceAtPosition(fireDirection * m_ImpactForce * strength * MathUtility.RigidbodyForceMultiplier, closestRaycastHit.point);
                     }
                 }
 
                 // Spawn a tracer which moves to the hit point.
                 if (m_Tracer != null) {
-                    SchedulerBase.ScheduleFixed(m_TracerSpawnDelay, AddHitscanTracer, closestRaycastHit.point);
+                    Scheduler.ScheduleFixed(m_TracerSpawnDelay, AddHitscanTracer, closestRaycastHit.point);
                 }
 
                 // An optional state can be activated on the hit object.
                 if (!string.IsNullOrEmpty(m_ImpactStateName)) {
-                    var characterLocomotion = hitGameObject.GetCachedParentComponent<UltimateCharacterLocomotion>();
-                    StateManager.SetState(characterLocomotion != null ? characterLocomotion.gameObject : hitGameObject, m_ImpactStateName, true);
+                    StateManager.SetState(hitGameObject, m_ImpactStateName, true);
                     // If the timer isn't -1 then the state should be disabled after a specified amount of time. If it is -1 then the state
                     // will have to be disabled manually.
                     if (m_ImpactStateDisableTimer != -1) {
@@ -1034,7 +964,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             // A tracer should still be spawned if no object was hit.
             if (!hasHit && m_Tracer != null) {
-                SchedulerBase.ScheduleFixed(m_TracerSpawnDelay, AddHitscanTracer, 
+                Scheduler.ScheduleFixed(m_TracerSpawnDelay, AddHitscanTracer, 
                     MathUtility.TransformPoint(firePoint, Quaternion.LookRotation(fireDirection), new Vector3(0, 0, m_TracerDefaultLength)));
             }
         }
@@ -1046,7 +976,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         protected virtual void AddHitscanTracer(Vector3 position)
         {
             var tracerLocation = m_ShootableWeaponPerspectiveProperties.TracerLocation;
-            var tracerObject = ObjectPoolBase.Instantiate(m_Tracer, tracerLocation.position, tracerLocation.rotation);
+            var tracerObject = ObjectPool.Instantiate(m_Tracer, tracerLocation.position, tracerLocation.rotation);
             var tracer = tracerObject.GetCachedComponent<Tracer>();
             if (tracer != null) {
                 tracer.Initialize(position);
@@ -1059,10 +989,10 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <returns>The direction to fire.</returns>
         private Vector3 FireDirection(Vector3 firePoint)
         {
-            var direction = (m_FireInLookSourceDirection ? m_LookSource.LookDirection(firePoint, false, m_ImpactLayers, true, true) : 
+            var direction = (m_FireInLookSourceDirection ? m_LookSource.LookDirection(firePoint, false, m_ImpactLayers, true) : 
                                         m_ShootableWeaponPerspectiveProperties.FirePointLocation.forward);
-
-            // Add the spread in a random direction.
+            
+            // Add a random spread.
             if (m_Spread > 0) {
                 direction += Quaternion.AngleAxis(UnityEngine.Random.Range(0, 360), direction) * m_CharacterLocomotion.Up * UnityEngine.Random.Range(0, m_Spread / 360);
             }
@@ -1073,7 +1003,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <summary>
         /// Adds any effects (muzzle flash, shell, recoil, etc) to the fire position.
         /// </summary>
-        protected virtual void ApplyFireEffects()
+        private void ApplyFireEffects()
         {
             // Spawn a muzzle flash.
             if (m_MuzzleFlash != null) {
@@ -1082,12 +1012,12 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             // Spawn a shell.
             if (m_Shell != null) {
-                SchedulerBase.Schedule(m_ShellEjectDelay, EjectShell);
+                Scheduler.Schedule(m_ShellEjectDelay, EjectShell);
             }
 
             // Spawn the smoke.
             if (m_Smoke != null) {
-                SchedulerBase.Schedule(m_SmokeSpawnDelay, SpawnSmoke);
+                Scheduler.Schedule(m_SmokeSpawnDelay, SpawnSmoke);
             }
 
             // Apply the weapon recoil.
@@ -1102,7 +1032,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         private void SpawnMuzzleFlash()
         {
             if (m_PoolMuzzleFlash || m_SpawnedMuzzleFlash == null) {
-                m_SpawnedMuzzleFlash = ObjectPoolBase.Instantiate(m_MuzzleFlash, Vector3.zero, Quaternion.identity);
+                m_SpawnedMuzzleFlash = ObjectPool.Instantiate(m_MuzzleFlash, Vector3.zero, Quaternion.identity);
             }
             var muzzleFlashLocation = m_ShootableWeaponPerspectiveProperties.MuzzleFlashLocation;
             m_SpawnedMuzzleFlash.transform.parent = muzzleFlashLocation;
@@ -1125,7 +1055,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         private void EjectShell()
         {
             var shellLocation = m_ShootableWeaponPerspectiveProperties.ShellLocation;
-            var shell = ObjectPoolBase.Instantiate(m_Shell, shellLocation.position, shellLocation.rotation);
+            var shell = ObjectPool.Instantiate(m_Shell, shellLocation.position, shellLocation.rotation);
             var shellObj = shell.GetCachedComponent<Shell>();
             if (shellObj != null) {
                 var visibleObject = m_Item.ActivePerspectiveItem.GetVisibleObject();
@@ -1139,7 +1069,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         private void SpawnSmoke()
         {
             var smokeLocation = m_ShootableWeaponPerspectiveProperties.SmokeLocation;
-            var smoke = ObjectPoolBase.Instantiate(m_Smoke, smokeLocation.position, smokeLocation.rotation);
+            var smoke = ObjectPool.Instantiate(m_Smoke, smokeLocation.position, smokeLocation.rotation);
             var smokeObj = smoke.GetCachedComponent<Smoke>();
             if (smokeObj != null) {
                 smokeObj.Show(m_Item, m_ID, m_CharacterLocomotion);
@@ -1164,12 +1094,11 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// </summary>
         public override void ItemUseComplete()
         {
-            base.ItemUseComplete();
             m_Firing = false;
 
             // When the clip is empty the weapon should be reloaded if specified.
             if (ClipRemaining == 0 && (m_AutoReload & Reload.AutoReloadType.Empty) != 0) {
-                EventHandler.ExecuteEvent<int, IItemIdentifier, bool, bool>(m_Character, "OnItemTryReload", m_Item.SlotID, m_ConsumableItemIdentifier, false, false);
+                EventHandler.ExecuteEvent<int, ItemType, bool, bool>(m_Character, "OnItemTryReload", m_Item.SlotID, m_ConsumableItemType, false, false);
             }
         }
 
@@ -1182,7 +1111,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
             m_TryStopUse = true;
 
             if (m_FireType != FireType.Instant && m_FireModeCanUse) {
-                m_ChargeAudioClipSet.Stop(m_Item.GetVisibleObject());
+                m_ChargeAudioClipSet.Stop(m_Item.GetVisibleObject(), 0);
                 m_WaitForCharge = false;
                 if (!m_Charged) {
                     // If the weapon has been stopped before it has been fully charged then the item should be fired with a reduced velocity.
@@ -1195,7 +1124,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
                         m_StartChargeTime = -1;
                         m_CharacterLocomotion.UpdateItemAbilityAnimatorParameters();
                     }
-                    SchedulerBase.Cancel(m_ChargeEvent);
+                    Scheduler.Cancel(m_ChargeEvent);
                     m_ChargeEvent = null;
                 }
                 else if (m_FireType == FireType.ChargeAndHold) {
@@ -1216,7 +1145,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
             }
 
             // The full burst amount should complete before the item is stopped.
-            if (m_FireMode == FireMode.Burst && m_UseCount < m_BurstCount && m_Inventory.GetItemIdentifierAmount(m_ConsumableItemIdentifier) > 0) {
+            if (m_FireMode == FireMode.Burst && m_UseCount < m_BurstCount) {
                 return false;
             }
 
@@ -1233,44 +1162,44 @@ using Opsive.UltimateCharacterController.Networking.Game;
             m_FireModeCanUse = true;
             m_Firing = false;
             if (m_BurstEvent != null) {
-                SchedulerBase.Cancel(m_BurstEvent);
+                Scheduler.Cancel(m_BurstEvent);
                 m_BurstEvent = null;
             }
         }
 
         /// <summary>
-        /// Returns the ItemIdentifier which can be reloaded by the item.
+        /// Returns the ItemType which can be reloaded by the item.
         /// </summary>
-        /// <returns>The ItemIdentifier which can be reloaded by the item.</returns>
-        public IItemIdentifier GetReloadableItemIdentifier()
+        /// <returns>The ItemType which can be reloaded by the item.</returns>
+        public ItemType GetReloadableItemType()
         {
-            return m_ConsumableItemIdentifier;
+            return m_ConsumableItemType;
         }
 
         /// <summary>
         /// Can the item be reloaded?
         /// </summary>
-        /// <param name="sharedCheck">Should extra checks be performed ensuring the reload is valid for shared items?</param>
+        /// <param name="checkEquipStatus">Should the reload ensure the item is equipped?</param>
         /// <returns>True if the item can be reloaded.</returns>
-        public bool CanReloadItem(bool sharedCheck)
+        public bool CanReloadItem(bool checkEquipStatus)
         {
-            // Don't reload if the clip size is infinitely large or at capacity.
+            // Can't reload if the clip size is infinitely large or at capacity.
             if (m_ClipSize == int.MaxValue || ClipRemaining == m_ClipSize) {
                 return false;
             }
 
-            // Don't reload if the inventory is out of ammo.
-            if (m_Inventory.GetItemIdentifierAmount(m_ConsumableItemIdentifier) == 0) {
+            // Can't reload if the inventory is out of ammo.
+            if (m_Inventory.GetItemTypeCount(m_ConsumableItemType) == 0) {
                 return false;
             }
 
-            // Don't reload if the consumed item type is shared and the item isn't equipped. This will prevent an unequipped shootable weapon from taking ammo.
-            if (sharedCheck && m_SharedConsumableItemIdentifier && m_Inventory.GetActiveItem(m_Item.SlotID) != m_Item) {
+            // Can't reload if the consumed item type is shared and the item isn't equipped. This will prevent an unequipped shootable weapon from taking ammo.
+            if (checkEquipStatus && m_SharedConsumableItemType && m_Inventory.GetItem(m_Item.SlotID) != m_Item) {
                 return false;
             }
 
             // Can't reload if the weapon hasn't been added to the inventory yet.
-            if (m_Inventory.GetItemIdentifierAmount(m_Item.ItemIdentifier) == 0) {
+            if (m_Inventory.GetItemTypeCount(m_Item.ItemType) == 0) {
                 return false;
             }
 
@@ -1283,7 +1212,6 @@ using Opsive.UltimateCharacterController.Networking.Game;
         public void StartItemReload()
         {
             m_Reloading = true;
-            m_DroppedClip = false;
 
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             if (m_NetworkInfo == null || m_NetworkInfo.IsLocalPlayer()) {
@@ -1292,8 +1220,10 @@ using Opsive.UltimateCharacterController.Networking.Game;
                 }
             }
 #endif
+            if (m_ActiveSharedConsumableItemTypeCount > 0) {
+                DetermineTotalReloadAmount();
+            }
 
-            DetermineTotalReloadAmount();
             var detachClip = false;
             IShootableWeaponPerspectiveProperties shootableWeaponPerspectiveProperties;
 #if FIRST_PERSON_CONTROLLER
@@ -1311,7 +1241,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             if (detachClip) {
                 if (!m_ReloadDetachClipEvent.WaitForAnimationEvent) {
-                    m_ReloadDetachAttachClipEvent = SchedulerBase.ScheduleFixed(m_ReloadDetachClipEvent.Duration, DetachClip);
+                    m_ReloadDetachAttachClipEvent = Scheduler.ScheduleFixed(m_ReloadDetachClipEvent.Duration, DetachClip);
                 }
             }
 
@@ -1332,22 +1262,20 @@ using Opsive.UltimateCharacterController.Networking.Game;
             // The projectile may become visible when the item is reloaded.
             if (m_ProjectileVisibility == ProjectileVisiblityType.OnReload) {
                 if (!m_ReloadShowProjectileEvent.WaitForAnimationEvent) {
-                    m_ReloadProjectileEvent = SchedulerBase.ScheduleFixed(m_ReloadShowProjectileEvent.Duration, ShowReloadProjectile);
+                    m_ReloadProjectileEvent = Scheduler.ScheduleFixed(m_ReloadShowProjectileEvent.Duration, ShowReloadProjectile);
                 }
             }
         }
 
         /// <summary>
-        /// Determines the total amount of the consumable ItemIdentifier that needs to be reloaded.
-        /// This method only needs to be used if there are multiple active shared consumable ItemIdentifiers.
+        /// Determines the total amount of the consumable ItemType that needs to be reloaded This method only needs to be used if there are multiple active shared consumable ItemTypes.
         /// </summary>
         private void DetermineTotalReloadAmount()
         {
             m_TotalReloadAmount = m_ClipSize - ClipRemaining;
-            m_TotalClipAmount = ClipRemaining;
-            if (m_ActiveSharedConsumableItemIdentifierAmount > 0) {
+            if (m_ActiveSharedConsumableItemTypeCount > 0) {
                 for (int i = 0; i < m_Inventory.SlotCount; ++i) {
-                    var item = m_Inventory.GetActiveItem(i);
+                    var item = m_Inventory.GetItem(i);
                     if (item != null) {
                         var shootableWeapons = item.gameObject.GetCachedComponents<ShootableWeapon>();
                         for (int j = 0; j < shootableWeapons.Length; ++j) {
@@ -1356,12 +1284,10 @@ using Opsive.UltimateCharacterController.Networking.Game;
                             }
 
                             m_TotalReloadAmount += shootableWeapons[j].ClipSize - shootableWeapons[j].ClipRemaining;
-                            m_TotalClipAmount += shootableWeapons[j].ClipRemaining;
                         }
                     }
                 }
             }
-            m_TotalConsumableAmount = m_Inventory.GetItemIdentifierAmount(m_ConsumableItemIdentifier);
         }
 
         /// <summary>
@@ -1381,20 +1307,20 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             // Clean up from the detach event.
             if (m_ReloadDetachAttachClipEvent != null) {
-                SchedulerBase.Cancel(m_ReloadDetachAttachClipEvent);
+                Scheduler.Cancel(m_ReloadDetachAttachClipEvent);
                 m_ReloadDetachAttachClipEvent = null;
             }
 
             // The clip can actually be dropped.
             if (m_ReloadDropClip != null) {
                 if (!m_ReloadDropClipEvent.WaitForAnimationEvent) {
-                    m_ReloadClipEvent = SchedulerBase.ScheduleFixed(m_ReloadDropClipEvent.Duration, DropClip);
+                    m_ReloadClipEvent = Scheduler.ScheduleFixed(m_ReloadDropClipEvent.Duration, DropClip);
                 }
             }
 
             // Schedule the event which will attach clip back to the weapon.
             if (!m_ReloadAttachClipEvent.WaitForAnimationEvent) {
-                m_ReloadDetachAttachClipEvent = SchedulerBase.ScheduleFixed(m_ReloadAttachClipEvent.Duration, AttachClip);
+                m_ReloadDetachAttachClipEvent = Scheduler.ScheduleFixed(m_ReloadAttachClipEvent.Duration, AttachClip);
             }
         }
 
@@ -1413,7 +1339,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             // Don't do anything if the clip doesn't exist or the clip shouldn't be detached.
             var clip = shootableWeaponPerspectiveProperties.ReloadableClip;
-            if (clip == null || (!m_ReloadDetachAttachClip && detach)) {
+            if (clip == null || !m_ReloadDetachAttachClip) {
                 return;
             }
 
@@ -1458,7 +1384,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// </summary>
         private void DropClip()
         {
-            if (!m_Reloading || m_ReloadDropClip == null || m_DroppedClip) {
+            if (!m_Reloading || m_ReloadDropClip == null) {
                 return;
             }
 
@@ -1471,12 +1397,10 @@ using Opsive.UltimateCharacterController.Networking.Game;
             if (m_ReloadDetachAttachClip) {
                 clip.gameObject.SetActive(false);
             }
-
-            var dropClip = ObjectPoolBase.Instantiate(m_ReloadDropClip, clip.position, clip.rotation);
+            var dropClip = ObjectPool.Instantiate(m_ReloadDropClip, clip.position, clip.rotation);
             // The first person perspective requires the clip to be on the overlay layer so the fingers won't render in front of the clip.
             dropClip.transform.SetLayerRecursively(m_CharacterLocomotion.FirstPersonPerspective ? LayerManager.Overlay : clip.gameObject.layer);
-            SchedulerBase.Schedule(m_ReloadClipLayerChangeDelay, UpdateDropClipLayer, dropClip);
-            m_ReloadClipEvent = null;
+            Scheduler.Schedule(m_ReloadClipLayerChangeDelay, UpdateDropClipLayer, dropClip);
 
             // If the clip has a trajectory object attached then it needs to be initialized.
             var trajectoryClipObject = dropClip.GetCachedComponent<TrajectoryObject>();
@@ -1486,10 +1410,9 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             // Cleanup from the event.
             if (m_ReloadClipEvent != null) {
-                SchedulerBase.Cancel(m_ReloadClipEvent);
+                Scheduler.Cancel(m_ReloadClipEvent);
                 m_ReloadClipEvent = null;
             }
-            m_DroppedClip = true;
         }
 
         /// <summary>
@@ -1520,7 +1443,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             // Clean up from the event.
             if (m_ReloadDetachAttachClipEvent != null) {
-                SchedulerBase.Cancel(m_ReloadDetachAttachClipEvent);
+                Scheduler.Cancel(m_ReloadDetachAttachClipEvent);
                 m_ReloadDetachAttachClipEvent = null;
             }
         }
@@ -1535,9 +1458,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
 
             // The projectile will be attached to the fire point in the future.
             if (!ReloadAttachProjectileEvent.WaitForAnimationEvent) {
-                m_ReloadProjectileEvent = SchedulerBase.ScheduleFixed(ReloadAttachProjectileEvent.Duration, AttachReloadProjectile);
-            } else {
-                m_ReloadProjectileEvent = null;
+                m_ReloadProjectileEvent = Scheduler.ScheduleFixed(ReloadAttachProjectileEvent.Duration, AttachReloadProjectile);
             }
         }
 
@@ -1567,39 +1488,41 @@ using Opsive.UltimateCharacterController.Networking.Game;
                 EventHandler.ExecuteEvent(m_Character, "OnAddCrosshairsSpread", false, false);
             }
 
-            var consumableItemIdentifierAmount = m_Inventory.GetItemIdentifierAmount(m_ConsumableItemIdentifier);
-            if (consumableItemIdentifierAmount == 0) {
+            var consumableItemTypeCount = m_Inventory.GetItemTypeCount(m_ConsumableItemType);
+            if (consumableItemTypeCount == 0) {
                 return;
             }
 
-            int reloadAmount;
-            if (m_ActiveSharedConsumableItemIdentifierAmount > 0) {
+            float reloadAmount;
+            if (m_ActiveSharedConsumableItemTypeCount > 0) {
                 if (!m_Reloading) {
                     DetermineTotalReloadAmount();
                 }
-                if (m_TotalReloadAmount > m_TotalConsumableAmount) {
-                    var totalAmount = m_TotalConsumableAmount + m_TotalClipAmount;
-
-                    // If there are multiple active consumable ItemIdentifiers then the reloaded count is shared across all of the ItemIdentifiers.
-                    var targetAmount = (fullClip || m_ReloadType == ReloadClipType.Full) ? Mathf.CeilToInt(totalAmount / (float)(m_ActiveSharedConsumableItemIdentifierAmount + 1)) : ClipRemaining + 1;
-                    reloadAmount = Mathf.Min(consumableItemIdentifierAmount, Mathf.Min(m_ClipSize - ClipRemaining, targetAmount - ClipRemaining));
+                // The Consumable ItemType doesn't need to be shared if there is plenty of ammo for all weapons.
+                if (m_TotalReloadAmount > consumableItemTypeCount) {
+                    // If there are multiple active consumable ItemTypes then the reloaded count is shared across all of the ItemTypes.
+                    reloadAmount = Mathf.Min(m_ClipSize - ClipRemaining,
+                                    Mathf.Min(consumableItemTypeCount,
+                                        ((fullClip || m_ReloadType == ReloadClipType.Full) ? (int)(m_TotalReloadAmount / (m_ActiveSharedConsumableItemTypeCount + 1)) : 1)));
                 } else {
-                    // The Consumable ItemIdentifier doesn't need to be shared if there is plenty of ammo for all weapons.
-                    reloadAmount = Mathf.Min(m_TotalConsumableAmount, ((fullClip || m_ReloadType == ReloadClipType.Full) ? (m_ClipSize - ClipRemaining) : 1));
+                    reloadAmount = Mathf.Min(consumableItemTypeCount, ((fullClip || m_ReloadType == ReloadClipType.Full) ? (m_ClipSize - ClipRemaining) : 1));
                 }
             } else {
-                // The consumable ItemIdentifier doesn't share with any other objects.
-                reloadAmount = Mathf.Min(consumableItemIdentifierAmount, ((fullClip || m_ReloadType == ReloadClipType.Full) ? (m_ClipSize - ClipRemaining) : 1));
+                // The consumable ItemType doesn't share with any other objects.
+                reloadAmount = Mathf.Min(consumableItemTypeCount, ((fullClip || m_ReloadType == ReloadClipType.Full) ? (m_ClipSize - ClipRemaining) : 1));
             }
             ClipRemaining += reloadAmount;
             m_UseCount = 0;
-            m_Inventory.AdjustItemIdentifierAmount(m_ConsumableItemIdentifier, -reloadAmount);
+            m_Inventory.UseItem(m_ConsumableItemType, reloadAmount);
 
             if (!fullClip && m_ReloadType == ReloadClipType.Single) {
                 m_ReloadAnimatorAudioStateSet.PlayAudioClip(m_Item.GetVisibleObject());
 
-                // If the item cannot be reloaded any more then the complete animation will play.
-                if (CanReloadItem(false)) {
+                // If the item cannot be reloaded any more then the complete animation will play. The reload complete audio should play ahead of time so the audio can play
+                // while the Reload ability is still active.
+                if (!CanReloadItem(false)) {
+                    m_ReloadCompleteAudioClipSet.PlayAudioClip(m_Item.GetVisibleObject());
+                } else {
                     m_ReloadAnimatorAudioStateSet.NextState();
                 }
             }
@@ -1627,7 +1550,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
         private void AddRemoveReloadableClip(bool add, IShootableWeaponPerspectiveProperties shootableWeaponPerspectiveProperties, bool firstPerson)
         {
             // If the perspective properties is null then that perspective isn't setup for the character.
-            if (shootableWeaponPerspectiveProperties == null || m_ReloadDropClip == null) {
+            if (shootableWeaponPerspectiveProperties == null) {
                 return;
             }
 
@@ -1637,15 +1560,16 @@ using Opsive.UltimateCharacterController.Networking.Game;
             }
 
             if (add) {
-                var clip = ObjectPoolBase.Instantiate(m_ReloadDropClip, shootableWeaponPerspectiveProperties.ReloadableClip.position, shootableWeaponPerspectiveProperties.ReloadableClip.rotation);
+                var clip = ObjectPool.Instantiate(m_ReloadDropClip, shootableWeaponPerspectiveProperties.ReloadableClip.position, shootableWeaponPerspectiveProperties.ReloadableClip.rotation);
                 var remover = clip.GetCachedComponent<Remover>();
                 if (remover != null) {
                     remover.CancelRemoveEvent();
                 }
                 // The first person perspective requires the clip to be on the overlay layer so the fingers won't render in front of the clip.
-                clip.transform.SetLayerRecursively(firstPerson ? LayerManager.Overlay : clip.layer);
+                clip.transform.SetLayerRecursively(firstPerson ? LayerManager.Overlay : clip.gameObject.layer);
                 clip.transform.SetParentOrigin(shootableWeaponPerspectiveProperties.ReloadableClipAttachment);
-                clip.transform.SetPositionAndRotation(shootableWeaponPerspectiveProperties.ReloadableClip.position, shootableWeaponPerspectiveProperties.ReloadableClip.rotation);
+                clip.transform.position = shootableWeaponPerspectiveProperties.ReloadableClip.position;
+                clip.transform.rotation = shootableWeaponPerspectiveProperties.ReloadableClip.rotation;
                 if (firstPerson) {
                     m_FirstPersonReloadAddClip = clip;
                     m_FirstPersonReloadAddClip.SetActive(m_CharacterLocomotion.FirstPersonPerspective);
@@ -1656,7 +1580,8 @@ using Opsive.UltimateCharacterController.Networking.Game;
             } else {
                 var clip = firstPerson ? m_FirstPersonReloadAddClip : m_ThirdPersonReloadAddClip;
                 if (clip != null) {
-                    ObjectPoolBase.Destroy(clip);
+                    ObjectPool.Destroy(clip);
+                    clip = null;
                     if (firstPerson) {
                         m_FirstPersonReloadAddClip = null;
                     } else {
@@ -1671,13 +1596,12 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// The item has finished reloading.
         /// </summary>
         /// <param name="success">Was the item reloaded successfully?</param>
-        /// <param name="immediateReload">Should the item be reloaded immediately?</param>
-        public void ItemReloadComplete(bool success, bool immediateReload)
+        public void ItemReloadComplete(bool success)
         {
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             if (m_NetworkInfo == null || m_NetworkInfo.IsLocalPlayer()) {
                 if (m_NetworkCharacter != null) {
-                    m_NetworkCharacter.ItemReloadComplete(this, success, immediateReload);
+                    m_NetworkCharacter.ItemReloadComplete(this, success);
                 }
             }
 #endif
@@ -1686,20 +1610,17 @@ using Opsive.UltimateCharacterController.Networking.Game;
                 // The weapon will not be successfully reloaded if the Reload ability stopped early.
                 AttachClip();
                 if (m_ReloadClipEvent != null) {
-                    SchedulerBase.Cancel(m_ReloadClipEvent);
+                    Scheduler.Cancel(m_ReloadClipEvent);
                     m_ReloadClipEvent = null;
                 }
                 if (m_ReloadProjectileEvent != null) {
-                    SchedulerBase.Cancel(m_ReloadProjectileEvent);
+                    Scheduler.Cancel(m_ReloadProjectileEvent);
                     m_ReloadProjectileEvent = null;
                 }
                 m_ShowReloadProjectile = ShowProjectileStatus.NotShown;
-            } else if (!immediateReload) {
-                m_ReloadCompleteAudioClipSet.PlayAudioClip(m_Item.GetVisibleObject());
             }
             DetermineVisibleProjectile(false);
             m_Reloading = false;
-
             // The item has been reloaded - inform the state set.
             m_ReloadAnimatorAudioStateSet.StartStopStateSelection(false);
             m_CanPlayDryFireAudio = true;
@@ -1717,7 +1638,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
             }
 
             if (!start) {
-                SchedulerBase.ScheduleFixed<bool>(m_ProjectileEnableDelayAfterOtherUse, DetermineVisibleProjectile, start);
+                Scheduler.ScheduleFixed<bool>(m_ProjectileEnableDelayAfterOtherUse, DetermineVisibleProjectile, start);
             } else {
                 DetermineVisibleProjectile(start);
             }
@@ -1735,7 +1656,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
                 m_ShootableWeaponPerspectiveProperties = m_ActivePerspectiveProperties as IShootableWeaponPerspectiveProperties;
                 // The FirePointLocation cannot be null.
                 if (m_ShootableWeaponPerspectiveProperties.FirePointLocation == null) {
-                    Debug.LogError($"Error: The FirePointLocation is null on the ShootableWeaponPerspectiveProperties of the {name}.");
+                    Debug.LogError("Error: The FirePointLocation is null on the ShootableWeaponPerspectiveProperties of the " + name + ".");
                 }
 
                 DetermineVisibleScopeCamera();
@@ -1810,35 +1731,31 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <param name="item">The item that was added.</param>
         private void OnAddItem(Item item)
         {
-            CheckForSharedConsumableItemIdentifiers(item.GetComponents<ShootableWeapon>());
+            CheckForSharedConsumableItemTypes(item.GetComponents<ShootableWeapon>());
         }
 
         /// <summary>
-        /// Determines if the ShootableWeapon is sharing the consumable ItemIdentifier with another ShootableWeapon.
+        /// Determines if the ShootableWeapon is sharing the consumable ItemType with another ShootableWeapon.
         /// </summary>
         /// <param name="shootableWeapons">The array of ShootableWeapons which have been added to the character.</param>
-        private void CheckForSharedConsumableItemIdentifiers(ShootableWeapon[] shootableWeapons)
+        private void CheckForSharedConsumableItemTypes(ShootableWeapon[] shootableWeapons)
         {
-            if (m_ConsumableItemIdentifier == null) {
-                return;
-            }
-
             for (int i = 0; i < shootableWeapons.Length; ++i) {
                 if (shootableWeapons[i] == this) {
                     continue;
                 }
 
-                // Increase the count if the ItemIdentifiers match. The current ShootableWeapon is sharing ItemIdentifiers.
-                if (shootableWeapons[i].GetConsumableItemIdentifier() == m_ConsumableItemIdentifier) {
-                    if (!m_SharedConsumableItemIdentifier) {
-                        m_SharedConsumableItemIdentifier = true;
-                        m_SharedConsumableItemIdentifierAmountMap = new Dictionary<Item, int>();
+                // Increase the count if the ItemTypes match. The current ShootableWeapon is sharing ItemTypes.
+                if (shootableWeapons[i].ConsumableItemType == m_ConsumableItemType) {
+                    if (!m_SharedConsumableItemType) {
+                        m_SharedConsumableItemType = true;
+                        m_SharedConsumableItemTypeCountMap = new Dictionary<Item, int>();
                     }
 
                     var count = 0;
-                    m_SharedConsumableItemIdentifierAmountMap.TryGetValue(shootableWeapons[i].Item, out count);
+                    m_SharedConsumableItemTypeCountMap.TryGetValue(shootableWeapons[i].Item, out count);
                     count++;
-                    m_SharedConsumableItemIdentifierAmountMap[shootableWeapons[i].Item] = count;
+                    m_SharedConsumableItemTypeCountMap[shootableWeapons[i].Item] = count;
                 }
             }
         }
@@ -1846,17 +1763,17 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <summary>
         /// An item has been equipped.
         /// </summary>
-        /// <param name="item">The equipped item.</param>
+        /// <param name="itemType">The equipped item.</param>
         /// <param name="slotID">The slot that the item now occupies.</param>
         private void OnEquipItem(Item item, int slotID)
         {
-            if (!m_SharedConsumableItemIdentifier) {
+            if (!m_SharedConsumableItemType) {
                 return;
             }
 
-            int amount;
-            m_SharedConsumableItemIdentifierAmountMap.TryGetValue(item, out amount);
-            m_ActiveSharedConsumableItemIdentifierAmount += amount;
+            int count;
+            m_SharedConsumableItemTypeCountMap.TryGetValue(item, out count);
+            m_ActiveSharedConsumableItemTypeCount += count;
         }
 
         /// <summary>
@@ -1866,13 +1783,13 @@ using Opsive.UltimateCharacterController.Networking.Game;
         /// <param name="slotID">The slot that the item was unequipped from.</param>
         private void OnUnequipItem(Item item, int slotID)
         {
-            if (!m_SharedConsumableItemIdentifier) {
+            if (!m_SharedConsumableItemType) {
                 return;
             }
 
-            int amount;
-            m_SharedConsumableItemIdentifierAmountMap.TryGetValue(item, out amount);
-            m_ActiveSharedConsumableItemIdentifierAmount -= amount;
+            int count;
+            m_SharedConsumableItemTypeCountMap.TryGetValue(item, out count);
+            m_ActiveSharedConsumableItemTypeCount -= count;
         }
 
         /// <summary>
@@ -1907,6 +1824,7 @@ using Opsive.UltimateCharacterController.Networking.Game;
             EventHandler.UnregisterEvent<Item>(m_Character, "OnInventoryAddItem", OnAddItem);
             EventHandler.UnregisterEvent<Item, int>(m_Character, "OnInventoryEquipItem", OnEquipItem);
             EventHandler.UnregisterEvent<Item, int>(m_Character, "OnInventoryUnequipItem", OnUnequipItem);
+            EventHandler.UnregisterEvent<Item, int>(m_Character, "OnInventoryRemoveItem", OnUnequipItem);
         }
     }
 }

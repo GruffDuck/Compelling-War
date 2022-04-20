@@ -1,21 +1,21 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Editor.Inspectors.Utility
-{
-    using System;
-    using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 
+namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
+{
     /// <summary>
     /// Helper class which will get an InspectorDrawer for the specified type.
     /// </summary>
     public class InspectorDrawerUtility
     {
         private static Dictionary<Type, InspectorDrawer> s_InspectorDrawerTypeMap;
-        private static List<System.Reflection.Assembly> s_LoadedAssemblies;
+        private static List<System.Reflection.Assembly> s_LoadedAssemblies = null;
         private static Dictionary<string, List<Type>> s_TypeLookup = new Dictionary<string, List<Type>>();
 
         /// <summary>
@@ -72,8 +72,7 @@ namespace Opsive.Shared.Editor.Inspectors.Utility
 
                     // Create the InspectorDrawer if the type has the InspectorDrawerAttribute.
                     InspectorDrawerAttribute[] attribute;
-                    if ((attribute = assemblyTypes[j].GetCustomAttributes(typeof(InspectorDrawerAttribute), false) as InspectorDrawerAttribute[]).Length > 0 &&
-                        !s_InspectorDrawerTypeMap.ContainsKey(attribute[0].Type)) {
+                    if ((attribute = assemblyTypes[j].GetCustomAttributes(typeof(InspectorDrawerAttribute), false) as InspectorDrawerAttribute[]).Length > 0) {
                         var inspectorDrawer = Activator.CreateInstance(assemblyTypes[j]) as InspectorDrawer;
                         s_InspectorDrawerTypeMap.Add(attribute[0].Type, inspectorDrawer);
                     }

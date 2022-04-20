@@ -4,19 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.Events;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+using Opsive.UltimateCharacterController.Networking;
+#endif
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Character
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-    using Opsive.UltimateCharacterController.Networking;
-#endif
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// The CharacterFootEffects component will detect when a footstep has occurred.
     /// </summary>
@@ -60,17 +60,14 @@ namespace Opsive.UltimateCharacterController.Character
         [SerializeField] protected FootstepPlacementMode m_FootstepMode;
         [Tooltip("The character's feet. Only used with the BodyStep and Trigger placement modes.")]
         [SerializeField] protected Foot[] m_Feet;
+        [Tooltip("The minimum velocity (squared) that the character must have in order for a footstep to be detected.")]
+        [SerializeField] protected float m_MinVelocity = 1f;
         [Tooltip("If using the BodyStep mode, specifies the number of frames that the foot must be moving in order for it to be checked if it is down.")]
         [SerializeField] protected int m_MoveDirectionFrameCount = 7;
         [Tooltip("Specifies an offset for when a raycast is cast to determine if the character's foot is considered down.")]
-        [SerializeField] protected float m_FootOffset = 0.07f;
-        [Tooltip("If using the Trigger mode, specifies the amount of time that must elapse before another effect can be spawned.")]
-        [SerializeField] protected float m_MinTriggerInterval = 0.1f;
-        [Tooltip("If using the Trigger mode, specifies if the character needs to be moving in order for the footstep to be placed.")]
-        [SerializeField] protected bool m_RequireMovement = true;
+        [SerializeField] protected float m_FootOffset = 0.03f;
         [Tooltip("If using the FixedInterval mode, specifies how often the footsteps occur when the character is moving.")]
-        [UnityEngine.Serialization.FormerlySerializedAs("m_Interval")] // 2.3.4.
-        [SerializeField] protected float m_FixedInterval = 0.3f;
+        [SerializeField] protected float m_Interval = 0.3f;
         [Tooltip("If using the CameraBob mode, specifies the minimum time that must elapse before another footstep occurs.")]
         [SerializeField] protected float m_MinBobInterval = 0.2f;
 
@@ -87,11 +84,10 @@ namespace Opsive.UltimateCharacterController.Character
         }
         public SurfaceImpact SurfaceImpact { get { return m_SurfaceImpact; } set { m_SurfaceImpact = value; } }
         [NonSerialized] public Foot[] Feet { get { return m_Feet; } set { m_Feet = value; } }
+        public float MinVelocity { get { return m_MinVelocity; } set { m_MinVelocity = value; } }
         public int MoveDirectionFrameCount { get { return m_MoveDirectionFrameCount; } set { m_MoveDirectionFrameCount = value; } }
         public float FootOffset { get { return m_FootOffset; } set { m_FootOffset = value; } }
-        public float MinTriggerInterval { get { return m_MinTriggerInterval; } set { m_MinTriggerInterval = value; } }
-        public bool RequireMovement { get { return m_RequireMovement; } set { m_RequireMovement = value; } }
-        public float FixedInterval { get { return m_FixedInterval; } set { m_FixedInterval = value; } }
+        public float Interval { get { return m_Interval; } set { m_Interval = value; } }
         public float MinBobInterval { get { return m_MinBobInterval; } set { m_MinBobInterval = value; } }
 
         private GameObject m_GameObject;
@@ -101,8 +97,7 @@ namespace Opsive.UltimateCharacterController.Character
         private ILookSource m_LookSource;
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
         private INetworkInfo m_NetworkInfo;
-        private bool m_CanPlaceFootstep;
-        public bool CanPlaceFootstep { set { m_CanPlaceFootstep = value; } }
+        private Vector3 m_PreviousPosition;
 #endif
 
         private List<List<Transform>> m_FeetGrouping = new List<List<Transform>>();
@@ -112,7 +107,7 @@ namespace Opsive.UltimateCharacterController.Character
         private int[] m_UpCount;
         private int[] m_DownCount;
         private Transform m_LastFootDown;
-        private float m_LastFootstepTime = float.MinValue;
+        private float m_LastFootstepTime;
         private int m_FootstepGroupIndex;
 
         /// <summary>
@@ -128,10 +123,11 @@ namespace Opsive.UltimateCharacterController.Character
             m_CharacterLayerManager = m_GameObject.GetCachedComponent<CharacterLayerManager>();
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             m_NetworkInfo = m_GameObject.GetCachedComponent<INetworkInfo>();
+            m_PreviousPosition = m_Transform.position;
 #endif
 
             if (m_Feet == null) {
-                InitializeHumanoidFeet(false);
+                InitializeHumanoidFeet();
             }
 
             if (m_Feet != null && m_Feet.Length != 0) {
@@ -149,6 +145,9 @@ namespace Opsive.UltimateCharacterController.Character
                     if (m_Feet[i].FlippedFootprint) {
                         m_FlippedFootprints.Add(m_Feet[i].Object);
                     }
+
+                    // Footstep sounds are played from the feet.
+                    AudioManager.Register(m_Feet[i].Object.gameObject, 0.05f);
                 }
             } else {
                 m_FeetGrouping.Add(new List<Transform>());
@@ -170,8 +169,7 @@ namespace Opsive.UltimateCharacterController.Character
         /// <summary>
         /// Tries to initialize the feet if the character is a humanoid.
         /// </summary>
-        /// <param name="addAudioSource">Should an AudioSource be added to the feet?</param>
-        public void InitializeHumanoidFeet(bool addAudioSource)
+        public void InitializeHumanoidFeet()
         {
             if (m_Feet != null) {
                 return;
@@ -190,7 +188,7 @@ namespace Opsive.UltimateCharacterController.Character
                     } else {
                         m_Feet[0].Object = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
                     }
-                    if (addAudioSource && m_Feet[0].Object != null && m_Feet[0].Object.gameObject.GetComponent<AudioSource>() == null) {
+                    if (m_Feet[0].Object != null && m_Feet[0].Object.gameObject.GetComponent<AudioSource>() == null) {
                         var audioSource = m_Feet[0].Object.gameObject.AddComponent<AudioSource>();
                         audioSource.volume = 0.4f;
                         audioSource.playOnAwake = false;
@@ -203,7 +201,7 @@ namespace Opsive.UltimateCharacterController.Character
                     } else {
                         m_Feet[1].Object = animator.GetBoneTransform(HumanBodyBones.RightFoot);
                     }
-                    if (addAudioSource && m_Feet[1].Object != null && m_Feet[1].Object.gameObject.GetComponent<AudioSource>() == null) {
+                    if (m_Feet[1].Object != null && m_Feet[1].Object.gameObject.GetComponent<AudioSource>() == null) {
                         var audioSource = m_Feet[1].Object.gameObject.AddComponent<AudioSource>();
                         audioSource.volume = 0.4f;
                         audioSource.playOnAwake = false;
@@ -266,9 +264,7 @@ namespace Opsive.UltimateCharacterController.Character
 
             // Setup the default values.
             if (m_FootstepMode == FootstepPlacementMode.CameraBob) {
-                if (m_LookSource != null) {
-                    m_LastVerticalOffset[0] = m_VerticalOffset[0] = m_Transform.InverseTransformPoint(m_LookSource.LookPosition(true)).y;
-                }
+                m_LastVerticalOffset[0] = m_VerticalOffset[0] = m_Transform.InverseTransformPoint(m_LookSource.LookPosition()).y;
             } else { // Body Step.
                 if (m_UpCount == null) {
                     m_UpCount = new int[count];
@@ -290,27 +286,17 @@ namespace Opsive.UltimateCharacterController.Character
         /// </summary>
         private void FixedUpdate()
         {
-            if (m_FootstepMode == FootstepPlacementMode.None) {
-                return;
-            }
-
+            var velocity = m_CharacterLocomotion.LocomotionVelocity;
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             if (m_NetworkInfo != null && !m_NetworkInfo.IsLocalPlayer()) {
-                // The transform interpolator will set CanPlaceFootstep for remote clients. This will indicate if the character moved.
-                // The character should also be grounded.
-                if (!m_CanPlaceFootstep || !Physics.Raycast(m_Transform.position, -m_Transform.up, (m_CharacterLocomotion.SkinWidth + m_CharacterLocomotion.ColliderSpacing), m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore)) {
-                    return;
-                }
-                m_CanPlaceFootstep = false;
-            } else {
-#endif
-                // The character has to be grounded and moving in order to be able to place footsteps.
-                if (!m_CharacterLocomotion.Grounded || !m_CharacterLocomotion.Moving) {
-                    return;
-                }
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+                velocity = (m_PreviousPosition - m_Transform.position) / Time.fixedDeltaTime;
+                m_PreviousPosition = m_Transform.position;
             }
 #endif
+            // The character has to be grounded and moving in order to be able to place footsteps.
+            if (!m_CharacterLocomotion.Grounded || velocity.sqrMagnitude < m_MinVelocity || m_FootstepMode == FootstepPlacementMode.None) {
+                return;
+            }
 
             switch (m_FootstepMode) {
                 case FootstepPlacementMode.BodyStep:
@@ -359,7 +345,7 @@ namespace Opsive.UltimateCharacterController.Character
         private void UpdateFixedInterval()
         {
             // Don't place a footstep if there was recently a footstep.
-            if (m_LastFootstepTime + m_FixedInterval * m_CharacterLocomotion.TimeScale > Time.time) {
+            if (m_LastFootstepTime + m_Interval * m_CharacterLocomotion.TimeScale > Time.time) {
                 return;
             }
 
@@ -375,8 +361,8 @@ namespace Opsive.UltimateCharacterController.Character
         {
             // In order for the lowest point to be detected the look source position must be decreasing. When the look source position
             // starts to increase again then it was at the lowest point.
-            var verticalOffset = m_Transform.InverseTransformPoint(m_LookSource.LookPosition(true)).y;
-            if (m_LastVerticalOffset[0] >= m_VerticalOffset[0] && verticalOffset > m_VerticalOffset[0] && m_LastFootstepTime + (m_MinBobInterval * m_CharacterLocomotion.TimeScale) < Time.time) {
+            var verticalOffset = m_Transform.InverseTransformPoint(m_LookSource.LookPosition()).y;
+            if (m_LastVerticalOffset[0] > m_VerticalOffset[0] && verticalOffset > m_VerticalOffset[0] && m_LastFootstepTime + (m_MinBobInterval * m_CharacterLocomotion.TimeScale) < Time.time) {
                 GroupFootStep();
                 m_LastFootstepTime = Time.time;
             }
@@ -398,47 +384,19 @@ namespace Opsive.UltimateCharacterController.Character
         }
 
         /// <summary>
-        /// A footstep has occurred from the trigger collider.
-        /// </summary>
-        /// <param name="foot">The foot which caused the footstep.</param>
-        /// <param name="flipFootprint">Should the footprint be flipped?</param>
-        /// <returns>True if the footstep was successfully planted.</returns>
-        public bool TriggerFootStep(Transform foot, bool flipFootprint)
-        {
-            var moving = m_CharacterLocomotion.LocalLocomotionVelocity.sqrMagnitude > 0.01f;
-            if (!moving && m_RequireMovement) {
-                return false;
-            }
-
-            // Don't place a footstep if:
-            // - The character isn't moving but is required to move.
-            // - There was recently a footstep.
-            if ((!moving && m_RequireMovement) || m_LastFootstepTime + m_MinTriggerInterval > Time.time) {
-                return false;
-            }
-
-            if (FootStep(foot, flipFootprint)) {
-                m_LastFootstepTime = Time.time;
-                return true;
-            }
-            return false;
-        }
-
-
-        /// <summary>
         /// A footstep has occurred. Notify the SurfaceManager.
         /// </summary>
         /// <param name="foot">The foot which caused the footstep.</param>
         /// <param name="flipFootprint">Should the footprint be flipped?</param>
         /// <returns>True if the footstep was successfully planted.</returns>
-        public virtual bool FootStep(Transform foot, bool flipFootprint)
+        public bool FootStep(Transform foot, bool flipFootprint)
         {
             // A RaycastHit is required for the SurfaceManager.
             RaycastHit hit;
-            if (Physics.Raycast(foot.position + m_Transform.up * 0.2f, -m_Transform.up, out hit, 0.21f + m_FootOffset, m_CharacterLayerManager.IgnoreInvisibleCharacterWaterLayers, QueryTriggerInteraction.Ignore)) {
+            if (Physics.Raycast(foot.position + m_CharacterLocomotion.Up * 0.1f, -m_CharacterLocomotion.Up, out hit, 0.11f + m_FootOffset, m_CharacterLayerManager.IgnoreInvisibleCharacterWaterLayers, QueryTriggerInteraction.Ignore)) {
                 SurfaceManager.SpawnEffect(hit, m_SurfaceImpact, m_CharacterLocomotion.GravityDirection, m_CharacterLocomotion.TimeScale, foot.gameObject, m_Transform.forward, flipFootprint);
                 return true;
-            }
+            } 
             return false;
         }
 
@@ -463,16 +421,6 @@ namespace Opsive.UltimateCharacterController.Character
 
             // The component doesn't need to be active if the footsteps are being triggered from a trigger.
             enabled = m_FootstepMode != FootstepPlacementMode.Trigger;
-        }
-
-        /// <summary>
-        /// Resets the component from the inspector.
-        /// </summary>
-        private void OnReset()
-        {
-            if (GetComponent<Animator>() == null) {
-                FootstepMode = FootstepPlacementMode.FixedInterval;
-            }
         }
 
         /// <summary>

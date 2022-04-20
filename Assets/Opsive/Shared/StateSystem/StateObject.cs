@@ -1,23 +1,23 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.StateSystem
-{
-    using System;
-    using UnityEngine;
+using UnityEngine;
+using System;
 
+namespace Opsive.UltimateCharacterController.StateSystem
+{
     /// <summary>
     /// Acts as the parent object which can use the state system to change property values.
     /// </summary>
     public class StateObject : IStateOwner
     {
         [Tooltip("A list of all states that the component can change to.")]
-        [HideInInspector] [ReorderableStateListAttribute] [SerializeField] protected State[] m_States = new State[] { new State("Default", true) };
+        [HideInInspector] [SerializeField] protected State[] m_States = new State[] { new State("Default", true) };
 
-        [Opsive.Shared.Utility.NonSerialized] public State[] States { get { return m_States; } set { m_States = value; } }
+        [Utility.NonSerialized] public State[] States { get { return m_States; } set { m_States = value; } }
 
         /// <summary>
         /// Initializes the default values.
@@ -49,15 +49,6 @@ namespace Opsive.Shared.StateSystem
         /// Callback when the StateManager has changed the active state on the current object.
         /// </summary>
         public virtual void StateChange() { }
-    }
-
-    /// <summary>
-    /// Attribute which specifies the field should be drawn with the ReorderableStateListAttributeControl.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
-    public class ReorderableStateListAttribute : Attribute
-    {
-        // Intentionally left blank.
     }
 
     /// <summary>

@@ -4,36 +4,29 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Character.Abilities.Items;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Inventory;
+using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
+using Opsive.UltimateCharacterController.Objects.ItemAssist;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Utility;
+#if ULTIMATE_CHARACTER_CONTROLLER_VR
+using Opsive.UltimateCharacterController.VR;
+#endif
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Items.Actions
 {
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Character.Abilities.Items;
-    using Opsive.UltimateCharacterController.Events;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Inventory;
-    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
-    using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
-    using Opsive.UltimateCharacterController.Objects.ItemAssist;
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using Opsive.UltimateCharacterController.Traits;
-    using Opsive.UltimateCharacterController.Traits.Damage;
-    using Opsive.UltimateCharacterController.Utility;
-#if ULTIMATE_CHARACTER_CONTROLLER_VR
-    using Opsive.UltimateCharacterController.VR;
-#endif
-    using System.Collections.Generic;
-    using UnityEngine;
-
-    using EventHandler = Opsive.Shared.Events.EventHandler;
-
     /// <summary>
     /// Any weapon that can melee. This includes a knife, baseball bat, mace, etc.
     /// </summary>
-    public class MeleeWeapon : UsableItem, IDamageOriginator
+    public class MeleeWeapon : UsableItem
     {
         /// <summary>
         /// Extends the Hitbox class for use by melee weapons.
@@ -47,14 +40,13 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             [SerializeField] protected float m_MinimumYOffset;
             [Tooltip("The hitbox can detect collisions if the local depth offset is greater than the specified value relative to the character's position.")]
             [SerializeField] protected float m_MinimumZOffset;
-            [Tooltip("Does the hitbox require movement in order for it to register a hit?")]
-            [SerializeField] protected bool m_RequireMovement;
             [Tooltip("Should the hitbox only register a hit once per use?")]
             [SerializeField] protected bool m_SingleHit;
             [Tooltip("The Surface Impact triggered when the hitbox collides with an object. This will override the MeleeWeapon's SurfaceImpact.")]
             [SerializeField] protected SurfaceImpact m_SurfaceImpact;
 
             public int ColliderObjectID { get { return m_ColliderObjectID; } }
+            public bool SingleHit { get { return m_SingleHit; } }
             public SurfaceImpact SurfaceImpact { get { return m_SurfaceImpact; } }
 
             private GameObject m_GameObject;
@@ -82,10 +74,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             /// <summary>
             /// Initializes the object.
             /// </summary>
-            /// <param name="meleeWeaponObject">The MeleeWeapon GameObject that the hitbox is being initialized to.</param>
-            /// <param name="characterTransform">The transform of the character that the hitbox is being initialized to.</param>
-            /// <returns>True if the Hitbox was initialized successfully.</returns>
-            public bool Initialize(GameObject meleeWeaponObject, Transform characterTransform)
+            public void Initialize(Transform characterTransform)
             {
                 if (m_Collider == null) {
                     // The item may be picked up at runtime. Use the ObjectIdentifier to find the collider.
@@ -99,33 +88,20 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                                 }
                             }
                         }
-
-#if FIRST_PERSON_CONTROLLER
-                        // The identifier may be located under the first person objects.
-                        if (m_Collider == null && meleeWeaponObject != null) {
-                            objectIdentifiers = meleeWeaponObject.GetComponentsInChildren<Objects.ObjectIdentifier>();
-                            for (int i = 0; i < objectIdentifiers.Length; ++i) {
-                                if (objectIdentifiers[i].ID == m_ColliderObjectID) {
-                                    m_Collider = objectIdentifiers[i].GetComponent<Collider>();
-                                    if (m_Collider != null) {
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-#endif
                     }
 
                     if (m_Collider == null) {
-                        return false;
+                        Debug.LogError("Error: The collider on the melee hitbox is null.");
+                        return;
                     }
                 }
                 m_GameObject = m_Collider.gameObject;
                 m_Transform = m_Collider.transform;
                 m_CharacterTransform = characterTransform;
 
+                Audio.AudioManager.Register(m_GameObject);
+
                 Reset(true);
-                return true;
             }
 
             /// <summary>
@@ -144,7 +120,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             /// <summary>
             /// Can the hitbox be used?
             /// </summary>
-            /// <returns>True if the hitbox can be used.</returns>
+            /// <returns>True if the hitbox can be used</returns>
             public bool CanUse()
             {
                 // The hitbox may only allow a single collision.
@@ -158,21 +134,19 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                     return false;
                 }
 
-                var moving = !m_RequireMovement;
-                if (m_RequireMovement) {
-                    // The collider must be moving in order for a new collision to occur.
-                    var position = m_Transform.position;
-                    var rotation = m_Transform.rotation;
-                    if ((m_PreviousPosition - position).sqrMagnitude > 0.01f) {
-                        moving = true;
-                    }
-                    if (!moving && Quaternion.Angle(m_PreviousRotation, rotation) > 0.01f) {
-                        moving = true;
-                    }
-
-                    m_PreviousPosition = position;
-                    m_PreviousRotation = rotation;
+                // The collider must be moving in order for a new collision to occur.
+                var moving = false;
+                var position = m_Transform.position;
+                var rotation = m_Transform.rotation;
+                if ((m_PreviousPosition - position).sqrMagnitude > 0.01f) {
+                    moving = true;
                 }
+                if (!moving && Quaternion.Angle(m_PreviousRotation, rotation) > 0.01f) {
+                    moving = true;
+                }
+
+                m_PreviousPosition = position;
+                m_PreviousRotation = rotation;
 
                 return moving;
             }
@@ -199,6 +173,8 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [SerializeField] protected bool m_RequireInAirMeleeAbilityInAir = true;
         [Tooltip("Does the weapon require the Melee Counter Attack Item Ability in order to be used?")]
         [SerializeField] protected bool m_RequireCounterAttackAbility;
+        [Tooltip("The ItemType that is consumed by the item (can be null). This ItemType should be specified if the melee weapon use is finite.")]
+        [SerializeField] protected ItemType m_ConsumableItemType;
         [Tooltip("The value to add to the Item Substate Index when the character is aiming.")]
         [SerializeField] protected int m_AimItemSubstateIndexAddition = 100;
         [Tooltip("The maximum number of collision points which the melee weapon can make contact with.")]
@@ -208,7 +184,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [Tooltip("When the weapon attacks should only one hit be registered per use?")]
         [SerializeField] protected bool m_SingleHit;
         [Tooltip("If multiple hits can be registered, specifies the minimum frame count between each hit.")]
-        [SerializeField] protected int m_MultiHitFrameCount = 50;
+        [SerializeField] protected int m_MultiHitFrameCount = 3;
         [Tooltip("The delay after the weapon has been used when a hit can be valid.")]
         [SerializeField] protected float m_CanHitDelay = 0.2f;
         [Tooltip("Can the next use state play between the ItemUsed and ItemUseComplete events?")]
@@ -217,8 +193,6 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [SerializeField] protected LayerMask m_ImpactLayers = ~(1 << LayerManager.IgnoreRaycast | 1 << LayerManager.TransparentFX | 1 << LayerManager.UI | 1 << LayerManager.Overlay);
         [Tooltip("Specifies if the melee weapon can detect triggers.")]
         [SerializeField] protected QueryTriggerInteraction m_TriggerInteraction = QueryTriggerInteraction.Ignore;
-        [Tooltip("Processes the damage dealt to a Damage Target.")]
-        [SerializeField] protected DamageProcessor m_DamageProcessor;
         [Tooltip("The amount of damage done to the object hit.")]
         [SerializeField] protected float m_DamageAmount = 30;
         [Tooltip("The amount of force to apply to the object hit.")]
@@ -246,11 +220,9 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         [Tooltip("Unity event invoked when the weapon hits another object.")]
         [SerializeField] protected UnityFloatVector3Vector3GameObjectEvent m_OnImpactEvent;
 
-        public GameObject Owner { get { return m_Character; } }
-        public GameObject OriginatingGameObject { get { return m_GameObject; } }
-
         public bool RequireInAirMeleeAbilityInAir { get { return m_RequireInAirMeleeAbilityInAir; } set { m_RequireInAirMeleeAbilityInAir = value; } }
         public bool RequireCounterAttackAbility { get { return m_RequireCounterAttackAbility; } set { m_RequireCounterAttackAbility = value; } }
+        public ItemType ConsumableItemType { get { return m_ConsumableItemType; } set { m_ConsumableItemType = value; } }
         public int AimItemSubstateIndexAddition { get { return m_AimItemSubstateIndexAddition; } set { m_AimItemSubstateIndexAddition = value; } }
         public int MaxCollisionCount { get { return m_MaxCollisionCount; } }
         public float ForwardShieldSensitivity { get { return m_ForwardShieldSensitivity; } set { m_ForwardShieldSensitivity = value; } }
@@ -260,7 +232,6 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         public bool AllowAttackCombos { get { return m_AllowAttackCombos; } set { m_AllowAttackCombos = value; } }
         public LayerMask ImpactLayers { get { return m_ImpactLayers; } set { m_ImpactLayers = value; } }
         public QueryTriggerInteraction TriggerInteraction { get { return m_TriggerInteraction; } set { m_TriggerInteraction = value; } }
-        public DamageProcessor DamageProcessor { get { return m_DamageProcessor; } set { m_DamageProcessor = value; } }
         public float DamageAmount { get { return m_DamageAmount; } set { m_DamageAmount = value; } }
         public float ImpactForce { get { return m_ImpactForce; } set { m_ImpactForce = value; } }
         public int ImpactForceFrames { get { return m_ImpactForceFrames; } set { m_ImpactForceFrames = value; } }
@@ -286,8 +257,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         private RaycastHit[] m_CollisionsHit;
         private bool m_AttackHit;
         private bool m_SolidObjectHit;
-        private HashSet<GameObject> m_HitList = new HashSet<GameObject>();
-        private int m_LastHitFrame;
+        private Dictionary<GameObject, int> m_HitList = new Dictionary<GameObject, int>();
         private bool m_HasRecoil;
         private bool m_Attacking;
         private float m_AttackTime;
@@ -343,8 +313,8 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 m_MeleeWeaponPerspectiveProperties = m_ActivePerspectiveProperties as IMeleeWeaponPerspectiveProperties;
 
                 if (m_MeleeWeaponPerspectiveProperties == null) {
-                    Debug.LogError($"Error: The First/Third Person Melee Weapon Properties component cannot be found for the {name}. " +
-                                   $"Ensure the component exists and the component's Action ID matches the Action ID of the Item ({m_ID}).");
+                    Debug.LogError("Error: The First/Third Person Melee Weapon Properties component cannot be found for the " + name + ". " +
+                                   "Ensure the component exists and the component's Action ID matches the Action ID of the Item (" + m_ID + ")");
                 }
             }
         }
@@ -359,7 +329,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 return m_RecoilAnimatorAudioStateSet.GetItemSubstateIndex();
             }
             if (m_Attacking) {
-                return m_UsedSubstateIndex = (base.GetItemSubstateIndex() + (m_Aiming ? m_AimItemSubstateIndexAddition : 0));
+                return (m_UsedSubstateIndex = (base.GetItemSubstateIndex() + (m_Aiming ? m_AimItemSubstateIndexAddition : 0)));
             }
             return -1;
         }
@@ -367,7 +337,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <summary>
         /// The Aim ability has started or stopped.
         /// </summary>
-        /// <param name="aim">Has the Aim ability started?</param>
+        /// <param name="start">Has the Aim ability started?</param>
         /// <param name="inputStart">Was the ability started from input?</param>
         private void OnAim(bool aim, bool inputStart)
         {
@@ -385,7 +355,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             base.Equip();
 
             if (m_Trail != null && m_TrailVisibility == TrailVisibilityType.Always) {
-                m_TrailSpawnEvent = SchedulerBase.Schedule(m_TrailSpawnDelay, SpawnTrail);
+                m_TrailSpawnEvent = Scheduler.Schedule(m_TrailSpawnDelay, SpawnTrail);
             }
         }
 
@@ -401,15 +371,14 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 trailLocation = m_ThirdPersonPerspectiveProperties != null ? (m_ThirdPersonPerspectiveProperties as IMeleeWeaponPerspectiveProperties).TrailLocation : null;
             }
             if (trailLocation != null) {
-                var trailObject = ObjectPoolBase.Instantiate(m_Trail);
+                var trailObject = ObjectPool.Instantiate(m_Trail);
                 trailObject.transform.SetParentOrigin(trailLocation);
                 trailObject.layer = trailLocation.gameObject.layer;
                 m_ActiveTrail = trailObject.GetCachedComponent<Trail>();
             }
-            m_TrailSpawnEvent = null;
 
             if (m_TrailVisibility == TrailVisibilityType.Attack && !m_AttackStopTrailEvent.WaitForAnimationEvent) {
-                m_TrailStopEvent = SchedulerBase.ScheduleFixed(m_AttackStopTrailEvent.Duration, AttackStopTrail);
+                m_TrailStopEvent = Scheduler.ScheduleFixed(m_AttackStopTrailEvent.Duration, AttackStopTrail);
             }
         }
 
@@ -425,12 +394,6 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 return false;
             }
 
-#if ULTIMATE_CHARACTER_CONTROLLER_VR
-            if (m_VRMeleeWeapon != null && !m_VRMeleeWeapon.CanUseItem()) {
-                return false;
-            }
-#endif
-
             // The MeleeWeapon may require the InAirMeleeUse ability in order for it to be used while in the air.
             if (m_RequireInAirMeleeAbilityInAir && !(itemAbility is InAirMeleeUse) &&
                 (m_CharacterLocomotion.UsingGravity && !m_CharacterLocomotion.Grounded || m_CharacterLocomotion.IsAbilityTypeActive<Character.Abilities.Jump>())) {
@@ -442,16 +405,15 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 return false;
             }
 
+            // The weapon cannot be used if the inventory has no more of ItemType.
+            if (m_Inventory != null && (m_ConsumableItemType != null && m_Inventory.GetItemTypeCount(m_ConsumableItemType) == 0)) {
+                return false;
+            }
+
             if (abilityState == UseAbilityState.Start) {
                 if (m_Attacking) {
                     if (!m_Used) {
                         // The weapon needs to be used before it can be used again.
-#if UNITY_EDITOR
-                        if (m_AllowAttackCombos && m_UseAnimatorAudioStateSet.States.Length == 1) {
-                            Debug.LogError("Error: The MeleeWeapon cannot be used again. Another state should be added to the Use Animator Audio State Set. See the first troubleshooting tip for more info: " +
-                                "https://opsive.com/support/documentation/ultimate-character-controller/items/actions/usable/melee-weapon/.");
-                        }
-#endif
                         return false;
                     } else if (!m_AllowAttackCombos) {
                         // The weapon can't be used if it is currently attacking, has been used, and does not allow attack combos. Combos allow the next state to be played
@@ -468,47 +430,27 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         }
 
         /// <summary>
-        /// Can the ability be started?
-        /// </summary>
-        /// <param name="ability">The ability that is trying to start.</param>
-        /// <returns>True if the ability can be started.</returns>
-        public override bool CanStartAbility(Ability ability)
-        {
-            if (!(ability is Jump)) {
-                return true;
-            }
-
-            // The ability is a the Jump ability. 
-            if (m_RequireInAirMeleeAbilityInAir) {
-                return false;
-            }
-
-            // The ability can start if RequireGrounded is false.
-            var useStateIndex = m_UseAnimatorAudioStateSet.GetStateIndex();
-            if (useStateIndex == -1) {
-                return true;
-            }
-            return !m_UseAnimatorAudioStateSet.States[useStateIndex].RequireGrounded;
-        }
-
-        /// <summary>
         /// Starts the item use.
         /// </summary>
-        /// <param name="itemAbility">The item ability that is using the item.</param>
-        public override void StartItemUse(ItemAbility itemAbility)
+        public override void StartItemUse()
         {
-            base.StartItemUse(itemAbility);
+            base.StartItemUse();
             
             // An Animator Audio State Set may prevent the item from being used.
             if (!IsItemInUse()) {
                 return;
             }
 
+            // A usable ItemType is not required for melee weapons. Specifying an ItemType will allow the item to no longer be used 
+            // when the inventory has run out of the ItemType.
+            if (m_ConsumableItemType != null) {
+                m_Inventory.UseItem(m_ConsumableItemType, 1);
+            }
+
             m_AttackHit = false;
             m_SolidObjectHit = false;
             m_HitList.Clear();
             m_HasRecoil = false;
-            m_LastHitFrame = -m_MultiHitFrameCount;
             m_AttackTime = Time.time;
             m_Attacking = true;
             m_Used = false;
@@ -529,7 +471,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             }
 
             if (m_Trail != null && m_TrailVisibility == TrailVisibilityType.Attack) {
-                m_TrailSpawnEvent = SchedulerBase.Schedule(m_TrailSpawnDelay, SpawnTrail);
+                m_TrailSpawnEvent = Scheduler.Schedule(m_TrailSpawnDelay, SpawnTrail);
             }
         }
 
@@ -545,12 +487,17 @@ namespace Opsive.UltimateCharacterController.Items.Actions
 #endif
 
             // No need to update if the weapon has already hit an object and it can only hit a single object or a solid object (such as a shield) was hit.
-            if ((m_SingleHit && m_AttackHit) || m_SolidObjectHit || !m_Attacking) {
+            if ((m_SingleHit && m_AttackHit) || m_SolidObjectHit) {
                 return;
             }
 
             // The item can't hit anything until after the delay.
             if (m_AttackTime + m_CanHitDelay > Time.time) {
+                return;
+            }
+
+            // The item has to hit an object before the used event.
+            if (m_Used) {
                 return;
             }
 
@@ -588,14 +535,15 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 if (hitCount > 0) {
 #if UNITY_EDITOR
                     if (hitCount == m_MaxCollisionCount) {
-                        Debug.LogWarning($"Warning: The maximum number of colliders have been hit by {m_GameObject.name}. Consider increasing the Max Collision Count value.");
+                        Debug.LogWarning("Warning: The maximum number of colliders have been hit by " + m_GameObject.name + ". Consider increasing the Max Collision Count value.");
                     }
 #endif
                     for (int j = 0; j < hitCount; ++j) {
                         var hitCollider = m_CollidersHit[j];
                         var hitGameObject = hitCollider.gameObject;
                         // Don't allow the same GameObejct to continuously be hit multiple times.
-                        if (m_HitList.Contains(hitGameObject)) {
+                        var hitTime = -1;
+                        if (m_HitList.TryGetValue(hitGameObject, out hitTime) && Time.frameCount - hitTime <= 1) {
                             continue;
                         }
 
@@ -661,8 +609,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 Physics.ComputePenetration(hitbox.Collider, hitbox.Transform.position, hitbox.Transform.rotation, other, other.transform.position, other.transform.rotation, out direction, out distance)) {
                 // ComputePenetration doesn't return the closest point on the collider that was hit. Use ClosestPoint to determine that point.
                 var offset = direction * (distance + m_CharacterLocomotion.ColliderSpacing * 2);
-                var otherTransform = other.transform;
-                var closestPoint = Physics.ClosestPoint(hitbox.Transform.position + offset, other, otherTransform.position, otherTransform.rotation);
+                var closestPoint = Physics.ClosestPoint(hitbox.Transform.position + offset, other, other.transform.position, other.transform.rotation);
 
                 // Fire a spherecast instead of a raycast from the closest point because the closest point may be on an edge which would prevent the raycast from
                 // hitting the object.
@@ -681,22 +628,20 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                 position = m_CharacterTransform.TransformPoint(localPosition);
 
                 // Perform the raycast from the character's local z position. This will prevent the cast from overlapping the object.
-                var rotation = hitboxTransform.rotation;
                 if (hitboxCollider is BoxCollider) {
                     var boxCollider = hitboxCollider as BoxCollider;
-                    hitCount = Physics.BoxCastNonAlloc(MathUtility.TransformPoint(position, rotation, boxCollider.center), boxCollider.size / 2, m_CharacterTransform.forward,
-                                                        m_CollisionsHit, rotation, distance, 1 << other.gameObject.layer, m_TriggerInteraction);
+                    hitCount = Physics.BoxCastNonAlloc(MathUtility.TransformPoint(position, hitboxTransform.rotation, boxCollider.center), boxCollider.size / 2, m_CharacterTransform.forward,
+                                                        m_CollisionsHit, hitboxTransform.rotation, distance, 1 << other.gameObject.layer, m_TriggerInteraction);
                 } else if (hitboxCollider is SphereCollider) {
                     var sphereCollider = hitboxCollider as SphereCollider;
-                    hitCount = Physics.SphereCastNonAlloc(MathUtility.TransformPoint(position, rotation, sphereCollider.center), 
+                    hitCount = Physics.SphereCastNonAlloc(MathUtility.TransformPoint(position, hitboxTransform.rotation, sphereCollider.center), 
                                                         sphereCollider.radius, m_CharacterTransform.forward, m_CollisionsHit, distance, 1 << other.gameObject.layer, m_TriggerInteraction);
                 } else if (hitboxCollider is CapsuleCollider) {
                     var capsuleCollider = hitboxCollider as CapsuleCollider;
-                    var radius = capsuleCollider.radius;
                     Vector3 firstEndCap, secondEndCap;
-                    MathUtility.CapsuleColliderEndCaps(capsuleCollider, position, rotation, out firstEndCap, out secondEndCap);
-                    hitCount = Physics.CapsuleCastNonAlloc(firstEndCap, secondEndCap, radius, m_CharacterTransform.forward, m_CollisionsHit, 
-                        radius + distance, 1 << other.gameObject.layer, m_TriggerInteraction);
+                    MathUtility.CapsuleColliderEndCaps(capsuleCollider, position, hitboxTransform.rotation, out firstEndCap, out secondEndCap);
+                    hitCount = Physics.CapsuleCastNonAlloc(firstEndCap, secondEndCap, capsuleCollider.radius, m_CharacterTransform.forward, m_CollisionsHit, 
+                        capsuleCollider.radius + distance, 1 << other.gameObject.layer, m_TriggerInteraction);
                 }
             }
 
@@ -708,9 +653,6 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                     if (m_CollisionsHit[i].collider != other) {
                         continue;
                     }
-                    if (m_MultiHitFrameCount > 0 && Time.frameCount - m_LastHitFrame <= m_MultiHitFrameCount) {
-                        continue;
-                    }
 
                     hitCollider = m_CollisionsHit[i].collider;
                     if (hitCharacterLocomotion != null) {
@@ -720,7 +662,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
                             var hasShieldCollider = false;
                             if (hitInventory != null) {
                                 for (int k = 0; k < hitInventory.SlotCount; ++k) {
-                                    var equippedItem = hitInventory.GetActiveItem(k);
+                                    var equippedItem = hitInventory.GetItem(k);
                                     if (equippedItem == null) {
                                         continue;
                                     }
@@ -755,23 +697,27 @@ namespace Opsive.UltimateCharacterController.Items.Actions
 
                     // The same parent GameObject should only be damaged once per use.
                     var hitGameObject = hitCollider.gameObject;
-                    var hitDamageTarget = DamageUtility.GetDamageTarget(hitGameObject);
+                    var hitHealth = hitGameObject.GetCachedParentComponent<Health>();
                     GameObject hitListGameObject = null;
-                    if (hitDamageTarget != null) {
-                        hitListGameObject = hitDamageTarget.HitGameObject;
+                    if (hitHealth != null) {
+                        hitListGameObject = hitHealth.gameObject;
                     } else if (hitCharacterLocomotion != null) {
                         hitListGameObject = hitCharacterLocomotion.gameObject;
                     } else {
                         hitListGameObject = hitGameObject;
                     }
 
-                    if (m_HitList.Contains(hitListGameObject)) {
+                    var hitTime = -1;
+                    if (m_HitList.TryGetValue(hitListGameObject, out hitTime) && Time.frameCount - hitTime <= m_MultiHitFrameCount) {
                         continue;
                     }
-                    m_HitList.Add(hitListGameObject);
-                    m_LastHitFrame = Time.frameCount;
+                    if (hitTime == -1) {
+                        m_HitList.Add(hitListGameObject, Time.frameCount);
+                    } else {
+                        m_HitList[hitListGameObject] = Time.frameCount;
+                    }
 
-                    HitCollider(hitbox, m_CollisionsHit[i], hitGameObject, hitCollider, hitDamageTarget);
+                    HitCollider(hitbox, m_CollisionsHit[i], hitGameObject, hitCollider, hitHealth, hitCharacterLocomotion);
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
                     if (m_NetworkInfo != null && m_NetworkInfo.IsLocalPlayer()) {
                         m_NetworkCharacter.MeleeHitCollider(this, hitboxIndex, m_CollisionsHit[i], hitGameObject, hitCharacterLocomotion);
@@ -795,26 +741,24 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <param name="raycastHit">The RaycastHit that caused the collision.</param>
         /// <param name="hitGameObject">The GameObject that was hit.</param>
         /// <param name="hitCollider">The Collider that was hit.</param>
-        /// <param name="damageTarget">The Health that was hit.</param>
-        public void HitCollider(MeleeHitbox hitbox, RaycastHit raycastHit, GameObject hitGameObject, Collider hitCollider, IDamageTarget damageTarget)
+        /// <param name="hitHealth">The Health that was hit.</param>
+        /// <param name="hitCharacterLocomotion">The hit Ultimate Character Locomotion component.</param>
+        public void HitCollider(MeleeHitbox hitbox, RaycastHit raycastHit, GameObject hitGameObject, Collider hitCollider, Health hitHealth, UltimateCharacterLocomotion hitCharacterLocomotion)
         {
             // The shield can absorb some (or none) of the damage from the melee attack.
             var damageAmount = m_DamageAmount * hitbox.DamageMultiplier;
             ShieldCollider shieldCollider;
             if ((shieldCollider = hitGameObject.GetCachedComponent<ShieldCollider>()) != null) {
                 var shieldDamageAmount = shieldCollider.Shield.Damage(this, damageAmount);
-                m_SolidObjectHit = m_ApplyRecoil && damageAmount != shieldDamageAmount;
                 damageAmount = shieldDamageAmount;
+                m_SolidObjectHit = m_ApplyRecoil;
             } else if (hitGameObject.GetCachedComponent<RecoilObject>() != null) {
                 m_SolidObjectHit = m_ApplyRecoil;
             }
 
-            // The raycast may be invalid if the collider is within another collider.
-            if (raycastHit.distance == 0) {
-                raycastHit.point = raycastHit.collider.ClosestPointOnBounds(hitbox.GameObject.transform.position);
-            }
-
             // Allow a custom event to be received.
+            EventHandler.ExecuteEvent(hitGameObject, "OnObjectImpact", damageAmount, raycastHit.point, raycastHit.normal * m_ImpactForce, m_Character, hitCollider);
+            // TODO: Version 2.1.5 adds another OnObjectImpact parameter. Remove the above event later once there has been a chance to migrate over.
             EventHandler.ExecuteEvent<float, Vector3, Vector3, GameObject, object, Collider>(hitGameObject, "OnObjectImpact", damageAmount, raycastHit.point, raycastHit.normal * m_ImpactForce, m_Character, this, hitCollider);
             if (m_OnImpactEvent != null) {
                 m_OnImpactEvent.Invoke(damageAmount, raycastHit.point, raycastHit.normal * m_ImpactForce, m_Character);
@@ -822,22 +766,11 @@ namespace Opsive.UltimateCharacterController.Items.Actions
 
             // If the shield didn't absorb all of the damage then it should be applied to the character.
             if (damageAmount > 0) {
-                if (damageTarget != null) {
-                    var pooledDamageData = GenericObjectPool.Get<DamageData>();
-                    
-                    pooledDamageData.SetDamage(this, damageAmount, raycastHit.point, -raycastHit.normal, m_ImpactForce, m_ImpactForceFrames, 0, hitCollider);
-                    var damageProcessorModule = m_CharacterLocomotion.gameObject.GetCachedComponent<DamageProcessorModule>();
-                    if (damageProcessorModule != null) {
-                        damageProcessorModule.ProcessDamage(m_DamageProcessor, damageTarget, pooledDamageData);
-                    } else {
-                        if (m_DamageProcessor == null) { m_DamageProcessor = DamageProcessor.Default; }
-                        m_DamageProcessor.Process(damageTarget, pooledDamageData);
-                    }
-                    
-                    GenericObjectPool.Return(pooledDamageData);
+                // If the Health component exists it will apply a force to the rigidbody in addition to deducting the health. Otherwise just apply the force to the rigidbody. 
+                if (hitHealth != null) {
+                    hitHealth.Damage(damageAmount, raycastHit.point, -raycastHit.normal, m_ImpactForce, m_ImpactForceFrames, 0, m_Character, this, hitCollider);
                 } else if (m_ImpactForce > 0 && raycastHit.rigidbody != null && !raycastHit.rigidbody.isKinematic) {
-                    // If the damage target exists it will apply a force to the rigidbody in addition to procesing the damage. Otherwise just apply the force to the rigidbody. 
-                    raycastHit.rigidbody.AddForceAtPosition((m_ImpactForce * MathUtility.RigidbodyForceMultiplier ) * -raycastHit.normal, raycastHit.point);
+                    raycastHit.rigidbody.AddForceAtPosition(-raycastHit.normal * m_ImpactForce * MathUtility.RigidbodyForceMultiplier, raycastHit.point);
                 }
             }
 
@@ -874,7 +807,6 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// </summary>
         public override void ItemUseComplete()
         {
-            base.ItemUseComplete();
             m_Attacking = false;
             if (m_HasRecoil) {
                 // The item has completed its recoil- inform the state set.
@@ -939,7 +871,6 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             if (m_TrailVisibility != TrailVisibilityType.Attack || !m_Attacking) {
                 return;
             }
-            m_TrailStopEvent = null;
 
             StopTrail();
         }
@@ -954,11 +885,11 @@ namespace Opsive.UltimateCharacterController.Items.Actions
             }
 
             if (m_TrailSpawnEvent != null) {
-                SchedulerBase.Cancel(m_TrailSpawnEvent);
+                Scheduler.Cancel(m_TrailSpawnEvent);
                 m_TrailSpawnEvent = null;
             }
             if (m_TrailStopEvent != null) {
-                SchedulerBase.Cancel(m_TrailStopEvent);
+                Scheduler.Cancel(m_TrailStopEvent);
                 m_TrailStopEvent = null;
             }
             if (m_ActiveTrail != null) {

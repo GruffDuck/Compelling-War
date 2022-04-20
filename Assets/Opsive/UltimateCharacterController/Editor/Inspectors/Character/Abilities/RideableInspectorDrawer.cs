@@ -4,16 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using System;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abilities
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using System;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Draws a custom inspector for the Lean Ability.
     /// </summary>
@@ -37,7 +37,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
         /// <param name="parent">The parent of the removed ability.</param>
         public override void AbilityRemoved(Ability ability, UnityEngine.Object parent)
         {
-            RemoveDismountColliders(ability as Rideable);
+            RemoveDismountColliders(ability as Rideable, (parent as Component).gameObject);
         }
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
             baseCallback += () =>
             {
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Space(Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * 2);
+                GUILayout.Space(InspectorUtility.IndentWidth * 2);
                 var rideableAbility = ability as Rideable;
                 GUI.enabled = rideableAbility.LeftDismountCollider == null || rideableAbility.RightDismountCollider == null;
                 if (GUILayout.Button("Add Dismount Colliders")) {
@@ -62,7 +62,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
 
                 GUI.enabled = rideableAbility.LeftDismountCollider != null || rideableAbility.RightDismountCollider != null;
                 if (GUILayout.Button("Remove Dismount Colliders")) {
-                    RemoveDismountColliders(rideableAbility);
+                    RemoveDismountColliders(rideableAbility, (parent as Component).gameObject);
                 }
                 GUI.enabled = true;
                 EditorGUILayout.EndHorizontal();
@@ -74,13 +74,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
         /// <summary>
         /// Adds the colliders to the rideable ability.
         /// </summary>
-        /// <param name="rideableAbility">The ability to add the colliders to.</param>
+        /// <param name="rideable">The ability to add the colliders to.</param>
         /// <param name="parent">The parent of the rideable ability.</param>
         private void AddDismountColliders(Rideable rideableAbility, GameObject parent)
         {
             // Position the collider under the Colliders GameObject if it exists.
             Transform collidersTransform;
-            if ((collidersTransform = parent.transform.Find("Colliders")) != null) {
+            if ((collidersTransform = parent.transform.Find("Colliders"))) {
                 parent = collidersTransform.gameObject;
             }
             rideableAbility.LeftDismountCollider = CreateCollider(parent, "Left Dismount Collider", new Vector3(-0.9f, 1, 0));
@@ -110,7 +110,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
         /// Removes the collider from the rideable ability.
         /// </summary>
         /// <param name="rideableAbility">The ability to remove the colliders from.</param>
-        private void RemoveDismountColliders(Rideable rideableAbility)
+        /// <param name="parent">The parent of the rideable ability.</param>
+        private void RemoveDismountColliders(Rideable rideableAbility, GameObject parent)
         {
             if (rideableAbility.LeftDismountCollider != null) {
                 UnityEngine.Object.DestroyImmediate(rideableAbility.LeftDismountCollider.gameObject, true);

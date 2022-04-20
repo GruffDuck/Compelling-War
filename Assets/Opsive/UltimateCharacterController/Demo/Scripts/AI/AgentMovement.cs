@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character.Abilities.AI;
+using Opsive.UltimateCharacterController.Character.Abilities.Items;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Demo.AI
 {
-    using Opsive.UltimateCharacterController.Character.Abilities.AI;
-    using Opsive.UltimateCharacterController.Character.Abilities.Items;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Moves the agent to random positions within a circle. No pathfinding is done.
     /// </summary>
@@ -32,7 +32,6 @@ namespace Opsive.UltimateCharacterController.Demo.AI
 
         public override Vector2 InputVector { get { return m_InputVector; } }
         public override Vector3 DeltaRotation { get { return Vector3.zero; } }
-        public override bool HasArrived { get { return IsAtDestination(); } }
 
         /// <summary>
         /// Initialize the default values.
@@ -53,28 +52,8 @@ namespace Opsive.UltimateCharacterController.Demo.AI
         {
             var randomPosition = Random.insideUnitSphere * m_Radius;
             randomPosition.y = 0;
-            SetDestination(m_Center + randomPosition);
-        }
-
-        /// <summary>
-        /// Sets the destination of the pathfinding agent.
-        /// </summary>
-        /// <param name="destination">The position to move towards.</param>
-        /// <returns>True if the destination was set.</returns>
-        public override bool SetDestination(Vector3 destination)
-        {
-            m_Destination = destination;
+            m_Destination = m_Center + randomPosition;
             m_ArriveTime = -1;
-            return true;
-        }
-
-        /// <summary>
-        /// Returns the destination of the pathfinding agent.
-        /// </summary>
-        /// <returns>The destination of the pathfinding agent.</returns>
-        public override Vector3 GetDestination()
-        {
-            return m_Destination;
         }
 
         /// <summary>
@@ -133,15 +112,6 @@ namespace Opsive.UltimateCharacterController.Demo.AI
         private bool IsAtDestination()
         {
             return (m_Destination - m_Transform.position).sqrMagnitude < m_StoppingDistance * m_StoppingDistance;
-        }
-
-        /// <summary>
-        /// Teleports the agent to the specified position.
-        /// </summary>
-        /// <param name="position">The position that the agent should teleport to.</param>
-        public override void Teleport(Vector3 position)
-        {
-            m_Destination = position;
         }
     }
 }

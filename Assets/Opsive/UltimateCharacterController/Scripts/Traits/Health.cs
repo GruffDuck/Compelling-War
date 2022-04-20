@@ -4,31 +4,26 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Objects;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+using Opsive.UltimateCharacterController.Networking;
+using Opsive.UltimateCharacterController.Networking.Traits;
+#endif
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Traits
 {
-    using Opsive.Shared.Audio;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Events;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Objects;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-    using Opsive.UltimateCharacterController.Networking;
-    using Opsive.UltimateCharacterController.Networking.Traits;
-#endif
-    using Opsive.UltimateCharacterController.Traits.Damage;
-    using Opsive.UltimateCharacterController.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-    using EventHandler = Opsive.Shared.Events.EventHandler;
-    using Object = UnityEngine.Object;
-
     /// <summary>
     /// Adds health and a shield to the object.
     /// </summary>
     [RequireComponent(typeof(AttributeManager))]
-    public class Health : StateBehavior, IDamageTarget
+    public class Health : StateBehavior
     {
         [Tooltip("Is the object invincible?")]
         [SerializeField] protected bool m_Invincible;
@@ -38,7 +33,7 @@ namespace Opsive.UltimateCharacterController.Traits
         [SerializeField] protected string m_HealthAttributeName = "Health";
         [Tooltip("The name of the shield attribute.")]
         [SerializeField] protected string m_ShieldAttributeName;
-        [Tooltip("The list of Colliders that should apply a multiplier when damaged.")]
+        [Tooltip("The list of Colldiers that should apply a multiplier when damaged.")]
         [SerializeField] protected Hitbox[] m_Hitboxes;
         [Tooltip("The maximum number of colliders that can be detected when determining if a hitbox was damaged.")]
         [SerializeField] protected int m_MaxHitboxCollisionCount = 10;
@@ -58,8 +53,6 @@ namespace Opsive.UltimateCharacterController.Traits
         [HideInInspector] [SerializeField] protected AudioClipSet m_HealAudioClipSet = new AudioClipSet();
         [Tooltip("A set of AudioClips that can be played when the object dies.")]
         [HideInInspector] [SerializeField] protected AudioClipSet m_DeathAudioClipSet = new AudioClipSet();
-        [Tooltip("The ID of the Damage Pop up Manager.")]
-        [SerializeField] protected int m_DamagePopupManagerID = -1;
         [Tooltip("Unity event invoked when taking damage.")]
         [SerializeField] protected UnityFloatVector3Vector3GameObjectEvent m_OnDamageEvent;
         [Tooltip("Unity event invoked when healing.")]
@@ -67,9 +60,6 @@ namespace Opsive.UltimateCharacterController.Traits
         [Tooltip("Unity event invoked when the object dies.")]
         [SerializeField] protected UnityVector3Vector3GameObjectEvent m_OnDeathEvent;
 
-        public GameObject Owner { get { return gameObject; } }
-        public GameObject HitGameObject { get { return gameObject; } }
-        public DamagePopupManager DamagePopupManager { get { return m_DamagePopupManager; } set { m_DamagePopupManager = value; } }
         public bool Invincible { get { return m_Invincible; } set { m_Invincible = value; } }
         public float TimeInvincibleAfterSpawn { get { return m_TimeInvincibleAfterSpawn; } set { m_TimeInvincibleAfterSpawn = value; } }
         public string HealthAttributeName { get { return m_HealthAttributeName; }
@@ -100,7 +90,7 @@ namespace Opsive.UltimateCharacterController.Traits
                 }
             }
         }
-        [Shared.Utility.NonSerialized] public Hitbox[] Hitboxes { get { return m_Hitboxes; } set { m_Hitboxes = value; } }
+        [NonSerialized] public Hitbox[] Hitboxes { get { return m_Hitboxes; } set { m_Hitboxes = value; } }
         public int MaxHitboxCollisionCount { get { return m_MaxHitboxCollisionCount; } set { m_MaxHitboxCollisionCount = value; } }
         public GameObject[] SpawnedObjectsOnDeath { get { return m_SpawnedObjectsOnDeath; } set { m_SpawnedObjectsOnDeath = value; } }
         public GameObject[] DestroyedObjectsOnDeath { get { return m_DestroyedObjectsOnDeath; } set { m_DestroyedObjectsOnDeath = value; } }
@@ -110,12 +100,10 @@ namespace Opsive.UltimateCharacterController.Traits
         public AudioClipSet TakeDamageAudioClipSet { get { return m_TakeDamageAudioClipSet; } set { m_TakeDamageAudioClipSet = value; } }
         public AudioClipSet HealAudioClipSet { get { return m_HealAudioClipSet; } set { m_HealAudioClipSet = value; } }
         public AudioClipSet DeathAudioClipSet { get { return m_DeathAudioClipSet; } set { m_DeathAudioClipSet = value; } }
-        public int DamagePopupManagerID { get { return m_DamagePopupManagerID; } set { m_DamagePopupManagerID = value; } }
         public UnityFloatVector3Vector3GameObjectEvent OnDamageEvent { get { return m_OnDamageEvent; } set { m_OnDamageEvent = value; } }
         public UnityFloatEvent OnHealEvent { get { return m_OnHealEvent; } set { m_OnHealEvent = value; } }
         public UnityVector3Vector3GameObjectEvent OnDeathEvent { get { return m_OnDeathEvent; } set { m_OnDeathEvent = value; } }
 
-        protected DamagePopupManager m_DamagePopupManager;
         protected GameObject m_GameObject;
         protected Transform m_Transform;
         private IForceObject m_ForceObject;
@@ -132,7 +120,7 @@ namespace Opsive.UltimateCharacterController.Traits
         private int m_AliveLayer;
         private Dictionary<Collider, Hitbox> m_ColliderHitboxMap;
         private RaycastHit[] m_RaycastHits;
-        private Utility.UnityEngineUtility.RaycastHitComparer m_RaycastHitComparer;
+        private UnityEngineUtility.RaycastHitComparer m_RaycastHitComparer;
 
         public float HealthValue { get { return (m_HealthAttribute != null ? m_HealthAttribute.Value : 0); } }
         public float ShieldValue { get { return (m_ShieldAttribute != null ? m_ShieldAttribute.Value : 0); } }
@@ -156,7 +144,6 @@ namespace Opsive.UltimateCharacterController.Traits
             if (!string.IsNullOrEmpty(m_ShieldAttributeName)) {
                 m_ShieldAttribute = m_AttributeManager.GetAttribute(m_ShieldAttributeName);
             }
-            m_AliveLayer = m_GameObject.layer;
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
             m_NetworkInfo = m_GameObject.GetCachedComponent<INetworkInfo>();
             m_NetworkHealthMonitor = m_GameObject.GetCachedComponent<INetworkHealthMonitor>();
@@ -171,30 +158,10 @@ namespace Opsive.UltimateCharacterController.Traits
                     m_ColliderHitboxMap.Add(m_Hitboxes[i].Collider, m_Hitboxes[i]);
                 }
                 m_RaycastHits = new RaycastHit[m_MaxHitboxCollisionCount];
-                m_RaycastHitComparer = new Utility.UnityEngineUtility.RaycastHitComparer();
+                m_RaycastHitComparer = new UnityEngineUtility.RaycastHitComparer();
             }
 
             EventHandler.RegisterEvent(m_GameObject, "OnRespawn", OnRespawn);
-        }
-
-        /// <summary>
-        /// Get the damage popup manager.
-        /// </summary>
-        protected virtual void Start()
-        {
-            if (m_DamagePopupManager == null) {
-                SetDamagePopupManagerUsingID();
-            }
-        }
-
-        /// <summary>
-        /// Use the Damage Popup Manager ID to get the Damage Popup Manager.
-        /// </summary>
-        public void SetDamagePopupManagerUsingID()
-        {
-            if (m_DamagePopupManagerID < 0) { return; }
-
-            m_DamagePopupManager = GlobalDictionary.Get<DamagePopupManager>((uint)m_DamagePopupManagerID);
         }
 
         /// <summary>
@@ -289,72 +256,69 @@ namespace Opsive.UltimateCharacterController.Traits
         /// <param name="hitCollider">The Collider that was hit.</param>
         public void Damage(float amount, Vector3 position, Vector3 direction, float forceMagnitude, int frames, float radius, GameObject attacker, object attackerObject, Collider hitCollider)
         {
-            var pooledDamageData = GenericObjectPool.Get<DamageData>();
-            pooledDamageData.SetDamage(amount, position, direction, forceMagnitude, frames, radius, attacker, attackerObject, hitCollider);
-            Damage(pooledDamageData);
-            GenericObjectPool.Return(pooledDamageData);
-        }
-
-        /// <summary>
-        /// The object has been damaged.
-        /// </summary>
-        /// <param name="damageData">The data associated with the damage.</param>
-        public virtual void Damage(DamageData damageData)
-        {
-            // Don't take any damage if the object is invincible, already dead, or just spawned and is invincible for a small amount of time.
-            if (m_Invincible || !IsAlive() || m_SpawnTime + m_TimeInvincibleAfterSpawn > Time.time || damageData.Amount == 0) {
-                return;
-            }
-
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-            if (m_NetworkInfo != null) {
-                if (m_NetworkInfo.IsLocalPlayer()) {
-                    m_NetworkHealthMonitor.OnDamage(damageData.Amount, damageData.Position, damageData.Direction, damageData.ForceMagnitude, damageData.Frames, damageData.Radius, damageData.DamageOriginator, damageData.HitCollider);
-                }
+            if (m_NetworkInfo != null && !m_NetworkInfo.IsLocalPlayer()) {
                 return;
             }
 #endif
 
-            OnDamage(damageData);
+            // Don't take any damage if the object is invincible, already dead, or just spawned and is invincible for a small amount of time.
+            if (m_Invincible || !IsAlive() || m_SpawnTime + m_TimeInvincibleAfterSpawn > Time.time || amount == 0) {
+                return;
+            }
+
+            OnDamage(amount, position, direction, forceMagnitude, frames, radius, attacker, attackerObject, hitCollider);
         }
 
         /// <summary>
         /// The object has taken been damaged.
         /// </summary>
-        /// <param name="damageData">The data associated with the damage.</param>
-        public virtual void OnDamage(DamageData damageData)
+        /// <param name="amount">The amount of damage taken.</param>
+        /// <param name="position">The position of the damage.</param>
+        /// <param name="direction">The direction that the object took damage from.</param>
+        /// <param name="forceMagnitude">The magnitude of the force that is applied to the object.</param>
+        /// <param name="frames">The number of frames to add the force to.</param>
+        /// <param name="radius">The radius of the explosive damage. If 0 then a non-explosive force will be used.</param>
+        /// <param name="attacker">The GameObject that did the damage.</param>
+        /// <param name="attackerObject">The object that did the damage.</param>
+        /// <param name="hitCollider">The Collider that was hit.</param>
+        public virtual void OnDamage(float amount, Vector3 position, Vector3 direction, float forceMagnitude, int frames, float radius, GameObject attacker, object attackerObject, Collider hitCollider)
         {
-            if (damageData == null) { return; }
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+            if (m_NetworkInfo != null && m_NetworkInfo.IsLocalPlayer()) {
+                m_NetworkHealthMonitor.OnDamage(amount, position, direction, forceMagnitude, frames, radius, attacker, hitCollider);
+            }
+#endif
 
             // Add a multiplier if a particular collider was hit. Do not apply a multiplier if the damage is applied through a radius because multiple
             // collider are hit.
-            if (damageData.Radius == 0 && damageData.Direction != Vector3.zero && damageData.HitCollider != null) {
-                if (m_ColliderHitboxMap != null && m_ColliderHitboxMap.Count > 0){
-                    Hitbox hitbox;
-                    if (m_ColliderHitboxMap.TryGetValue(damageData.HitCollider, out hitbox)) {
-                        damageData.Amount *= hitbox.DamageMultiplier;
+            if (radius == 0 && direction != Vector3.zero && hitCollider != null) {
+                Hitbox hitbox;
+                if (m_ColliderHitboxMap != null && m_ColliderHitboxMap.Count > 0) {
+                    if (m_ColliderHitboxMap.TryGetValue(hitCollider, out hitbox)) {
+                        amount *= hitbox.DamageMultiplier;
                     } else {
                         // The main collider may be overlapping child hitbox colliders. Perform one more raycast to ensure a hitbox collider shouldn't be hit.
                         float distance = 0.2f;
-                        if (damageData.HitCollider is CapsuleCollider capsuleCollider) {
-                            distance = capsuleCollider.radius;
-                        } else if (damageData.HitCollider is SphereCollider sphereCollider) {
-                            distance = sphereCollider.radius;
+                        if (hitCollider is CapsuleCollider) {
+                            distance = (hitCollider as CapsuleCollider).radius;
+                        } else if (hitCollider is SphereCollider) {
+                            distance = (hitCollider as SphereCollider).radius;
                         }
 
                         // The hitbox collider may be underneath the base collider. Fire a raycast to detemine if there are any colliders underneath the hit collider 
                         // that should apply a multiplier.
-                        var hitCount = Physics.RaycastNonAlloc(damageData.Position, damageData.Direction, m_RaycastHits, distance,
+                        var hitCount = Physics.RaycastNonAlloc(position, direction, m_RaycastHits, distance,
                                         ~(1 << LayerManager.IgnoreRaycast | 1 << LayerManager.Overlay | 1 << LayerManager.VisualEffect), QueryTriggerInteraction.Ignore);
                         for (int i = 0; i < hitCount; ++i) {
                             var closestRaycastHit = QuickSelect.SmallestK(m_RaycastHits, hitCount, i, m_RaycastHitComparer);
-                            if (closestRaycastHit.collider == damageData.HitCollider) {
+                            if (closestRaycastHit.collider == hitCollider) {
                                 continue;
                             }
                             // A new collider has been found - stop iterating if the hitbox map exists and use the hitbox multiplier.
                             if (m_ColliderHitboxMap.TryGetValue(closestRaycastHit.collider, out hitbox)) {
-                                damageData.Amount *= hitbox.DamageMultiplier;
-                                damageData.HitCollider = hitbox.Collider;
+                                amount *= hitbox.DamageMultiplier;
+                                hitCollider = hitbox.Collider;
                                 break;
                             }
                         }
@@ -364,42 +328,37 @@ namespace Opsive.UltimateCharacterController.Traits
 
             // Apply the damage to the shield first because the shield can regenrate.
             if (m_ShieldAttribute != null && m_ShieldAttribute.Value > m_ShieldAttribute.MinValue) {
-                var shieldAmount = Mathf.Min(damageData.Amount, m_ShieldAttribute.Value - m_ShieldAttribute.MinValue);
-                damageData.Amount -= shieldAmount;
+                var shieldAmount = Mathf.Min(amount, m_ShieldAttribute.Value - m_ShieldAttribute.MinValue);
+                amount -= shieldAmount;
                 m_ShieldAttribute.Value -= shieldAmount;
             }
 
             // Decrement the health by remaining amount after the shield has taken damage.
             if (m_HealthAttribute != null && m_HealthAttribute.Value > m_HealthAttribute.MinValue) {
-                m_HealthAttribute.Value -= Mathf.Min(damageData.Amount, m_HealthAttribute.Value - m_HealthAttribute.MinValue);
+                m_HealthAttribute.Value -= Mathf.Min(amount, m_HealthAttribute.Value - m_HealthAttribute.MinValue);
             }
 
-            var force = damageData.Direction * damageData.ForceMagnitude;
-            if (damageData.ForceMagnitude > 0) {
+            var force = direction * forceMagnitude;
+            if (forceMagnitude > 0) {
                 // Apply a force to the object.
                 if (m_ForceObject != null) {
-                    m_ForceObject.AddForce(force, damageData.Frames);
+                    m_ForceObject.AddForce(force, frames);
                 } else {
                     // Apply a force to the rigidbody if the object isn't a character.
                     if (m_Rigidbody != null && !m_Rigidbody.isKinematic) {
-                        if (damageData.Radius == 0) {
-                            m_Rigidbody.AddForceAtPosition(force * MathUtility.RigidbodyForceMultiplier, damageData.Position);
+                        if (radius == 0) {
+                            m_Rigidbody.AddForceAtPosition(force * MathUtility.RigidbodyForceMultiplier, position);
                         } else {
-                            m_Rigidbody.AddExplosionForce(force.magnitude * MathUtility.RigidbodyForceMultiplier, damageData.Position, damageData.Radius);
+                            m_Rigidbody.AddExplosionForce(force.magnitude * MathUtility.RigidbodyForceMultiplier, position, radius);
                         }
                     }
                 }
             }
 
-            var attacker = damageData.DamageOriginator?.Owner;
             // Let other interested objects know that the object took damage.
-            EventHandler.ExecuteEvent<float, Vector3, Vector3, GameObject, Collider>(m_GameObject, "OnHealthDamage", damageData.Amount, damageData.Position, force, attacker, damageData.HitCollider);
-            EventHandler.ExecuteEvent<DamageData>(m_GameObject, "OnHealthDamageWithData", damageData);
+            EventHandler.ExecuteEvent<float, Vector3, Vector3, GameObject, Collider>(m_GameObject, "OnHealthDamage", amount, position, force, attacker, hitCollider);
             if (m_OnDamageEvent != null) {
-                m_OnDamageEvent.Invoke(damageData.Amount, damageData.Position, force, attacker);
-            }
-            if (m_DamagePopupManager != null) {
-                m_DamagePopupManager.OpenDamagePopup(damageData);
+                m_OnDamageEvent.Invoke(amount, position, force, attacker);
             }
 
             // The object is dead when there is no more health or shield.
@@ -407,7 +366,7 @@ namespace Opsive.UltimateCharacterController.Traits
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
                 if (m_NetworkInfo == null || m_NetworkInfo.IsLocalPlayer()) {
 #endif
-                    Die(damageData.Position, force, attacker);
+                    Die(position, force, attacker);
 #if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
                 }
 #endif
@@ -442,9 +401,9 @@ namespace Opsive.UltimateCharacterController.Traits
 #endif
 
             // Spawn any objects on death, such as an explosion if the object is an explosive barrel.
-            if (m_SpawnedObjectsOnDeath != null){
+            if (m_SpawnedObjectsOnDeath != null) {
                 for (int i = 0; i < m_SpawnedObjectsOnDeath.Length; ++i) {
-                    var spawnedObject = ObjectPoolBase.Instantiate(m_SpawnedObjectsOnDeath[i], m_Transform.position, m_Transform.rotation);
+                    var spawnedObject = ObjectPool.Instantiate(m_SpawnedObjectsOnDeath[i], transform.position, transform.rotation);
                     Explosion explosion;
                     if ((explosion = spawnedObject.GetCachedComponent<Explosion>()) != null) {
                         explosion.Explode(gameObject);
@@ -459,8 +418,8 @@ namespace Opsive.UltimateCharacterController.Traits
             // Destroy any objects on death. The objects will be placed back in the object pool if they were created within it otherwise the object will be destroyed.
             if (m_DestroyedObjectsOnDeath != null) {
                 for (int i = 0; i < m_DestroyedObjectsOnDeath.Length; ++i) {
-                    if (ObjectPoolBase.InstantiatedWithPool(m_DestroyedObjectsOnDeath[i])) {
-                        ObjectPoolBase.Destroy(m_DestroyedObjectsOnDeath[i]);
+                    if (ObjectPool.InstantiatedWithPool(m_DestroyedObjectsOnDeath[i])) {
+                        ObjectPool.Destroy(m_DestroyedObjectsOnDeath[i]);
                     } else {
                         Object.Destroy(m_DestroyedObjectsOnDeath[i]);
                     }
@@ -478,7 +437,7 @@ namespace Opsive.UltimateCharacterController.Traits
 
             // Deactivate the object if requested.
             if (m_DeactivateOnDeath) {
-                SchedulerBase.Schedule(m_DeactivateOnDeathDelay, Deactivate);
+                Scheduler.Schedule(m_DeactivateOnDeathDelay, Deactivate);
             }
 
             // The attributes shouldn't regenerate.
@@ -539,37 +498,34 @@ namespace Opsive.UltimateCharacterController.Traits
             }
 #endif
 
-            var healAmount = 0f;
+            var healed = false;
 
             // Contribute the amount of the health first.
             if (m_HealthAttribute != null && m_HealthAttribute.Value < m_HealthAttribute.MaxValue) {
                 var healthAmount = Mathf.Min(amount, m_HealthAttribute.MaxValue - m_HealthAttribute.Value);
                 amount -= healthAmount;
                 m_HealthAttribute.Value += healthAmount;
-                healAmount += healthAmount;
+                healed = true;
             }
 
             // Add any remaining amount to the shield.
             if (m_ShieldAttribute != null && amount > 0 && m_ShieldAttribute.Value < m_ShieldAttribute.MaxValue) {
                 var shieldAmount = Mathf.Min(amount, m_ShieldAttribute.MaxValue - m_ShieldAttribute.Value);
                 m_ShieldAttribute.Value += shieldAmount;
-                healAmount += shieldAmount;
+                healed = true;
             }
 
             // Don't play any effects if the object wasn't healed.
-            if (healAmount == 0) {
+            if (!healed) {
                 return false;
             }
 
             // Play any heal audio.
             m_HealAudioClipSet.PlayAudioClip(m_GameObject);
 
-            EventHandler.ExecuteEvent<float>(m_GameObject, "OnHealthHeal", healAmount);
+            EventHandler.ExecuteEvent<float>(m_GameObject, "OnHealthHeal", amount);
             if (m_OnHealEvent != null) {
-                m_OnHealEvent.Invoke(healAmount);
-            }
-            if (m_DamagePopupManager != null) {
-                m_DamagePopupManager.OpenHealPopup(m_Transform.position, amount);
+                m_OnHealEvent.Invoke(amount);
             }
 
             return true;

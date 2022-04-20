@@ -4,15 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEngine.UI;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Objects.CharacterAssist;
+
 namespace Opsive.UltimateCharacterController.UI
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Objects.CharacterAssist;
-    using UnityEngine;
-    using UnityEngine.UI;
-
     /// <summary>
     /// The MessageMonitor will update the UI for any external object messages such as an ability being able to start or the character picking up an item.
     /// </summary>
@@ -62,7 +62,6 @@ namespace Opsive.UltimateCharacterController.UI
                 return;
             }
 
-            gameObject.SetActive(CanShowUI());
             EventHandler.RegisterEvent<Ability, bool>(m_Character, "OnAbilityMessageCanStart", OnAbilityCanStart);
             EventHandler.RegisterEvent<ObjectPickup>(m_Character, "OnObjectPickedUp", OnObjectPickedUp);
         }
@@ -75,19 +74,18 @@ namespace Opsive.UltimateCharacterController.UI
         private void OnAbilityCanStart(Ability ability, bool canStart)
         {
             // Only one ability message can be shown at a time.
-            if (m_Ability != null && m_Ability != ability && m_Ability.Index < ability.Index) {
+            if (m_Ability != null && m_Ability != ability) {
                 return;
             }
 
             if (canStart && (!string.IsNullOrEmpty(ability.AbilityMessageText) || ability.AbilityMessageIcon != null)) {
                 m_Ability = ability;
                 m_ShouldFade = false;
-                m_ObjectPickup = null;
                 if (m_ScheduledFade != null) {
-                    SchedulerBase.Cancel(m_ScheduledFade);
+                    Scheduler.Cancel(m_ScheduledFade);
                     m_ScheduledFade = null;
                 }
-            } else if (!canStart) {
+            } else {
                 m_Ability = null;
             }
             UpdateMessage();
@@ -104,7 +102,7 @@ namespace Opsive.UltimateCharacterController.UI
                 m_ShouldFade = true;
                 m_ObjectAlphaColor = 1;
                 if (m_ShouldFade) {
-                    SchedulerBase.Cancel(m_ScheduledFade);
+                    Scheduler.Cancel(m_ScheduledFade);
                 }
             } else {
                 // Keep showing the previous object message if the new message doesn't have text or icons.
@@ -147,7 +145,7 @@ namespace Opsive.UltimateCharacterController.UI
                 }
 
                 if (m_ShouldFade) {
-                    m_ScheduledFade = SchedulerBase.Schedule(m_ObjectVisiblityDuration, FadeMessage);
+                    m_ScheduledFade = Scheduler.Schedule(m_ObjectVisiblityDuration, FadeMessage);
                 }
             }
 
@@ -181,7 +179,7 @@ namespace Opsive.UltimateCharacterController.UI
             }
 
             // Keep fading until there is nothing left to fade.
-            m_ScheduledFade = SchedulerBase.Schedule(0.01f, FadeMessage);
+            m_ScheduledFade = Scheduler.Schedule(0.01f, FadeMessage);
         }
 
         /// <summary>
@@ -190,7 +188,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <returns>True if the UI can be shown.</returns>
         protected override bool CanShowUI()
         {
-            return base.CanShowUI() && (m_Ability != null || m_ObjectPickup != null || m_ShouldFade);
+            return m_Ability != null || m_ObjectPickup != null || m_ShouldFade;
         }
     }
 }

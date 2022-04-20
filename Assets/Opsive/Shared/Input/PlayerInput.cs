@@ -1,30 +1,23 @@
 /// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Input
-{
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
-    using Opsive.Shared.StateSystem;
-#endif
-    using Opsive.Shared.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-    using UnityEngine.EventSystems;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.StateSystem;
+using System.Collections.Generic;
 
+namespace Opsive.UltimateCharacterController.Input
+{
     /// <summary>
     /// Abstract class to expose a common interface for any input implementation.
     /// </summary>
-    public abstract class PlayerInput :
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
-        StateBehavior
-#else
-        MonoBehaviour
-#endif
+    public abstract class PlayerInput : StateBehavior
     {
         /// <summary>
         /// Specifies how to set the look vector.
@@ -57,18 +50,16 @@ namespace Opsive.Shared.Input
         [SerializeField] protected float m_LookAccelerationThreshold = 0.4f;
         [Tooltip("The rate (in seconds) the component checks to determine if a controller is connected.")]
         [SerializeField] protected float m_ControllerConnectedCheckRate = 1f;
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
         [Tooltip("The state that should be activated when a controller is connected.")]
         [SerializeField] protected string m_ConnectedControllerState = "ConnectedController";
-#endif
         [Tooltip("Unity event invoked when the gameplay input is enabled or disabled.")]
         [SerializeField] protected UnityBoolEvent m_EnableGamplayInputEvent;
 
         public string HorizontalLookInputName { get { return m_HorizontalLookInputName; } set { m_HorizontalLookInputName = value; } }
         public string VerticalLookInputName { get { return m_VerticalLookInputName; } set { m_VerticalLookInputName = value; } }
-        public LookVectorMode LookMode {
-            get { return m_LookVectorMode; }
-            set {
+        public LookVectorMode LookMode { get { return m_LookVectorMode; }
+            set
+            {
                 m_LookVectorMode = value;
                 if (m_LookVectorMode == LookVectorMode.Smoothed && m_SmoothLookBuffer == null) {
                     m_SmoothLookBuffer = new Vector2[m_SmoothLookSteps];
@@ -82,44 +73,34 @@ namespace Opsive.Shared.Input
         public float SmoothExponent { get { return m_SmoothExponent; } set { m_SmoothExponent = value; } }
         public float LookAccelerationThreshold { get { return m_LookAccelerationThreshold; } set { m_LookAccelerationThreshold = value; } }
         public float ControllerConnectedCheckRate { get { return m_ControllerConnectedCheckRate; } set { m_ControllerConnectedCheckRate = value; } }
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
         public string ConnectedControllerState { get { return m_ConnectedControllerState; } set { m_ConnectedControllerState = value; } }
-#endif
-        public UnityBoolEvent EnableGameplayInputEvent { get { return m_EnableGamplayInputEvent; } set { m_EnableGamplayInputEvent = value; } }
 
         private Vector2[] m_SmoothLookBuffer;
         private int m_SmoothLookBufferIndex;
         private int m_SmoothLookBufferCount;
         protected Vector2 m_RawLookVector;
         protected Vector2 m_CurrentLookVector;
+        private bool m_HasFocus = true;
         private float m_TimeScale = 1;
         private bool m_ControllerConnected;
         private Dictionary<string, float> m_ButtonDownTime;
         private Dictionary<string, float> m_ButtonUpTime;
         private ScheduledEventBase m_ControllerCheckEvent;
+        private int m_UpdateFrame = -1;
         private bool m_AllowInput = true;
-        private bool m_Focus = true;
-        private bool m_Death;
-        private Vector3 m_RawLookVectorAccumulation;
-        private Vector3 m_UnitySmoothLookVectorAccumulation;
+        private bool m_Death = false;
 
         public Vector2 RawLookVector { set { m_RawLookVector = value; } }
         public Vector2 CurrentLookVector { set { m_CurrentLookVector = value; } }
         public bool ControllerConnected { get { return m_ControllerConnected; } }
 
-        protected virtual bool CanCheckForController { get { return true; } }
-
         /// <summary>
         /// Initialize the default values.
         /// </summary>
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
         protected override void Awake()
         {
             base.Awake();
-#else
-        protected virtual void Awake()
-        {
-#endif
+
             if (m_LookVectorMode == LookVectorMode.Smoothed) {
                 m_SmoothLookBuffer = new Vector2[m_SmoothLookSteps];
             }
@@ -135,66 +116,67 @@ namespace Opsive.Shared.Input
         /// <summary>
         /// Returns true if the button is being pressed.
         /// </summary>
-        /// <param name="buttonName">The name of the button.</param>
+        /// <param name="name">The name of the button.</param>
         /// <returns>True of the button is being pressed.</returns>
-        public bool GetButton(string buttonName)
+        public bool GetButton(string name)
         {
-            return GetButtonInternal(buttonName);
+            return GetButtonInternal(name);
         }
 
         /// <summary>
         /// Internal method which returns true if the button is being pressed.
         /// </summary>
-        /// <param name="buttonName">The name of the button.</param>
+        /// <param name="name">The name of the button.</param>
         /// <returns>True of the button is being pressed.</returns>
-        protected virtual bool GetButtonInternal(string buttonName) { return false; }
+        protected virtual bool GetButtonInternal(string name) { return false; }
 
         /// <summary>
         /// Returns true if the button was pressed this frame.
         /// </summary>
-        /// <param name="buttonName">The name of the button.</param>
+        /// <param name="name">The name of the button.</param>
         /// <returns>True if the button is pressed this frame.</returns>
-        public bool GetButtonDown(string buttonName) { return GetButtonDownInternal(buttonName); }
+        public bool GetButtonDown(string name) { return GetButtonDownInternal(name); }
 
         /// <summary>
         /// Internal method which returns true if the button was pressed this frame.
         /// </summary>
-        /// <param name="buttonName">The name of the button.</param>
+        /// <param name="name">The name of the button.</param>
         /// <returns>True if the button is pressed this frame.</returns>
-        protected virtual bool GetButtonDownInternal(string buttonName) { return false; }
+        protected virtual bool GetButtonDownInternal(string name) { return false; }
 
         /// <summary>
         /// Returns true if the button is up.
         /// </summary>
-        /// <param name="buttonName">The name of the button.</param>
+        /// <param name="name">The name of the button.</param>
         /// <returns>True if the button is up.</returns>
-        public bool GetButtonUp(string buttonName) { return GetButtonUpInternal(buttonName); }
+        public bool GetButtonUp(string name) { return GetButtonUpInternal(name); }
 
         /// <summary>
         /// Internal method which returns true if the button is up.
         /// </summary>
-        /// <param name="buttonName">The name of the button.</param>
+        /// <param name="name">The name of the button.</param>
         /// <returns>True if the button is up.</returns>
-        protected virtual bool GetButtonUpInternal(string buttonName) { return false; }
+        protected virtual bool GetButtonUpInternal(string name) { return false; }
 
         /// <summary>
         /// Returns true if a double press occurred (double click or double tap).
         /// </summary>
-        /// <param name="buttonName">The button name to check for a double press.</param>
+        /// <param name="name">The button name to check for a double press.</param>
         /// <returns>True if a double press occurred (double click or double tap).</returns>
-        public bool GetDoublePress(string buttonName)
+        public bool GetDoublePress(string name)
         {
-            if (GetButtonDown(buttonName)) {
+            if (GetButtonDown(name)) {
                 if (m_ButtonDownTime == null) {
                     m_ButtonDownTime = new Dictionary<string, float>();
                 }
-                if (m_ButtonDownTime.TryGetValue(buttonName, out var time)) {
+                var time = -1f;
+                if (m_ButtonDownTime.TryGetValue(name, out time)) {
                     if (time != Time.unscaledTime && time + 0.2f > Time.unscaledTime) {
                         return true;
                     }
-                    m_ButtonDownTime[buttonName] = Time.unscaledTime;
+                    m_ButtonDownTime[name] = Time.unscaledTime;
                 } else {
-                    m_ButtonDownTime.Add(buttonName, Time.unscaledTime);
+                    m_ButtonDownTime.Add(name, Time.unscaledTime);
                 }
             }
 
@@ -204,26 +186,27 @@ namespace Opsive.Shared.Input
         /// <summary>
         /// Internal method which returns true if a double press occurred (double click or double tap).
         /// </summary>
-        /// <param name="buttonName">The button name to check for a double press.</param>
+        /// <param name="name">The button name to check for a double press.</param>
         /// <returns>True if a double press occurred (double click or double tap).</returns>
-        protected virtual bool GetDoublePressInternal(string buttonName) { return false; }
+        protected virtual bool GetDoublePressInternal(string name) { return false; }
 
         /// <summary>
         /// Returns true if a tap occurred.
         /// </summary>
-        /// <param name="buttonName">The button name to check for a tap.</param>
+        /// <param name="name">The button name to check for a tap.</param>
         /// <returns>True if a tap occurred.</returns>
-        public bool GetTap(string buttonName)
+        public bool GetTap(string name)
         {
-            if (GetButton(buttonName)) {
+            var time = -1f;
+            if (GetButton(name)) {
                 if (m_ButtonDownTime == null) {
                     m_ButtonDownTime = new Dictionary<string, float>();
                 }
-                if (!m_ButtonDownTime.ContainsKey(buttonName)) {
-                    m_ButtonDownTime.Add(buttonName, Time.unscaledTime);
+                if (!m_ButtonDownTime.ContainsKey(name)) {
+                    m_ButtonDownTime.Add(name, Time.unscaledTime);
                 }
-            } else if (m_ButtonDownTime != null && m_ButtonDownTime.TryGetValue(buttonName, out var time)) {
-                m_ButtonDownTime.Remove(buttonName);
+            } else if (m_ButtonDownTime != null && m_ButtonDownTime.TryGetValue(name, out time)) {
+                m_ButtonDownTime.Remove(name);
                 if (time != Time.unscaledTime && time + 0.2f > Time.unscaledTime) {
                     return true;
                 }
@@ -234,11 +217,11 @@ namespace Opsive.Shared.Input
         /// <summary>
         /// Returns true if a long press occurred.
         /// </summary>
-        /// <param name="buttonName">The button name to check for a long press.</param>
+        /// <param name="name">The button name to check for a long press.</param>
         /// <param name="duration">The duration of a long press.</param>
         /// <param name="waitForRelease">Indicates if the long press should occur after the button has been released (true) or after the duration (false).</param>
         /// <returns>True if a long press occurred.</returns>
-        public bool GetLongPress(string buttonName, float duration, bool waitForRelease)
+        public bool GetLongPress(string name, float duration, bool waitForRelease)
         {
             // Button down and up times won't be allocated unless double or long press inputs are used.
             if (m_ButtonDownTime == null) {
@@ -246,32 +229,36 @@ namespace Opsive.Shared.Input
                 m_ButtonUpTime = new Dictionary<string, float>();
             }
 
-            if (GetButtonInternal(buttonName)) {
-                if (m_ButtonDownTime.TryGetValue(buttonName, out var downTime)) {
+            if (GetButtonInternal(name)) {
+                var downTime = -1f;
+                if (m_ButtonDownTime.TryGetValue(name, out downTime)) {
                     // Only set the down time if the up time is greater than the down time. This will prevent the current time from being set every tick. 
-                    m_ButtonUpTime.TryGetValue(buttonName, out var upTime);
+                    var upTime = -1f;
+                    m_ButtonUpTime.TryGetValue(name, out upTime);
                     if (upTime > downTime) {
-                        m_ButtonDownTime[buttonName] = downTime = Time.unscaledTime;
+                        m_ButtonDownTime[name] = downTime = Time.unscaledTime;
                     }
                     // Return true as soon as the button has been pressed for the duration.
                     if (!waitForRelease) {
                         return downTime + duration <= Time.unscaledTime;
                     }
                 } else {
-                    m_ButtonDownTime.Add(buttonName, Time.unscaledTime);
+                    m_ButtonDownTime.Add(name, Time.unscaledTime);
                 }
             } else {
-                if (m_ButtonUpTime.TryGetValue(buttonName, out var upTime)) {
+                var upTime = -1f;
+                if (m_ButtonUpTime.TryGetValue(name, out upTime)) {
                     // Only set the up time if the down time is greater than the up time. This will prevent the current time from being set every tick. 
-                    m_ButtonDownTime.TryGetValue(buttonName, out var downTime);
+                    var downTime = -1f;
+                    m_ButtonDownTime.TryGetValue(name, out downTime);
                     if (downTime > upTime) {
-                        m_ButtonUpTime[buttonName] = Time.unscaledTime;
+                        m_ButtonUpTime[name] = upTime = Time.unscaledTime;
                         if (waitForRelease) {
                             return downTime + duration <= Time.unscaledTime;
                         }
                     }
                 } else {
-                    m_ButtonUpTime.Add(buttonName, Time.unscaledTime);
+                    m_ButtonUpTime.Add(name, Time.unscaledTime);
                 }
             }
 
@@ -281,30 +268,30 @@ namespace Opsive.Shared.Input
         /// <summary>
         /// Returns the value of the axis with the specified name.
         /// </summary>
-        /// <param name="buttonName">The name of the axis.</param>
+        /// <param name="name">The name of the axis.</param>
         /// <returns>The value of the axis.</returns>
-        public float GetAxis(string buttonName) { return GetAxisInternal(buttonName); }
+        public float GetAxis(string name) { return GetAxisInternal(name); }
 
         /// <summary>
         /// Internal method which returns the value of the axis with the specified name.
         /// </summary>
-        /// <param name="buttonName">The name of the axis.</param>
+        /// <param name="name">The name of the axis.</param>
         /// <returns>The value of the axis.</returns>
-        protected virtual float GetAxisInternal(string buttonName) { return 0; }
+        protected virtual float GetAxisInternal(string name) { return 0; }
 
         /// <summary>
         /// Returns the value of the raw axis with the specified name.
         /// </summary>
-        /// <param name="buttonName">The name of the axis.</param>
+        /// <param name="name">The name of the axis.</param>
         /// <returns>The value of the raw axis.</returns>
-        public float GetAxisRaw(string buttonName) { return GetAxisRawInternal(buttonName); }
+        public float GetAxisRaw(string name) { return GetAxisRawInternal(name); }
 
         /// <summary>
         /// Returns the value of the raw axis with the specified name.
         /// </summary>
-        /// <param name="buttonName">The name of the axis.</param>
+        /// <param name="name">The name of the axis.</param>
         /// <returns>The value of the raw axis.</returns>
-        protected virtual float GetAxisRawInternal(string buttonName) { return 0; }
+        protected virtual float GetAxisRawInternal(string name) { return 0; }
 
         /// <summary>
         /// Is a controller connected?
@@ -316,7 +303,7 @@ namespace Opsive.Shared.Input
         /// Is the cursor visible?
         /// </summary>
         /// <returns>True if the cursor is visible.</returns>
-        public virtual bool IsCursorVisible()
+        public bool IsCursorVisible()
         {
             return Cursor.visible;
         }
@@ -325,59 +312,59 @@ namespace Opsive.Shared.Input
         /// Returns the position of the mouse.
         /// </summary>
         /// <returns>The mouse position.</returns>
-        public virtual Vector2 GetMousePosition() { if (Input.touchCount > 0) { return Input.GetTouch(0).position; } return Input.mousePosition; }
+        public virtual Vector2 GetMousePosition() { return UnityEngine.Input.mousePosition; }
 
         /// <summary>
         /// Determines if a controller is connected.
         /// </summary>
         private void CheckForController()
         {
-            if (!CanCheckForController) {
-                return;
-            }
-
-            var controllerConencted = Input.GetJoystickNames().Length > 0;
+            var controllerConencted = UnityEngine.Input.GetJoystickNames().Length > 0;
             if (m_ControllerConnected != controllerConencted) {
                 m_ControllerConnected = controllerConencted;
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
                 if (!string.IsNullOrEmpty(m_ConnectedControllerState)) {
                     StateManager.SetState(gameObject, m_ConnectedControllerState, m_ControllerConnected);
                 }
-#endif
                 EventHandler.ExecuteEvent<bool>(gameObject, "OnInputControllerConnected", m_ControllerConnected);
             }
 
             // Schedule the controller check event if the rate is positive.
             // UnityEngine.Input.GetJoystickNames generates garbage so limit the amount of time the controller is checked.
             if (m_ControllerConnectedCheckRate > 0 && (m_ControllerCheckEvent == null || !m_ControllerCheckEvent.Active)) {
-                m_ControllerCheckEvent = SchedulerBase.Schedule(m_ControllerConnectedCheckRate, CheckForController);
+                m_ControllerCheckEvent = Scheduler.Schedule(m_ControllerConnectedCheckRate, CheckForController);
             }
         }
 
         /// <summary>
-        /// Update the mouse input.
+        /// Updates the look vector. This is done within both Update and FixedUpdate to ensure the interested objects receive the latest info.
+        /// The actual look vector update only occurs once a frame.
+        /// </summary>
+        private void FixedUpdate()
+        {
+            UpdateLookVector();
+        }
+
+        /// <summary>
+        /// Updates the look vector. This is done within both Update and FixedUpdate to ensure the interested objects receive the latest info.
+        /// The actual look vector update only occurs once a frame.
         /// </summary>
         private void Update()
         {
-            if (!m_Focus)
-                return;
-
-            m_RawLookVectorAccumulation.x += GetAxisRaw(m_HorizontalLookInputName);
-            m_RawLookVectorAccumulation.y += GetAxisRaw(m_VerticalLookInputName);
-            m_UnitySmoothLookVectorAccumulation.x += GetAxis(m_HorizontalLookInputName);
-            m_UnitySmoothLookVectorAccumulation.y += GetAxis(m_VerticalLookInputName);
+            UpdateLookVector();
         }
-        
+
         /// <summary>
-         /// Updates the look smoothing buffer to the current look vector.
-         /// </summary>
-        private void FixedUpdate()
+        /// Updates the look smoothing buffer to the current look vector.
+        /// </summary>
+        private void UpdateLookVector()
         {
-            if (!m_Focus) {
+            if (!m_HasFocus || m_UpdateFrame == Time.frameCount) {
                 return;
             }
+            m_UpdateFrame = Time.frameCount;
 
-            m_RawLookVector = m_RawLookVectorAccumulation;
+            m_RawLookVector.x = GetAxisRaw(m_HorizontalLookInputName);
+            m_RawLookVector.y = GetAxisRaw(m_VerticalLookInputName);
 
             if (m_LookVectorMode == LookVectorMode.Smoothed) {
                 // Set the current input to the look buffer.
@@ -426,12 +413,11 @@ namespace Opsive.Shared.Input
                 m_CurrentLookVector.x = Mathf.Sign(m_CurrentLookVector.x) * Mathf.Pow(Mathf.Abs(m_CurrentLookVector.x), m_SmoothExponent);
                 m_CurrentLookVector.y = Mathf.Sign(m_CurrentLookVector.y) * Mathf.Pow(Mathf.Abs(m_CurrentLookVector.y), m_SmoothExponent);
             } else if (m_LookVectorMode == LookVectorMode.UnitySmoothed) {
-                m_CurrentLookVector = m_UnitySmoothLookVectorAccumulation;
+                m_CurrentLookVector.x = GetAxis(m_HorizontalLookInputName);
+                m_CurrentLookVector.y = GetAxis(m_VerticalLookInputName);
             } else if (m_LookVectorMode == LookVectorMode.Raw) {
                 m_CurrentLookVector = m_RawLookVector;
             }
-
-            m_RawLookVectorAccumulation = m_UnitySmoothLookVectorAccumulation = Vector2.zero;
         }
 
         /// <summary>
@@ -476,11 +462,8 @@ namespace Opsive.Shared.Input
         {
             m_AllowInput = enable;
             enabled = m_AllowInput && !m_Death;
-            if (enabled && !m_Focus) {
+            if (enabled && !m_HasFocus) {
                 OnApplicationFocus(true);
-            } else if (!enabled) {
-                m_RawLookVector = m_CurrentLookVector = Vector3.zero;
-                m_SmoothLookBufferCount = m_SmoothLookBufferIndex = 0;
             }
 
             if (m_EnableGamplayInputEvent != null) {
@@ -515,14 +498,14 @@ namespace Opsive.Shared.Input
         /// <param name="hasFocus">True if the game has focus.</param>
         protected virtual void OnApplicationFocus(bool hasFocus)
         {
-            m_Focus = hasFocus;
-            if (m_Focus) {
+            m_HasFocus = hasFocus;
+            if (m_HasFocus) {
                 CheckForController();
             } else {
                 m_CurrentLookVector = Vector3.zero;
             }
         }
-
+        
         /// <summary>
         /// The GameObject has been destroyed.
         /// </summary>
@@ -533,7 +516,7 @@ namespace Opsive.Shared.Input
             EventHandler.UnregisterEvent<Vector3, Vector3, GameObject>(gameObject, "OnDeath", OnDeath);
             EventHandler.UnregisterEvent(gameObject, "OnRespawn", OnRespawn);
             if (m_ControllerCheckEvent != null) {
-                SchedulerBase.Cancel(m_ControllerCheckEvent);
+                Scheduler.Cancel(m_ControllerCheckEvent);
                 m_ControllerCheckEvent = null;
             }
         }

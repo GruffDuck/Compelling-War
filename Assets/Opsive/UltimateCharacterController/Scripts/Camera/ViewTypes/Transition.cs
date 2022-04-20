@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Events;
+
 namespace Opsive.UltimateCharacterController.Camera.ViewTypes
 {
-    using Opsive.Shared.Events;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// The Transition View Type will transition the camera from one view type to another.
     /// </summary>
@@ -113,7 +113,7 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
         {
             // Notify those interested when the transition is complete.
             if (m_NotifyTransitionComplete) {
-                StopTransition();
+                StopTransition(true);
                 m_NotifyTransitionComplete = false;
                 return m_TransitionTo.Rotate(horizontalMovement, verticalMovement, true);
             }
@@ -158,23 +158,23 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
-        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
+        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread)
+        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil)
         {
             // Don't use the first person ViewType for the look direction while in a transition. The transition will be at other locations
             // other than the character's head position so a first person look direction will return an invalid direction.
             if (m_TransitionTo.FirstPersonPerspective) {
-                return m_TransitionFrom.LookDirection(lookPosition, characterLookDirection, layerMask, includeRecoil, includeMovementSpread);
+                return m_TransitionFrom.LookDirection(lookPosition, characterLookDirection, layerMask, useRecoil);
             }
-            return m_TransitionTo.LookDirection(lookPosition, characterLookDirection, layerMask, includeRecoil, includeMovementSpread);
+            return m_TransitionTo.LookDirection(lookPosition, characterLookDirection, layerMask, useRecoil);
         }
 
         /// <summary>
         /// Stops the transition.
         /// </summary>
-        public void StopTransition()
+        /// <param name="success">Was the transition a success?</param>
+        public void StopTransition(bool success)
         {
             // The transition may not be started.
             if (!m_IsTransitioning) {
@@ -183,7 +183,7 @@ namespace Opsive.UltimateCharacterController.Camera.ViewTypes
 
             m_IsTransitioning = false;
             // The first person perspective will only execute the event after the camera has arrived. Third person will execute the event immediately.
-            if (m_TransitionTo.FirstPersonPerspective) {
+            if (success && m_TransitionTo.FirstPersonPerspective) {
                 EventHandler.ExecuteEvent<bool>(m_Character, "OnCameraChangePerspectives", m_TransitionTo.FirstPersonPerspective);
             }
         }

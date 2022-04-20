@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.SurfaceSystem
 {
-    using Opsive.Shared.Audio;
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Specifies a recipe for effects that can be spawned in response to a certain type of collision. This collision might occur when
     /// bullets hit a wall, a character places a footprint, or the character falls to the ground.
@@ -27,8 +27,6 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         [SerializeField] protected float m_MaxDecalScale = 1;
         [Tooltip("How close to the edge the decal is allowed to spawn. A value of 0 requires the full quad is required to sit on the background surface.")]
         [Range(0, 0.5f)] [SerializeField] protected float m_AllowedDecalEdgeOverlap = 0.25f;
-        [Tooltip("The AudioConfig that can be triggered from a collision.")]
-        [SerializeField] protected AudioConfig m_AudioConfig;
         [Tooltip("The AudioClips that can be triggered from a collision.")]
         [SerializeField] protected AudioClip[] m_AudioClips;
         [Tooltip("The minimum volume of the AudioClip.")]
@@ -76,7 +74,7 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <param name="timeScale">The timescale of the originator.</param>
         /// <param name="originator">The object which spawned the effect.</param>
         /// <param name="spawnDecals">Should the decals be spawned? Not all surfaces allow for decals.</param>
-        public virtual void Spawn(RaycastHit hit, Vector3 gravityDirection, float timeScale, GameObject originator, bool spawnDecals)
+        public void Spawn(RaycastHit hit, Vector3 gravityDirection, float timeScale, GameObject originator, bool spawnDecals)
         {
             SpawnObjects(hit, gravityDirection);
 
@@ -157,7 +155,7 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <param name="spawnDecals">Should the decals be spawned? Not all surfaces allow for decals.</param>
         /// <param name="footprintDirection">The direction that the footprint decal should face.</param>
         /// <param name="flipFootprint">Should the footprint decal be flipped?</param>
-        public virtual void SpawnFootprint(RaycastHit hit, Vector3 gravityDirection, float timeScale, GameObject originator, bool spawnDecals, Vector3 footprintDirection, bool flipFootprint)
+        public void SpawnFootprint(RaycastHit hit, Vector3 gravityDirection, float timeScale, GameObject originator, bool spawnDecals, Vector3 footprintDirection, bool flipFootprint)
         {
             SpawnObjects(hit, gravityDirection);
 
@@ -182,51 +180,43 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <param name="originator">The object which should play the audio clip.</param>
         private void PlayAudioClip(RaycastHit hit, float timeScale, GameObject originator)
         {
+            // No clips can be played if there are no clips in the array.
+            if (m_AudioClips == null || m_AudioClips.Length == 0) {
+                return;
+            }
+
             // Don't play too many clips at once.
             if (m_OneClipPerFrame && m_LastPlayedAudioClipFrame == Time.frameCount) {
                 return;
             }
 
-            if (m_AudioConfig != null) {
-                if (originator != null) {
-                    AudioManager.Play(originator, m_AudioConfig);
-                } else {
-                    AudioManager.PlayAtPosition(m_AudioConfig, hit.point);
-                }
+            // Get the AudioClip.
+            AudioClip audioClip;
+            if (m_RandomClipSelection) {
+                audioClip = m_AudioClips[Random.Range(0, m_AudioClips.Length)];
             } else {
-                // No clips can be played if there are no clips in the array.
-                if (m_AudioClips == null || m_AudioClips.Length == 0) {
+                audioClip = m_AudioClips[m_AudioClipIndex];
+                m_AudioClipIndex = (m_AudioClipIndex + 1) % m_AudioClips.Length;
+            }
+
+            // If there are multiple clips available then the same clip shouldn't be played twice in a row.
+            while (m_AudioClips.Length > 1 && audioClip == m_LastPlayedAudioClip) {
+                audioClip = m_AudioClips[Random.Range(0, m_AudioClips.Length)];
+                if (audioClip == null) {
                     return;
                 }
+            }
 
-                // Get the AudioClip.
-                AudioClip audioClip;
-                if (m_RandomClipSelection) {
-                    audioClip = m_AudioClips[Random.Range(0, m_AudioClips.Length)];
-                } else {
-                    audioClip = m_AudioClips[m_AudioClipIndex];
-                    m_AudioClipIndex = (m_AudioClipIndex + 1) % m_AudioClips.Length;
-                }
-
-                // If there are multiple clips available then the same clip shouldn't be played twice in a row.
-                while (m_AudioClips.Length > 1 && audioClip == m_LastPlayedAudioClip) {
-                    audioClip = m_AudioClips[Random.Range(0, m_AudioClips.Length)];
-                    if (audioClip == null) {
-                        return;
-                    }
-                }
-
-                // Play the clip.
+            // Play the clip.
+            var pitch = Random.Range(m_MinAudioPitch, m_MaxAudioPitch) * Time.timeScale * timeScale;
+            if (originator != null) {
+                AudioManager.Play(originator, audioClip, pitch);
+            } else {
                 var volume = Random.Range(m_MinAudioVolume, m_MaxAudioVolume);
-                var pitch = Random.Range(m_MinAudioPitch, m_MaxAudioPitch) * Time.timeScale * timeScale;
-                if (originator != null) {
-                    AudioManager.Play(originator, audioClip, volume, pitch);
-                } else {
-                    AudioManager.PlayAtPosition(audioClip, hit.point, volume, pitch);
-                }
-                m_LastPlayedAudioClip = audioClip;
+                AudioManager.PlayAtPosition(audioClip, hit.point, volume, pitch);
             }
             // Update the state.
+            m_LastPlayedAudioClip = audioClip;
             m_LastPlayedAudioClipFrame = Time.frameCount;
         }
 

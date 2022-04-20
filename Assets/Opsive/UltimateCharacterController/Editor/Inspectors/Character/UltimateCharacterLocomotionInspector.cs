@@ -4,23 +4,24 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using System;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Character.MovementTypes;
+using Opsive.UltimateCharacterController.Character.Effects;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Character.Abilities.Items;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Utility.Builders;
+using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 {
-    using Opsive.Shared.Editor.Inspectors.StateSystem;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Character.MovementTypes;
-    using Opsive.UltimateCharacterController.Character.Effects;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Character.Abilities.Items;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using Opsive.UltimateCharacterController.StateSystem;
-    using Opsive.UltimateCharacterController.Utility.Builders;
-    using System;
-    using System.Collections.Generic;
-    using UnityEditor;
-    using UnityEditorInternal;
-    using UnityEngine;
-
     /// <summary>
     /// Shows a custom inspector for the UltimateCharacterLocomotion.
     /// </summary>
@@ -96,11 +97,6 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             }
 
             UpdateDefaultMovementTypes();
-
-            if (Application.isPlaying) {
-                Debug.LogWarning("Warning: Selecting the character in the inspector will decrease your framerate. For best performance deselect the character GameObject " +
-                                        "to prevent the inspector from drawing.", m_CharacterLocomotion);
-            }
         }
 
         /// <summary>
@@ -157,28 +153,21 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                     if (index != selectedIndex) {
                         m_CharacterLocomotion.ThirdPersonMovementTypeFullName = m_ThirdPersonMovementTypes[index].FullName;
                         // Update the default movement type if the current movement type is third person. Do not update when playing because the third person property will update the current type.
-                        if (!Application.isPlaying && (m_CharacterLocomotion.ActiveMovementType == null || m_CharacterLocomotion.ActiveMovementType.GetType().FullName.Contains("ThirdPerson"))) {
+                        if (!Application.isPlaying && m_CharacterLocomotion.ActiveMovementType.GetType().FullName.Contains("ThirdPerson")) {
                             m_CharacterLocomotion.MovementTypeFullName = m_CharacterLocomotion.ThirdPersonMovementTypeFullName;
                         }
                     }
                 }
-                EditorGUILayout.BeginVertical("Box");
                 ReorderableListSerializationHelper.DrawReorderableList(ref m_ReorderableMovementTypeList, this, m_CharacterLocomotion.MovementTypes, "m_MovementTypeData",
                                                                 OnMovementTypeListDrawHeader, OnMovementTypeListDraw, OnMovementTypeListReorder, OnMovementTypeListAdd,
                                                                 OnMovementTypeListRemove, OnMovementTypeListSelect,
                                                                 DrawSelectedMovementType, SelectedMovementTypeIndexKey, true, false);
-                EditorGUILayout.EndVertical();
 
                 EditorGUILayout.PropertyField(PropertyFromName("m_FirstPersonStateName"));
                 EditorGUILayout.PropertyField(PropertyFromName("m_ThirdPersonStateName"));
 
-                var updateLocation = PropertyFromName("m_UpdateLocation");
                 if (Foldout("Motor")) {
                     EditorGUI.indentLevel++;
-                    EditorGUILayout.PropertyField(updateLocation);
-                    if (updateLocation.enumValueIndex == (int)UltimateCharacterController.Game.KinematicObjectManager.UpdateLocation.Update) {
-                        EditorGUILayout.HelpBox("It is recommended that the framerate is limited using Application.targetFrameRate.", MessageType.Info);
-                    }
                     var useRootMotionPosition = PropertyFromName("m_UseRootMotionPosition");
                     EditorGUILayout.PropertyField(useRootMotionPosition);
                     EditorGUI.indentLevel++;
@@ -203,18 +192,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                     }
                     EditorGUI.indentLevel--;
                     EditorGUILayout.PropertyField(PropertyFromName("m_MotorBackwardsMultiplier"));
-                    EditorGUILayout.PropertyField(PropertyFromName("m_AdjustMotorForceOnSlope"));
-                    if (PropertyFromName("m_AdjustMotorForceOnSlope").boolValue) {
-                        EditorGUI.indentLevel++;
-                        EditorGUILayout.PropertyField(PropertyFromName("m_MotorSlopeForceUp"));
-                        EditorGUILayout.PropertyField(PropertyFromName("m_MotorSlopeForceDown"));
-                        EditorGUI.indentLevel--;
-                    }
+                    EditorGUILayout.PropertyField(PropertyFromName("m_MotorSlopeForceUp"));
+                    EditorGUILayout.PropertyField(PropertyFromName("m_MotorSlopeForceDown"));
                     // The Ultimate Character Controller has a callback for the changed timescale so set the controller property instead of using the SerializedProperty.
                     var timeScaleProperty = PropertyFromName("m_TimeScale");
                     if (Application.isPlaying) {
                         var prevTimeScaleValue = timeScaleProperty.floatValue;
-                        var timeScaleValue = EditorGUILayout.Slider(new GUIContent(Shared.Editor.Utility.EditorUtility.SplitCamelCase(timeScaleProperty.name), timeScaleProperty.tooltip), timeScaleProperty.floatValue, 0, 4);
+                        var timeScaleValue = EditorGUILayout.Slider(new GUIContent(InspectorUtility.SplitCamelCase(timeScaleProperty.name), timeScaleProperty.tooltip), timeScaleProperty.floatValue, 0, 4);
                         if (timeScaleValue != prevTimeScaleValue) {
                             m_CharacterLocomotion.TimeScale = timeScaleValue;
                         }
@@ -226,11 +210,6 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 
                 if (Foldout("Physics")) {
                     EditorGUI.indentLevel++;
-                    if (updateLocation.enumValueIndex == (int)UltimateCharacterController.Game.KinematicObjectManager.UpdateLocation.Update) {
-                        EditorGUILayout.PropertyField(PropertyFromName("m_FramerateIndependentForce"));
-                    } else {
-                        PropertyFromName("m_FramerateIndependentForce").boolValue = false;
-                    }
                     EditorGUILayout.PropertyField(PropertyFromName("m_Mass"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_SkinWidth"));
                     EditorGUILayout.Slider(PropertyFromName("m_SlopeLimit"), 0, 90);
@@ -304,47 +283,34 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                 if (Foldout("Animator")) {
                     EditorGUI.indentLevel++;
                     EditorGUILayout.PropertyField(PropertyFromName("m_YawMultiplier"));
-                    EditorGUILayout.PropertyField(PropertyFromName("m_MovingSpeedParameterValue"));
                     EditorGUI.indentLevel--;
                 }
 
                 // Draw the ability and effect reorderable lists last.
                 if (Foldout("Abilities")) {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.BeginVertical("Box");
                     ReorderableListSerializationHelper.DrawReorderableList(ref m_ReorderableAbilityList, this, m_CharacterLocomotion.Abilities, "m_AbilityData",
                                                                     OnAbilityListDrawHeader, OnAbilityListDraw, OnAbilityListReorder, OnAbilityListAdd, OnAbilityListRemove, OnAbilityListSelect,
-                                                                    DrawSelectedAbility, SelectedAbilityIndexKey, false, true, false);
-                    EditorGUILayout.EndVertical();
-                    EditorGUI.indentLevel--;
+                                                                    DrawSelectedAbility, SelectedAbilityIndexKey, false, true);
                 }
                 if (Foldout("Item Abilities")) {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.BeginVertical("Box");
                     ReorderableListSerializationHelper.DrawReorderableList(ref m_ReorderableItemAbilityList, this, m_CharacterLocomotion.ItemAbilities, "m_ItemAbilityData",
                                                                     OnItemAbilityListDrawHeader, OnItemAbilityListDraw, OnItemAbilityListReorder, OnItemAbilityListAdd, OnItemAbilityListRemove,
-                                                                    OnItemAbilityListSelect, DrawSelectedItemAbility, SelectedItemAbilityIndexKey, false, true, false);
-                    EditorGUILayout.EndVertical();
-                    EditorGUI.indentLevel--;
+                                                                    OnItemAbilityListSelect, DrawSelectedItemAbility, SelectedItemAbilityIndexKey, false, true);
                 }
                 if (Foldout("Effects")) {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.BeginVertical("Box");
                     ReorderableListSerializationHelper.DrawReorderableList(ref m_ReorderableEffectList, this, m_CharacterLocomotion.Effects, "m_EffectData", OnEffectListDrawHeader,
                                                                     OnEffectListDraw, OnEffectListReorder, OnEffectListAdd, OnEffectListRemove, OnEffectListSelect, DrawSelectedEffect,
-                                                                    SelectedEffectIndexKey, false, true, false);
-                    EditorGUILayout.EndVertical();
-                    EditorGUI.indentLevel--;
+                                                                    SelectedEffectIndexKey, false, true);
                 }
                 if (Foldout("Events")) {
                     EditorGUI.indentLevel++;
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnMovementTypeActiveEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnAbilityActiveEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnItemAbilityActiveEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnGroundedEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnLandEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnChangeTimeScaleEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnChangeMovingPlatformsEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnMovementTypeActiveEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnAbilityActiveEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnItemAbilityActiveEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnGroundedEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnLandEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnChangeTimeScaleEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnChangeMovingPlatformsEvent"));
                     EditorGUI.indentLevel--;
                 }
             };
@@ -440,22 +406,21 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             if (EditorGUI.EndChangeCheck()) {
                 // Update the camera's view type if the movement type perspective changed.
                 if (!Application.isPlaying) {
-                    var camera = Opsive.Shared.Camera.CameraUtility.FindCamera(m_CharacterLocomotion.gameObject);
+                    var camera = UnityEngineUtility.FindCamera(m_CharacterLocomotion.gameObject);
                     if (camera != null) {
                         var prevFirstPerson = m_CharacterLocomotion.MovementTypeFullName.Contains("FirstPersonController");
-                        var fullName = movementType.GetType().FullName;
-                        var firstPerson = fullName != null && fullName.Contains("FirstPersonController");
+                        var firstPerson = movementType.GetType().FullName.Contains("FirstPersonController");
                         if (prevFirstPerson != firstPerson) {
                             var cameraController = camera.GetComponent<UltimateCharacterController.Camera.CameraController>();
                             var viewType = firstPerson ? cameraController.FirstPersonViewTypeFullName : cameraController.ThirdPersonViewTypeFullName;
                             if (!string.IsNullOrEmpty(viewType)) {
-                                cameraController.SetViewType(Shared.Utility.TypeUtility.GetType(viewType), true);
+                                cameraController.SetViewType(UnityEngineUtility.GetType(viewType), true);
                                 var cameraSerializedObject = new SerializedObject(cameraController);
-                                PropertyFromName(cameraSerializedObject, "m_ViewTypeFullName").stringValue = Shared.Utility.TypeUtility.GetType(viewType).FullName;
+                                PropertyFromName(cameraSerializedObject, "m_ViewTypeFullName").stringValue = UnityEngineUtility.GetType(viewType).FullName;
                                 if (firstPerson) {
-                                    PropertyFromName(cameraSerializedObject, "m_FirstPersonViewTypeFullName").stringValue = Shared.Utility.TypeUtility.GetType(viewType).FullName;
+                                    PropertyFromName(cameraSerializedObject, "m_FirstPersonViewTypeFullName").stringValue = UnityEngineUtility.GetType(viewType).FullName;
                                 } else {
-                                    PropertyFromName(cameraSerializedObject, "m_ThirdPersonViewTypeFullName").stringValue = Shared.Utility.TypeUtility.GetType(viewType).FullName;
+                                    PropertyFromName(cameraSerializedObject, "m_ThirdPersonViewTypeFullName").stringValue = UnityEngineUtility.GetType(viewType).FullName;
                                 }
                                 cameraSerializedObject.ApplyModifiedProperties();
                             }
@@ -519,7 +484,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             activeRect.width = 20;
             ability.Enabled = EditorGUI.Toggle(activeRect, ability.Enabled);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeAbilities();
             }
         }
@@ -571,7 +536,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             activeRect.width = 20;
             itemAbility.Enabled = EditorGUI.Toggle(activeRect, itemAbility.Enabled);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeItemAbilities();
             }
         }
@@ -615,7 +580,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             activeRect.width = 20;
             effect.Enabled = EditorGUI.Toggle(activeRect, effect.Enabled);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeEffects();
             }
         }
@@ -637,10 +602,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private void OnAbilityListReorder(ReorderableList list)
         {
-#if !UNITY_2021_2_OR_NEWER
             // Deserialize the abilities so the Abilities array will be correct. The list operates on the AbilityData array.
             m_CharacterLocomotion.DeserializeAbilities(true);
-#endif
 
             // Update the ability index.
             for (int i = 0; i < m_CharacterLocomotion.Abilities.Length; ++i) {
@@ -658,10 +621,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private void OnItemAbilityListReorder(ReorderableList list)
         {
-#if !UNITY_2021_2_OR_NEWER
             // Deserialize the item abilities so the ItemAbilities array will be correct. The list operates on the ItemAbilityData array.
             m_CharacterLocomotion.DeserializeItemAbilities(true);
-#endif
 
             // Update the ability index.
             for (int i = 0; i < m_CharacterLocomotion.ItemAbilities.Length; ++i) {
@@ -679,10 +640,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private void OnEffectListReorder(ReorderableList list)
         {
-#if !UNITY_2021_2_OR_NEWER
             // Deserialize the item effects so the Effects array will be correct. The list operates on the EffectData array.
             m_CharacterLocomotion.DeserializeEffects(true);
-#endif
 
             // Serialize the new effect list.
             SerializeEffects();
@@ -781,7 +740,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             EditorPrefs.SetInt(SelectedAbilityIndexKey, m_ReorderableAbilityList.index);
 
             // Allow the ability to perform any initialization.
-            var inspectorDrawer = Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
+            var inspectorDrawer = InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
             if (inspectorDrawer != null) {
                 inspectorDrawer.AbilityAdded(ability, target);
             }
@@ -799,7 +758,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             EditorPrefs.SetInt(SelectedItemAbilityIndexKey, m_ReorderableItemAbilityList.index);
 
             // Allow the ability to perform any initialization.
-            var inspectorDrawer = Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
+            var inspectorDrawer = InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
             if (inspectorDrawer != null) {
                 inspectorDrawer.AbilityAdded(ability, target);
             }
@@ -835,7 +794,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var removedSelected = movementTypes[list.index].GetType().FullName == m_CharacterLocomotion.MovementTypeFullName;
 
             // Remove the element.
-            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+            InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
             movementTypes.RemoveAt(list.index);
             m_CharacterLocomotion.MovementTypes = movementTypes.ToArray();
             SerializeMovementTypes();
@@ -884,15 +843,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private void OnAbilityListRemove(ReorderableList list)
         {
-            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+            InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
 
             // Allow the ability to perform any destruction.
             var ability = m_CharacterLocomotion.Abilities[list.index];
-            if (ability != null) {
-                var inspectorDrawer = Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
-                if (inspectorDrawer != null) {
-                    inspectorDrawer.AbilityRemoved(ability, target);
-                }
+            var inspectorDrawer = InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
+            if (inspectorDrawer != null) {
+                inspectorDrawer.AbilityRemoved(ability, target);
             }
 
             var abilities = new List<Ability>(m_CharacterLocomotion.Abilities);
@@ -913,11 +870,11 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private void OnItemAbilityListRemove(ReorderableList list)
         {
-            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+            InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
 
             // Allow the ability to perform any destruction.
             var ability = m_CharacterLocomotion.ItemAbilities[list.index];
-            var inspectorDrawer = Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
+            var inspectorDrawer = InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
             if (inspectorDrawer != null) {
                 inspectorDrawer.AbilityRemoved(ability, target);
             }
@@ -940,7 +897,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private void OnEffectListRemove(ReorderableList list)
         {
-            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+            InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
             var effects = new List<Effect>(m_CharacterLocomotion.Effects);
             effects.RemoveAt(list.index);
             m_CharacterLocomotion.Effects = effects.ToArray();
@@ -999,30 +956,26 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private void DrawSelectedMovementType(int index)
         {
-            EditorGUI.indentLevel++;
             var movementType = m_CharacterLocomotion.MovementTypes[index];
             InspectorUtility.DrawObject(movementType, true, true, target, true, SerializeMovementTypes);
 
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(movementType, new GUIContent("States"), false)) {
+            if (InspectorUtility.Foldout(movementType, new GUIContent("States"), false)) {
                 // The MovementType class derives from system.object at the base level and reorderable lists can only operate on Unity objects. To get around this restriction
                 // create a dummy array within a Unity object that corresponds to the number of elements within the ability's state list. When the reorderable list is drawn
                 // the ability object will be used so it's like the dummy object never existed.
-                var selectedMovementType = movementType;
+                var selectedMovementType = movementType as MovementType;
                 var gameObject = new GameObject();
-                try {
-                    var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
-                    stateIndexHelper.StateIndexData = new int[selectedMovementType.States.Length];
-                    for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
-                        stateIndexHelper.StateIndexData[i] = i;
-                    }
-                    var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
-                    m_ReorderableMovementTypeStateList = StateInspector.DrawStates(m_ReorderableMovementTypeStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"),
-                                                                GetSelectedMovementTypeStateIndexKey(selectedMovementType), OnMovementTypeStateListDraw, OnMovementTypeStateListAdd,
-                                                                OnMovementTypeStateListReorder, OnMovementTypeStateListRemove);
-                } catch (Exception /*e*/) { }
+                var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
+                stateIndexHelper.StateIndexData = new int[selectedMovementType.States.Length];
+                for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
+                    stateIndexHelper.StateIndexData[i] = i;
+                }
+                var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
+                m_ReorderableMovementTypeStateList = StateInspector.DrawStates(m_ReorderableMovementTypeStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"),
+                                                            GetSelectedMovementTypeStateIndexKey(selectedMovementType), OnMovementTypeStateListDraw, OnMovementTypeStateListAdd,
+                                                            OnMovementTypeStateListReorder, OnMovementTypeStateListRemove);
                 DestroyImmediate(gameObject);
             }
-            EditorGUI.indentLevel--;
         }
 
         /// <summary>
@@ -1055,7 +1008,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 
             StateInspector.OnStateListDraw(movementType, movementType.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeMovementTypes();
 
                 StateInspector.UpdateDefaultStateValues(movementType.States);
@@ -1079,7 +1032,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.AddExistingPreset(movementType.GetType(), movementType.States, m_ReorderableMovementTypeStateList, GetSelectedMovementTypeStateIndexKey(movementType));
             if (movementType.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableMovementTypeStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 movementType.States = states;
                 SerializeMovementTypes();
             }
@@ -1094,7 +1047,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.CreatePreset(movementType, movementType.States, m_ReorderableMovementTypeStateList, GetSelectedMovementTypeStateIndexKey(movementType));
             if (movementType.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableMovementTypeStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 movementType.States = states;
                 SerializeMovementTypes();
             }
@@ -1108,7 +1061,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var movementType = m_CharacterLocomotion.MovementTypes[EditorPrefs.GetInt(SelectedMovementTypeIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new Shared.StateSystem.State[movementType.States.Length];
+            var copiedStates = new UltimateCharacterController.StateSystem.State[movementType.States.Length];
             Array.Copy(movementType.States, copiedStates, movementType.States.Length);
             for (int i = 0; i < movementType.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -1121,7 +1074,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.OnStateListReorder(movementType.States);
             if (movementType.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableMovementTypeStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 movementType.States = states;
                 SerializeMovementTypes();
             }
@@ -1136,7 +1089,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.OnStateListRemove(movementType.States, GetSelectedMovementTypeStateIndexKey(movementType), list);
             if (movementType.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableMovementTypeStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 movementType.States = states;
                 SerializeMovementTypes();
             }
@@ -1150,30 +1103,28 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var ability = m_CharacterLocomotion.Abilities[index];
             InspectorUtility.DrawObject(ability, true, false, target, true, SerializeAbilities);
 
-            var selectedAbility = ability;
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(ability, new GUIContent("States"), false)) {
+            var selectedAbility = ability as Ability;
+            if (InspectorUtility.Foldout(ability, new GUIContent("States"), false)) {
                 // The Ability class derives from system.object at the base level and reorderable lists can only operate on Unity objects. To get around this restriction
                 // create a dummy array within a Unity object that corresponds to the number of elements within the ability's state list. When the reorderable list is drawn
                 // the ability object will be used so it's like the dummy object never existed.
                 var gameObject = new GameObject();
-                try { 
-                    var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
-                    stateIndexHelper.StateIndexData = new int[selectedAbility.States.Length];
-                    for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
-                        stateIndexHelper.StateIndexData[i] = i;
-                    }
-                    var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
-                    m_ReorderableAbilityStateList = StateInspector.DrawStates(m_ReorderableAbilityStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"), 
-                                                                GetSelectedAbilityStateIndexKey(selectedAbility), OnAbilityStateListDraw, OnAbilityStateListAdd, OnAbilityStateListReorder, 
-                                                                OnAbilityStateListRemove);
-                } catch (Exception /*e*/) { }
+                var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
+                stateIndexHelper.StateIndexData = new int[selectedAbility.States.Length];
+                for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
+                    stateIndexHelper.StateIndexData[i] = i;
+                }
+                var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
+                m_ReorderableAbilityStateList = StateInspector.DrawStates(m_ReorderableAbilityStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"), 
+                                                            GetSelectedAbilityStateIndexKey(selectedAbility), OnAbilityStateListDraw, OnAbilityStateListAdd, OnAbilityStateListReorder, 
+                                                            OnAbilityStateListRemove);
                 DestroyImmediate(gameObject);
             }
 
             EditorGUI.BeginChangeCheck();
             DrawEditorControls(selectedAbility);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeAbilities();
             }
         }
@@ -1184,17 +1135,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// <param name="ability">The ability which should draw the editor controls.</param>
         private void DrawEditorControls(Ability ability)
         {
-            if (ability == null) {
-                return;
-            }
-
             // The abilities can have an editor callback. If the callback exists then show the Editor foldout after the States foldout.
-            var inspectorDrawer = Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
+            var inspectorDrawer = InspectorDrawerUtility.InspectorDrawerForType(ability.GetType()) as AbilityInspectorDrawer;
             Action editorCallback = null;
             if (inspectorDrawer != null) {
                 editorCallback = inspectorDrawer.GetEditorCallback(ability, target);
-                if ((editorCallback != null || inspectorDrawer.CanBuildAnimator || ability.AbilityIndexParameter != -1) &&
-                                Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(ability, new GUIContent("Editor"), false)) {
+                if ((editorCallback != null || inspectorDrawer.CanBuildAnimator || ability.AbilityIndexParameter != -1) && InspectorUtility.Foldout(ability, new GUIContent("Editor"), false)) {
                     EditorGUI.indentLevel++;
                     if (editorCallback != null) {
                         editorCallback();
@@ -1202,7 +1148,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                     var animator = (target as UltimateCharacterLocomotion).GetComponent<Animator>();
                     UnityEditor.Animations.AnimatorController animatorController = null;
                     if (animator != null) {
-                        animatorController = animator.runtimeAnimatorController as UnityEditor.Animations.AnimatorController;
+                        animatorController = (UnityEditor.Animations.AnimatorController)animator.runtimeAnimatorController;
                     }
 
                     UnityEditor.Animations.AnimatorController firstPersonAnimatorController = null;
@@ -1225,7 +1171,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 
                     GUILayout.BeginHorizontal();
                     GUI.enabled = animatorController != null;
-                    GUILayout.Space(Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * 2);
+                    GUILayout.Space(InspectorUtility.IndentWidth * 2);
                     if (GUILayout.Button("Generate Animator Code")) {
                         var baseDirectory = EditorPrefs.GetString(c_EditorPrefsLastLastAnimatorCodePathKey, System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(this))));
                         var path = inspectorDrawer.GenerateAnimatorCode(ability, animatorController, firstPersonAnimatorController, baseDirectory);
@@ -1257,10 +1203,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private void OnAbilityStateListDraw(Rect rect, int index, bool isActive, bool isFocused)
         {
-            if (m_ReorderableAbilityStateList == null || m_CharacterLocomotion.Abilities == null || m_CharacterLocomotion.Abilities.Length <= EditorPrefs.GetInt(SelectedAbilityIndexKey)) {
-                if (m_ReorderableAbilityStateList != null) {
-                    EditorPrefs.SetInt(SelectedAbilityIndexKey, -1);
-                }
+            if (m_ReorderableAbilityStateList == null) {
                 return;
             }
 
@@ -1276,7 +1219,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 
             StateInspector.OnStateListDraw(ability, ability.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeAbilities();
 
                 StateInspector.UpdateDefaultStateValues(ability.States);
@@ -1300,7 +1243,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.AddExistingPreset(ability.GetType(), ability.States, m_ReorderableAbilityStateList, GetSelectedAbilityStateIndexKey(ability));
             if (ability.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableAbilityStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 ability.States = states;
                 SerializeAbilities();
             }
@@ -1315,7 +1258,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.CreatePreset(ability, ability.States, m_ReorderableAbilityStateList, GetSelectedAbilityStateIndexKey(ability));
             if (ability.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableAbilityStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 ability.States = states;
                 SerializeAbilities();
             }
@@ -1329,7 +1272,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var ability = m_CharacterLocomotion.Abilities[EditorPrefs.GetInt(SelectedAbilityIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new Shared.StateSystem.State[ability.States.Length];
+            var copiedStates = new UltimateCharacterController.StateSystem.State[ability.States.Length];
             Array.Copy(ability.States, copiedStates, ability.States.Length);
             for (int i = 0; i < ability.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -1342,7 +1285,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.OnStateListReorder(ability.States);
             if (ability.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableAbilityStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 ability.States = states;
                 SerializeAbilities();
             }
@@ -1357,7 +1300,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.OnStateListRemove(ability.States, GetSelectedAbilityStateIndexKey(ability), list);
             if (ability.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableAbilityStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 ability.States = states;
                 SerializeAbilities();
             }
@@ -1371,23 +1314,21 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var itemAbility = m_CharacterLocomotion.ItemAbilities[index];
             InspectorUtility.DrawObject(itemAbility, true, false, target, true, SerializeItemAbilities);
 
-            var selectedItemAbility = itemAbility;
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(itemAbility, new GUIContent("States"), false)) {
+            var selectedItemAbility = itemAbility as ItemAbility;
+            if (InspectorUtility.Foldout(itemAbility, new GUIContent("States"), false)) {
                 // The ItemAbility class derives from system.object at the base level and reorderable lists can only operate on Unity objects. To get around this restriction
                 // create a dummy array within a Unity object that corresponds to the number of elements within the item ability's state list. When the reorderable list is drawn
                 // the item ability object will be used so it's like the dummy object never existed.
                 var gameObject = new GameObject();
-                try { 
-                    var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
-                    stateIndexHelper.StateIndexData = new int[selectedItemAbility.States.Length];
-                    for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
-                        stateIndexHelper.StateIndexData[i] = i;
-                    }
-                    var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
-                    m_ReorderableItemAbilityStateList = StateInspector.DrawStates(m_ReorderableItemAbilityStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"),
-                                                                GetSelectedItemAbilityStateIndexKey(selectedItemAbility), OnItemAbilityStateListDraw, OnItemAbilityStateListAdd, 
-                                                                OnItemAbilityStateListReorder, OnItemAbilityStateListRemove);
-                } catch (Exception /*e*/) { }
+                var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
+                stateIndexHelper.StateIndexData = new int[selectedItemAbility.States.Length];
+                for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
+                    stateIndexHelper.StateIndexData[i] = i;
+                }
+                var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
+                m_ReorderableItemAbilityStateList = StateInspector.DrawStates(m_ReorderableItemAbilityStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"),
+                                                            GetSelectedItemAbilityStateIndexKey(selectedItemAbility), OnItemAbilityStateListDraw, OnItemAbilityStateListAdd, 
+                                                            OnItemAbilityStateListReorder, OnItemAbilityStateListRemove);
                 DestroyImmediate(gameObject);
             }
 
@@ -1399,7 +1340,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private string GetSelectedItemAbilityStateIndexKey(ItemAbility itemAbility)
         {
-            return c_EditorPrefsSelectedItemAbilityStateIndexKey + "." + target.GetType() + "." + target.name + "." + itemAbility.GetType() + "." + itemAbility.Index;
+            return c_EditorPrefsSelectedAbilityStateIndexKey + "." + target.GetType() + "." + target.name + "." + itemAbility.GetType() + "." + itemAbility.Index;
         }
 
         /// <summary>
@@ -1421,7 +1362,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 
             StateInspector.OnStateListDraw(itemAbility, itemAbility.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeItemAbilities();
 
                 StateInspector.UpdateDefaultStateValues(itemAbility.States);
@@ -1445,7 +1386,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.AddExistingPreset(itemAbility.GetType(), itemAbility.States, m_ReorderableItemAbilityStateList, GetSelectedItemAbilityStateIndexKey(itemAbility));
             if (itemAbility.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableItemAbilityStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 itemAbility.States = states;
                 SerializeItemAbilities();
             }
@@ -1460,7 +1401,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.CreatePreset(itemAbility, itemAbility.States, m_ReorderableItemAbilityStateList, GetSelectedItemAbilityStateIndexKey(itemAbility));
             if (itemAbility.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableItemAbilityStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 itemAbility.States = states;
                 SerializeItemAbilities();
             }
@@ -1474,7 +1415,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var itemAbility = m_CharacterLocomotion.ItemAbilities[EditorPrefs.GetInt(SelectedItemAbilityIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new Shared.StateSystem.State[itemAbility.States.Length];
+            var copiedStates = new UltimateCharacterController.StateSystem.State[itemAbility.States.Length];
             Array.Copy(itemAbility.States, copiedStates, itemAbility.States.Length);
             for (int i = 0; i < itemAbility.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -1487,7 +1428,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.OnStateListReorder(itemAbility.States);
             if (itemAbility.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableItemAbilityStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 itemAbility.States = states;
                 SerializeItemAbilities();
             }
@@ -1502,7 +1443,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.OnStateListRemove(itemAbility.States, GetSelectedItemAbilityStateIndexKey(itemAbility), list);
             if (itemAbility.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableItemAbilityStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 itemAbility.States = states;
                 SerializeItemAbilities();
             }
@@ -1516,23 +1457,21 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var effect = m_CharacterLocomotion.Effects[index];
             InspectorUtility.DrawObject(effect, true, false, target, true, SerializeEffects);
 
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(effect, new GUIContent("States"), false)) {
+            if (InspectorUtility.Foldout(effect, new GUIContent("States"), false)) {
                 // The Effect class derives from system.object at the base level and reorderable lists can only operate on Unity objects. To get around this restriction
                 // create a dummy array within a Unity object that corresponds to the number of elements within the ability's state list. When the reorderable list is drawn
                 // the ability object will be used so it's like the dummy object never existed.
-                var selectedEffect = effect;
+                var selectedEffect = effect as Effect;
                 var gameObject = new GameObject();
-                try { 
-                    var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
-                    stateIndexHelper.StateIndexData = new int[selectedEffect.States.Length];
-                    for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
-                        stateIndexHelper.StateIndexData[i] = i;
-                    }
-                    var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
-                    m_ReorderableEffectStateList = StateInspector.DrawStates(m_ReorderableEffectStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"),
-                                                                GetSelectedEffectStateIndexKey(selectedEffect), OnEffectStateListDraw, OnEffectStateListAdd, OnEffectStateListReorder, 
-                                                                OnEffectStateListRemove);
-                } catch (Exception /*e*/) { }
+                var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
+                stateIndexHelper.StateIndexData = new int[selectedEffect.States.Length];
+                for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
+                    stateIndexHelper.StateIndexData[i] = i;
+                }
+                var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
+                m_ReorderableEffectStateList = StateInspector.DrawStates(m_ReorderableEffectStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"),
+                                                            GetSelectedEffectStateIndexKey(selectedEffect), OnEffectStateListDraw, OnEffectStateListAdd, OnEffectStateListReorder, 
+                                                            OnEffectStateListRemove);
                 DestroyImmediate(gameObject);
             }
         }
@@ -1542,7 +1481,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// </summary>
         private string GetSelectedEffectStateIndexKey(Effect effect)
         {
-            return c_EditorPrefsSelectedEffectStateIndexKey + "." + target.GetType() + "." + target.name + "." + effect.GetType();
+            return c_EditorPrefsSelectedAbilityStateIndexKey + "." + target.GetType() + "." + target.name + "." + effect.GetType();
         }
 
         /// <summary>
@@ -1562,7 +1501,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 
             StateInspector.OnStateListDraw(effect, effect.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeEffects();
 
                 StateInspector.UpdateDefaultStateValues(effect.States);
@@ -1586,7 +1525,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.AddExistingPreset(effect.GetType(), effect.States, m_ReorderableEffectStateList, GetSelectedEffectStateIndexKey(effect));
             if (effect.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableEffectStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 effect.States = states;
                 SerializeEffects();
             }
@@ -1601,7 +1540,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.CreatePreset(effect, effect.States, m_ReorderableEffectStateList, GetSelectedEffectStateIndexKey(effect));
             if (effect.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableEffectStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 effect.States = states;
                 SerializeEffects();
             }
@@ -1615,7 +1554,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var effect = m_CharacterLocomotion.Effects[EditorPrefs.GetInt(SelectedEffectIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new Shared.StateSystem.State[effect.States.Length];
+            var copiedStates = new UltimateCharacterController.StateSystem.State[effect.States.Length];
             Array.Copy(effect.States, copiedStates, effect.States.Length);
             for (int i = 0; i < effect.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -1628,7 +1567,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.OnStateListReorder(effect.States);
             if (effect.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableEffectStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 effect.States = states;
                 SerializeEffects();
             }
@@ -1643,7 +1582,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var states = StateInspector.OnStateListRemove(effect.States, GetSelectedEffectStateIndexKey(effect), list);
             if (effect.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableEffectStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 effect.States = states;
                 SerializeEffects();
             }
@@ -1655,10 +1594,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         private void SerializeMovementTypes()
         {
             var movementTypes = new List<MovementType>(m_CharacterLocomotion.MovementTypes);
-            m_CharacterLocomotion.MovementTypeData = Shared.Utility.Serialization.Serialize<MovementType>(movementTypes);
+            m_CharacterLocomotion.MovementTypeData = Serialization.Serialize<MovementType>(movementTypes);
             m_CharacterLocomotion.MovementTypes = movementTypes.ToArray();
             UpdateDefaultMovementTypes();
-            Shared.Editor.Utility.EditorUtility.SetDirty(target);
+            InspectorUtility.SetDirty(target);
         }
 
         /// <summary>
@@ -1667,13 +1606,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         private void UpdateDefaultMovementTypes()
         {
             // The movement type may not exist anymore.
-            if (!string.IsNullOrEmpty(m_CharacterLocomotion.FirstPersonMovementTypeFullName) && Shared.Utility.TypeUtility.GetType(m_CharacterLocomotion.FirstPersonMovementTypeFullName) == null) {
+            if (UnityEngineUtility.GetType(m_CharacterLocomotion.FirstPersonMovementTypeFullName) == null) {
                 m_CharacterLocomotion.FirstPersonMovementTypeFullName = string.Empty;
-                Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                InspectorUtility.SetDirty(target);
             }
-            if (!string.IsNullOrEmpty(m_CharacterLocomotion.ThirdPersonMovementTypeFullName) && Shared.Utility.TypeUtility.GetType(m_CharacterLocomotion.ThirdPersonMovementTypeFullName) == null) {
+            if (UnityEngineUtility.GetType(m_CharacterLocomotion.ThirdPersonMovementTypeFullName) == null) {
                 m_CharacterLocomotion.ThirdPersonMovementTypeFullName = string.Empty;
-                Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                InspectorUtility.SetDirty(target);
             }
 
             var hasSelectedMovementType = false;
@@ -1728,7 +1667,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         private void SerializeAbilities()
         {
             AbilityBuilder.SerializeAbilities(m_CharacterLocomotion);
-            Shared.Editor.Utility.EditorUtility.SetDirty(target);
+            InspectorUtility.SetDirty(target);
         }
 
         /// <summary>
@@ -1737,7 +1676,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         private void SerializeItemAbilities()
         {
             AbilityBuilder.SerializeItemAbilities(m_CharacterLocomotion);
-            Shared.Editor.Utility.EditorUtility.SetDirty(target); 
+            InspectorUtility.SetDirty(target); 
         }
 
         /// <summary>
@@ -1746,9 +1685,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         private void SerializeEffects()
         {
             var effects = new List<Effect>(m_CharacterLocomotion.Effects);
-            m_CharacterLocomotion.EffectData = Shared.Utility.Serialization.Serialize<Effect>(effects);
+            m_CharacterLocomotion.EffectData = Serialization.Serialize<Effect>(effects);
             m_CharacterLocomotion.Effects = effects.ToArray();
-            Shared.Editor.Utility.EditorUtility.SetDirty(target);
+            InspectorUtility.SetDirty(target);
         }
 
         /// <summary>

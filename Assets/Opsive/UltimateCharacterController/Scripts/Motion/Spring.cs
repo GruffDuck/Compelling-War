@@ -4,12 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Game;
+
 namespace Opsive.UltimateCharacterController.Motion
 {
-    using Opsive.Shared.Game;
-    using Opsive.Shared.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Simple but powerful spring logic for transform manipulation.
     /// </summary>
@@ -56,9 +55,9 @@ namespace Opsive.UltimateCharacterController.Motion
         // Update the spring forces with the Scheduler.
         ScheduledEventBase m_ScheduledEvent;
 
-        [Opsive.Shared.Utility.NonSerialized] public Vector3 Value { get { return m_Value; } set { m_Value = value; } }
-        [Opsive.Shared.Utility.NonSerialized] public Vector3 Velocity { get { return m_Velocity; } set { m_Velocity = value; } }
-        [Opsive.Shared.Utility.NonSerialized] public Vector3 RestValue { get { return m_RestValue; }
+        [Utility.NonSerialized] public Vector3 Value { get { return m_Value; } set { m_Value = value; } }
+        [Utility.NonSerialized] public Vector3 Velocity { get { return m_Velocity; } set { m_Velocity = value; } }
+        [Utility.NonSerialized] public Vector3 RestValue { get { return m_RestValue; }
             set {
                 m_Resting = false;
                 if (m_RotationalSpring) {
@@ -89,20 +88,6 @@ namespace Opsive.UltimateCharacterController.Motion
         }
 
         /// <summary>
-        /// Three parameter constructor.
-        /// </summary>
-        /// <param name="stiffness">The default stiffness of the spring.</param>
-        /// <param name="damping">The default damping of the spring.</param>
-        /// <param name="maxVelocity">The maximum value of the velocity.</param>
-        public Spring(float stiffness, float damping, float maxVelocity)
-        {
-            m_Stiffness = stiffness;
-            m_Damping = damping;
-            m_MaxVelocity = maxVelocity;
-            m_MinVelocity = Mathf.Clamp(m_MinVelocity, 0, m_MaxVelocity);
-        }
-
-        /// <summary>
         /// Initializes the spring. 
         /// </summary>
         /// <param name="rotationalSpring">Is the spring used for rotations?</param>
@@ -119,7 +104,7 @@ namespace Opsive.UltimateCharacterController.Motion
             }
 
             m_SoftForceFrames = new Vector3[m_MaxSoftForceFrames];
-            m_ScheduledEvent = fixedUpdate ? SchedulerBase.ScheduleFixed(-1, Tick) : SchedulerBase.Schedule(-1, Tick);
+            m_ScheduledEvent = fixedUpdate ? Scheduler.ScheduleFixed(-1, Tick) : Scheduler.Schedule(-1, Tick);
             m_VelocityFadeInEndTime = Time.time + m_VelocityFadeInLength;
             m_Resting = false;
             m_RotationalSpring = rotationalSpring;
@@ -192,7 +177,7 @@ namespace Opsive.UltimateCharacterController.Motion
         /// </summary>
         private void Move()
         {
-            m_Value += m_TimeScale * Time.timeScale * TimeUtility.FramerateDeltaTime * m_Velocity;
+            m_Value += m_Velocity * m_TimeScale * Time.timeScale;
             m_Value.x = Mathf.Clamp(m_Value.x, m_MinValue.x, m_MaxValue.x);
             m_Value.y = Mathf.Clamp(m_Value.y, m_MinValue.y, m_MaxValue.y);
             m_Value.z = Mathf.Clamp(m_Value.z, m_MinValue.z, m_MaxValue.z);
@@ -269,7 +254,7 @@ namespace Opsive.UltimateCharacterController.Motion
         public void Stop(bool includeSoftForce)
         {
             m_Velocity = Vector3.zero;
-            if (includeSoftForce && m_SoftForceFrames != null) {
+            if (includeSoftForce) {
                 for (int v = 0; v < 120; v++) {
                     m_SoftForceFrames[v] = Vector3.zero;
                 }
@@ -282,7 +267,7 @@ namespace Opsive.UltimateCharacterController.Motion
         public void Destroy()
         {
             if (m_ScheduledEvent != null) {
-                SchedulerBase.Cancel(m_ScheduledEvent);
+                Scheduler.Cancel(m_ScheduledEvent);
                 m_ScheduledEvent = null;
             }
             m_SoftForceFrames = null;

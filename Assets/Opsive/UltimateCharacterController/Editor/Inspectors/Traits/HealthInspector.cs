@@ -4,18 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-using System.Globalization;
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using System;
 
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
 {
-    using Opsive.Shared.Editor.Inspectors.StateSystem;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-    using Opsive.UltimateCharacterController.Traits;
-    using System;
-    using UnityEditor;
-    using UnityEditorInternal;
-    using UnityEngine;
-
     /// <summary>
     /// Shows a custom inspector for the Health component.
     /// </summary>
@@ -72,13 +71,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
                 var selectedHealthNameIndex = EditorGUILayout.Popup("Health Attribute", healthNameIndex, attributeNames);
                 if (healthNameIndex != selectedHealthNameIndex) {
                     m_Health.HealthAttributeName = (selectedHealthNameIndex == 0 ? string.Empty : m_AttributeManager.Attributes[selectedHealthNameIndex - 1].Name);
-                    Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                    InspectorUtility.SetDirty(target);
                 }
                 // Show the current health value.
                 if (Application.isPlaying && !string.IsNullOrEmpty(m_Health.HealthAttributeName) && selectedHealthNameIndex > 0 && selectedHealthNameIndex - 1 < m_AttributeManager.Attributes.Length) {
                     EditorGUI.indentLevel++;
                     GUI.enabled = false;
-                    EditorGUILayout.TextField("Value", m_AttributeManager.Attributes[selectedHealthNameIndex - 1].Value.ToString(CultureInfo.InvariantCulture));
+                    EditorGUILayout.TextField("Value", m_AttributeManager.Attributes[selectedHealthNameIndex - 1].Value.ToString());
                     GUI.enabled = true;
                     EditorGUI.indentLevel--;
                 }
@@ -86,13 +85,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
                 var selectedShieldNameIndex = EditorGUILayout.Popup("Shield Attribute", shieldNameIndex, attributeNames);
                 if (shieldNameIndex != selectedShieldNameIndex) {
                     m_Health.ShieldAttributeName = (selectedShieldNameIndex == 0 ? string.Empty : m_AttributeManager.Attributes[selectedShieldNameIndex - 1].Name);
-                    Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                    InspectorUtility.SetDirty(target);
                 }
                 // Show the current shield value.
                 if (Application.isPlaying && !string.IsNullOrEmpty(m_Health.ShieldAttributeName) && selectedShieldNameIndex > 0 && selectedShieldNameIndex - 1 < m_AttributeManager.Attributes.Length) {
                     EditorGUI.indentLevel++;
                     GUI.enabled = false;
-                    EditorGUILayout.TextField("Value", m_AttributeManager.Attributes[selectedShieldNameIndex - 1].Value.ToString(CultureInfo.InvariantCulture));
+                    EditorGUILayout.TextField("Value", m_AttributeManager.Attributes[selectedShieldNameIndex - 1].Value.ToString());
                     GUI.enabled = true;
                     EditorGUI.indentLevel--;
                 }
@@ -111,19 +110,19 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
 
                 if (Foldout("Audio")) {
                     EditorGUI.indentLevel++;
-                    if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Take Damage")) {
+                    if (InspectorUtility.Foldout(target, "Take Damage")) {
                         EditorGUI.indentLevel++;
-                        m_ReorderableTakeDamageAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Health.TakeDamageAudioClipSet, m_ReorderableTakeDamageAudioClipsList, OnTakeDamageAudioClipDraw, OnTakeDamageAudioClipListAdd, OnTakeDamageAudioClipListRemove);
+                        m_ReorderableTakeDamageAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Health.TakeDamageAudioClipSet, PropertyFromName("m_TakeDamageAudioClipSet"), m_ReorderableTakeDamageAudioClipsList, OnTakeDamageAudioClipDraw, OnTakeDamageAudioClipListAdd, OnTakeDamageAudioClipListRemove);
                         EditorGUI.indentLevel--;
                     }
-                    if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Heal")) {
+                    if (InspectorUtility.Foldout(target, "Heal")) {
                         EditorGUI.indentLevel++;
-                        m_ReorderableHealAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Health.HealAudioClipSet, m_ReorderableHealAudioClipsList, OnHealAudioClipDraw, OnHealAudioClipListAdd, OnHealAudioClipListRemove);
+                        m_ReorderableHealAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Health.HealAudioClipSet, PropertyFromName("m_HealAudioClipSet"), m_ReorderableHealAudioClipsList, OnHealAudioClipDraw, OnHealAudioClipListAdd, OnHealAudioClipListRemove);
                         EditorGUI.indentLevel--;
                     }
-                    if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Death")) {
+                    if (InspectorUtility.Foldout(target, "Death")) {
                         EditorGUI.indentLevel++;
-                        m_ReorderableDeathAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Health.DeathAudioClipSet, m_ReorderableDeathAudioClipsList, OnDeathAudioClipDraw, OnDeathAudioClipListAdd, OnDeathAudioClipListRemove);
+                        m_ReorderableDeathAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Health.DeathAudioClipSet, PropertyFromName("m_DeathAudioClipSet"), m_ReorderableDeathAudioClipsList, OnDeathAudioClipDraw, OnDeathAudioClipListAdd, OnDeathAudioClipListRemove);
                         EditorGUI.indentLevel--;
                     }
                     EditorGUI.indentLevel--;
@@ -145,15 +144,11 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
                     EditorGUI.indentLevel--;
                 }
 
-                if (Foldout("UI")) {
-                    EditorGUILayout.PropertyField(PropertyFromName("m_DamagePopupManagerID"));
-                }
-
                 if (Foldout("Events")) {
                     EditorGUI.indentLevel++;
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnDamageEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnHealEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnDeathEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnDamageEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnHealEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnDeathEvent"));
                     EditorGUI.indentLevel--;
                 }
             };

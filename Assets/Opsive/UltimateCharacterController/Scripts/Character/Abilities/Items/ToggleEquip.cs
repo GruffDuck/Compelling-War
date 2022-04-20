@@ -4,18 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+
 namespace Opsive.UltimateCharacterController.Character.Abilities.Items
 {
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// The ToggleEquip ability will equip or unequip the current ItemSet. ToggleEquip just specifies which ItemSet should be equipped/unequipped and then will let
     /// the EquipUnequip ability to do the actual equip/unequip.
     /// </summary>
     [DefaultStartType(AbilityStartType.ButtonDown)]
     [DefaultInputName("Toggle Item Equip")]
-    [AllowDuplicateTypes]
+    [AllowMultipleAbilityTypes]
     public class ToggleEquip : EquipSwitcher
     {
         [Tooltip("Should the default ItemSet be toggled upon start?")]
@@ -46,10 +45,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
         /// <param name="itemSetIndex">The updated active ItemSet index value.</param>
         protected override void OnItemSetIndexChange(int itemSetIndex)
         {
-            if (!Enabled) {
-                return;
-            }
-
             var defaultItemSetIndex = m_ItemSetManager.GetDefaultItemSetIndex(m_ItemSetCategoryIndex);
             m_ShouldEquipItem = itemSetIndex == defaultItemSetIndex;
             if (itemSetIndex == defaultItemSetIndex) {
@@ -73,7 +68,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
                 return false;
             }
 
-            // PrevItemSetIndex will equal -1 if no non-default items have been equipped.
+            // PrevItemSetIndex will equal -1 if no no-default items have been equipped.
             if (m_PrevItemSetIndex == -1) {
                 return false;
             }

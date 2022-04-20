@@ -1,20 +1,19 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.StateSystem
-{
-    using Opsive.Shared.Utility;
-    using System;
-    using System.Collections.Generic;
-    using UnityEngine;
+using UnityEngine;
+using System;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Utility;
 
+namespace Opsive.UltimateCharacterController.StateSystem
+{
     /// <summary>
     /// Allows the Preset component to serialized the property value.
     /// </summary>
-    [FormerlySerializedAs("Opsive.UltimateCharacterController.StateSystem.PersistablePreset")]
     public class PersistablePreset : Preset
     {
         [Tooltip("The serialized properties.")]

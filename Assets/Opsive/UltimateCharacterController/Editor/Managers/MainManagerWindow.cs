@@ -4,16 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using System;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Managers
 {
-    using Opsive.Shared.Editor.Utility;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Utility;
-    using System;
-    using System.Collections.Generic;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// The MainManagerWindow is an editor window which contains all of the sub managers. This window draws the high level menu options and draws
     /// the selected sub manager.
@@ -21,8 +20,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
     [InitializeOnLoad]
     public class MainManagerWindow : EditorWindow
     {
-        private const float c_MenuWidth = 120;
-        private const string c_DomainResetterGUID = "4fbaee9eba5d5f04eaa1778d3619d37d";
+        private float c_MenuWidth = 120;
 
         public float MenuWidth { get { return c_MenuWidth; } }
 
@@ -34,7 +32,11 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         // Unity's serialization doesn't support abstract classes so serialize the data separately.
         private Serialization[] m_ManagerData;
 
+#if UNITY_2018_3_OR_NEWER
         private UnityEngine.Networking.UnityWebRequest m_UpdateCheckRequest;
+#else
+        private WWW m_UpdateCheckRequest;
+#endif
         private DateTime m_LastUpdateCheck = DateTime.MinValue;
 
         public string LatestVersion
@@ -68,6 +70,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         private GUIStyle m_MenuBackground;
         private GUIStyle MenuBackground {
             get {
+#if UNITY_2019_3_OR_NEWER
                 if (m_MenuBackground == null) {
                     m_MenuBackground = new GUIStyle(EditorStyles.label);
                     // The left, top, and bottom background border should extend to prevent it from being seen.
@@ -77,17 +80,16 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                     var border = m_MenuBackground.border;
                     border.left = border.right = 10;
                     m_MenuBackground.border = border;
-                    var background = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-                    background.SetPixel(0, 0, EditorGUIUtility.isProSkin ? new Color(0.258f, 0.258f, 0.258f) : new Color(0.819f, 0.819f, 0.819f));
-                    background.Apply();
-                    m_MenuBackground.normal.background = background;
                 }
-                if (m_MenuBackground.normal.background == null) {
-                    var background = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-                    background.SetPixel(0, 0, EditorGUIUtility.isProSkin ? new Color(0.258f, 0.258f, 0.258f) : new Color(0.819f, 0.819f, 0.819f));
-                    background.Apply();
-                    m_MenuBackground.normal.background = background;
+#else
+                if (m_MenuBackground == null) {
+                    m_MenuBackground = new GUIStyle(EditorStyles.textArea);
+                    // The left, top, and bottom background border should extend to prevent it from being seen.
+                    var overflow = m_MenuBackground.overflow;
+                    overflow.left = overflow.top = overflow.bottom = 3;
+                    m_MenuBackground.overflow = overflow;
                 }
+#endif
                 return m_MenuBackground;
             }
         }
@@ -95,11 +97,24 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         private GUIStyle m_MenuButton;
         private GUIStyle MenuButton {
             get {
+#if UNITY_2019_3_OR_NEWER
                 if (m_MenuButton == null) {
                     m_MenuButton = new GUIStyle(EditorStyles.label);
                     m_MenuButton.fontSize = 13;
                     m_MenuButton.alignment = TextAnchor.MiddleRight;
                 }
+#else
+                if (m_MenuButton == null) {
+                    m_MenuButton = new GUIStyle(EditorStyles.toolbarButton);
+                    m_MenuButton.active.background = m_MenuButton.normal.background = null;
+                    m_MenuButton.fontSize = 13;
+                    m_MenuButton.alignment = TextAnchor.MiddleRight;
+                    var padding = m_MenuBackground.padding;
+                    padding.left = 0;
+                    padding.right = 2;
+                    m_MenuBackground.padding = padding;
+                }
+#endif
                 return m_MenuButton;
             }
         }
@@ -108,9 +123,17 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             get {
                 if (m_SelectedMenuButton == null) {
                     m_SelectedMenuButton = new GUIStyle(MenuButton);
+#if !UNITY_2019_3_OR_NEWER
+                    var overflow = m_SelectedMenuButton.overflow;
+                    overflow.top = overflow.bottom = 4;
+#endif
                 }
                 if (m_SelectedMenuButton.active.background == null) {
+#if UNITY_2018_1_OR_NEWER
                     var background = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+#else
+                    var background = new Texture2D(1, 1, TextureFormat.RGBA32, false, true);
+#endif
                     background.SetPixel(0, 0, EditorGUIUtility.isProSkin ? new Color(0.243f, 0.373f, 0.588f) : new Color(0.247f, 0.494f, 0.871f));
                     background.Apply();
                     m_SelectedMenuButton.active.background = m_SelectedMenuButton.normal.background = background;
@@ -124,7 +147,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             get
             {
                 if (m_ManagerTitle == null) {
-                    m_ManagerTitle = new GUIStyle(Shared.Editor.Inspectors.Utility.InspectorStyles.CenterBoldLabel);
+                    m_ManagerTitle = new GUIStyle(InspectorStyles.CenterBoldLabel);
                     m_ManagerTitle.fontSize = 16;
                     m_ManagerTitle.alignment = TextAnchor.MiddleLeft;
                 }
@@ -143,12 +166,28 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// <summary>
         /// Initializes the Main Manager.
         /// </summary> 
-        [MenuItem("Tools/Opsive/Ultimate Character Controller/Main Manager", false, 1)]
+        [MenuItem("Tools/Opsive/Ultimate Character Controller/Main Manager", false, 0)]
         public static MainManagerWindow ShowWindow()
         {
             var window = EditorWindow.GetWindow<MainManagerWindow>(false, "Character Manager");
             window.minSize = new Vector2(680, 550);
             return window;
+        }
+
+        /// <summary>
+        /// Show the project settings dialogues.
+        /// </summary>
+        private static void UpdateProjectSettings()
+        {
+            if (EditorUtility.DisplayDialog("Update Input Manager?", "Do you want to update the Input Manager?\n\n" +
+                                   "If you have already updated the Input Manager or are using custom inputs you can select No.", "Yes", "No")) {
+                Utility.UnityInputBuilder.UpdateInputManager();
+            }
+            if (EditorUtility.DisplayDialog("Update Layers?", "Do you want to update the project layers?\n\n" +
+                                            "If you have already updated the layers or are using custom layers you can select No.", "Yes", "No")) {
+                SetupManager.UpdateLayers();
+            }
+            EditorPrefs.SetBool("Opsive.UltimateCharacterController.Editor.UpdateProject", false);
         }
 
         /// <summary>
@@ -219,53 +258,19 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             if (EditorApplication.isCompiling) {
                 return;
             }
+
+            if (!EditorPrefs.GetBool("Opsive.UltimateCharacterController.Editor.MainManagerShown", false)) {
+                EditorPrefs.SetBool("Opsive.UltimateCharacterController.Editor.MainManagerShown", true);
+                ShowWindow();
+            }
+
+            if (!EditorPrefs.HasKey("Opsive.UltimateCharacterController.Editor.UpdateProject") || EditorPrefs.GetBool("Opsive.UltimateCharacterController.Editor.UpdateProject", true)) {
+                EditorUtility.DisplayDialog("Project Settings Setup", "Thank you for purchasing the " + AssetInfo.Name +".\n\n" +
+                                                                      "This wizard will ask two questions related to updating your project.", "OK");
+                UpdateProjectSettings();
+            }
+
             EditorApplication.update -= EditorStartup;
-
-#if !ULTIMATE_CHARACTER_CONTROLLER_EXTENSION_DEBUG
-            ImportStatus importStatus = null;
-            var importStatusAssets = AssetDatabase.FindAssets("t:ImportStatus");
-            if (importStatusAssets != null && importStatusAssets.Length > 0) {
-                for (int i = 0; i < importStatusAssets.Length; ++i) {
-                    var path = AssetDatabase.GUIDToAssetPath(importStatusAssets[i]);
-                    if (string.IsNullOrEmpty(path)) {
-                        path = importStatusAssets[i];
-                    }
-                    importStatus = AssetDatabase.LoadAssetAtPath(path, typeof(ImportStatus)) as ImportStatus;
-                    if (importStatus != null) {
-                        break;
-                    }
-                }
-            }
-            if (importStatus == null) {
-                // The import status hasn't been created yet. Create it in the same location as the DomainResetter.
-                var domainResetterPath = AssetDatabase.GUIDToAssetPath(c_DomainResetterGUID);
-                if (string.IsNullOrEmpty(domainResetterPath)) {
-                    return;
-                }
-
-                importStatus = ScriptableObject.CreateInstance<ImportStatus>();
-                AssetDatabase.CreateAsset(importStatus, System.IO.Path.GetDirectoryName(domainResetterPath) + "/ImportStatus.asset");
-                AssetDatabase.Refresh();
-            }
-
-            if (!importStatus.CharacterProjectSettingsShown) {
-                // Versions before 2.3.5 used an editor key.
-                if (!EditorPrefs.HasKey("Opsive.UltimateCharacterController.Editor.UpdateProject") || EditorPrefs.GetBool("Opsive.UltimateCharacterController.Editor.UpdateProject", true)) {
-                    var window = ShowWindow();
-                    var setupManager = window.Open(typeof(SetupManager));
-                    (setupManager as SetupManager).OpenProjectSetup();
-                }
-
-                importStatus.CharacterProjectSettingsShown = true;
-                UnityEditor.EditorUtility.SetDirty(importStatus);
-            }
-#endif
-            if (EditorPrefs.HasKey("Opsive.UltimateCharacterController.Editor.UpdateProject")) {
-                EditorPrefs.DeleteKey("Opsive.UltimateCharacterController.Editor.UpdateProject");
-            }
-            if (EditorPrefs.HasKey("Opsive.UltimateCharacterController.Editor.MainManagerShown")) {
-                EditorPrefs.DeleteKey("Opsive.UltimateCharacterController.Editor.MainManagerShown");
-            }
         }
 
         /// <summary>
@@ -284,7 +289,11 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         {
             if (m_UpdateCheckRequest != null && m_UpdateCheckRequest.isDone) {
                 if (string.IsNullOrEmpty(m_UpdateCheckRequest.error)) {
+#if UNITY_2018_3_OR_NEWER
                     LatestVersion = m_UpdateCheckRequest.downloadHandler.text;
+#else
+                    LatestVersion = m_UpdateCheckRequest.text;
+#endif
                 }
                 m_UpdateCheckRequest = null;
                 return false;
@@ -293,8 +302,12 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             if (m_UpdateCheckRequest == null && DateTime.Compare(LastUpdateCheck.AddDays(1), DateTime.UtcNow) < 0) {
                 var url = string.Format("https://opsive.com/asset/UpdateCheck.php?asset=UltimateCharacterController&type={0}&version={1}&unityversion={2}&devplatform={3}&targetplatform={4}",
                                             AssetInfo.Name.Replace(" ", ""), AssetInfo.Version, Application.unityVersion, Application.platform, EditorUserBuildSettings.activeBuildTarget);
+#if UNITY_2018_3_OR_NEWER
                 m_UpdateCheckRequest = UnityEngine.Networking.UnityWebRequest.Get(url);
                 m_UpdateCheckRequest.SendWebRequest();
+#else
+                m_UpdateCheckRequest = new WWW(url);
+#endif
                 LastUpdateCheck = DateTime.UtcNow;
             }
 
@@ -358,12 +371,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             var managerIndexes = new List<int>();
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             for (int i = 0; i < assemblies.Length; ++i) {
-                Type[] assemblyTypes;
-                try {
-                    assemblyTypes = assemblies[i].GetTypes();
-                } catch(Exception /*e*/) {
-                    continue;
-                }
+                var assemblyTypes = assemblies[i].GetTypes();
                 for (int j = 0; j < assemblyTypes.Length; ++j) {
                     // Must implement Manager.
                     if (!typeof(Manager).IsAssignableFrom(assemblyTypes[j])) {
@@ -403,12 +411,12 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 m_Managers[i] = Activator.CreateInstance(managerTypes[i]) as Manager;
                 m_Managers[i].Initialize(this);
 
-                var managerName  = Shared.Editor.Utility.EditorUtility.SplitCamelCase(managerTypes[i].Name);
+                var name = InspectorUtility.SplitCamelCase(managerTypes[i].Name);
                 if (managers[i].GetCustomAttributes(typeof(OrderedEditorItem), true).Length > 0) {
                     var item = managerTypes[i].GetCustomAttributes(typeof(OrderedEditorItem), true)[0] as OrderedEditorItem;
-                    managerName = item.Name;
+                    name = item.Name;
                 }
-                m_ManagerNames[i] = managerName;
+                m_ManagerNames[i] = name;
             }
 
             SerializeManagers();
@@ -431,16 +439,14 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// Opens the specified manager.
         /// </summary>
         /// <param name="managerType">The type of manager to open.</param>
-        /// <returns>The manager that was opened.</returns>
-        public Manager Open(Type managerType)
+        public void Open(Type managerType)
         {
             for (int i = 0; i < m_Managers.Length; ++i) {
                 if (m_Managers[i].GetType() == managerType) {
                     m_MenuSelection = i;
-                    return m_Managers[i];
+                    break;
                 }
             }
-            return null;
         }
 
         /// <summary>

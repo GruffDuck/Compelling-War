@@ -4,24 +4,20 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Camera.ViewTypes;
+using Opsive.UltimateCharacterController.Input;
+using Opsive.UltimateCharacterController.Utility;
+#if ULTIMATE_CHARACTER_CONTROLLER_VR
+using Opsive.UltimateCharacterController.VR;
+#endif
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTypes
 {
-    using Opsive.Shared.Game;
-    using Opsive.Shared.Input;
-    using Opsive.UltimateCharacterController.Camera.ViewTypes;
-    using Opsive.UltimateCharacterController.Motion;
-#if ULTIMATE_CHARACTER_CONTROLLER_VR
-    using Opsive.UltimateCharacterController.VR;
-#endif
-    using UnityEngine;
-
-    using EventHandler = Opsive.Shared.Events.EventHandler;
-
     /// <summary>
     /// The Pseudo3D View Type places the camera in a 2.5D view - allowing the camera to look at the character from the side.
     /// </summary>
     [RecommendedMovementType(typeof(Character.MovementTypes.Pseudo3D))]
-    [RecommendedMovementType(typeof(Character.MovementTypes.FourLegged))]
     public class Pseudo3D : ViewType
     {
         [Tooltip("The distance that the character should look ahead.")]
@@ -38,36 +34,12 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         [SerializeField] protected float m_RotationSmoothing = 0.1f;
         [Tooltip("Should the look direction account for depth offsets? This is only used when the mouse is visible.")]
         [SerializeField] protected bool m_DepthLookDirection;
-        [Tooltip("The positional spring which returns to equilibrium after a small amount of time (for recoil).")]
-        [SerializeField] protected Spring m_SecondaryPositionSpring = new Spring(0, 0, 0);
-        [Tooltip("The rotational spring which returns to equilibrium after a small amount of time (for recoil).")]
-        [SerializeField] protected Spring m_SecondaryRotationSpring = new Spring(0, 0, 0);
 
         public Vector3 ForwardAxis { get { return m_ForwardAxis; } set { m_ForwardAxis = value; } }
-        public float FieldOfView { get { return m_FieldOfView; } set { m_FieldOfView = value; } }
-        public float FieldOfViewDamping { get { return m_FieldOfViewDamping; } set { m_FieldOfViewDamping = value; } }
         public float ViewDistance { get { return m_ViewDistance; } set { m_ViewDistance = value; } }
         public float MoveSmoothing { get { return m_MoveSmoothing; } set { m_MoveSmoothing = value; } }
         public float RotationSmoothing { get { return m_RotationSmoothing; } set { m_RotationSmoothing = value; } }
         public bool DepthLookDirection { get { return m_DepthLookDirection; } set { m_DepthLookDirection = value; } }
-        public Spring SecondaryPositionSpring
-        {
-            get { return m_SecondaryPositionSpring; }
-            set
-            {
-                m_SecondaryPositionSpring = value;
-                if (m_SecondaryPositionSpring != null) { m_SecondaryPositionSpring.Initialize(false, true); }
-            }
-        }
-        public Spring SecondaryRotationSpring
-        {
-            get { return m_SecondaryRotationSpring; }
-            set
-            {
-                m_SecondaryRotationSpring = value;
-                if (m_SecondaryRotationSpring != null) { m_SecondaryRotationSpring.Initialize(true, true); }
-            }
-        }
 
         public override float Pitch { get { return 0; } }
         public override float Yaw { get { return 0; } }
@@ -75,14 +47,13 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         public override bool FirstPersonPerspective { get { return false; } }
         public override float LookDirectionDistance { get { return m_LookDistance; } }
 
+        private UnityEngine.Camera m_Camera;
         private PlayerInput m_PlayerInput;
         private Plane m_HitPlane = new Plane();
         private RaycastHit m_RaycastHit;
         private Vector3 m_LookDirection;
         private Vector3 m_SmoothPositionVelocity;
         private float m_LookDistance;
-        private float m_PrevFieldOfViewDamping;
-        private int m_StateChangeFrame = -1;
         private float m_CharacterStartPosition;
         private int m_PathIndex;
 
@@ -108,10 +79,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             }
 #endif
             m_LookDistance = m_LookDirectionDistance;
-
-            // Initialize the springs.
-            m_SecondaryPositionSpring.Initialize(false, false);
-            m_SecondaryRotationSpring.Initialize(true, true);
         }
 
         /// <summary>
@@ -152,8 +119,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         public override void Reset(Quaternion characterRotation)
         {
             m_SmoothPositionVelocity = Vector3.zero;
-            m_SecondaryPositionSpring.Reset();
-            m_SecondaryRotationSpring.Reset();
         }
 
         /// <summary>
@@ -167,7 +132,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         {
 #if ULTIMATE_CHARACTER_CONTROLLER_VR
             if (m_VREnabled) {
-                EventHandler.ExecuteEvent("OnTryRecenterTracking");
+                Events.EventHandler.ExecuteEvent("OnTryRecenterTracking");
             }
 #endif
             Quaternion targetRotation;
@@ -178,7 +143,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
                 targetRotation = Quaternion.LookRotation(m_ForwardAxis);
             }
 
-            return (immediateUpdate ? targetRotation : Quaternion.Slerp(m_Transform.rotation, targetRotation, m_RotationSmoothing)) * Quaternion.Euler(m_SecondaryRotationSpring.Value);
+            return immediateUpdate ? targetRotation : Quaternion.Slerp(m_Transform.rotation, targetRotation, m_RotationSmoothing);
         }
 
         /// <summary>
@@ -196,15 +161,13 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
                 offset = -m_VerticalDeadZone * Mathf.Sign(offset);
             }
             var targetPosition = GetAnchorPosition() + m_CharacterTransform.up * offset - m_Transform.forward * m_ViewDistance;
-            return (immediateUpdate ? targetPosition : Vector3.SmoothDamp(m_Transform.position, targetPosition, ref m_SmoothPositionVelocity, m_MoveSmoothing)) + m_SecondaryPositionSpring.Value;
+            return (immediateUpdate ? targetPosition : Vector3.SmoothDamp(m_Transform.position, targetPosition, ref m_SmoothPositionVelocity, m_MoveSmoothing));
         }
 
         /// <summary>
         /// Returns the position of the look source.
         /// </summary>
-        /// <param name="characterLookPosition">Is the character look position being retrieved?</param>
-        /// <returns>The position of the look source.</returns>
-        public override Vector3 LookPosition(bool characterLookPosition)
+        public override Vector3 LookPosition()
         {
             return m_CharacterTransform.position;
         }
@@ -225,10 +188,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
-        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
+        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread)
+        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil)
         {
             // The character should look towards the cursor or Mouse X/Y direction.
             if (m_PlayerInput.IsCursorVisible()) {
@@ -281,68 +243,6 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             }
 
             return m_LookDirection;
-        }
-
-        /// <summary>
-        /// Adds a secondary positional force to the ViewType.
-        /// </summary>
-        /// <param name="force">The force to add.</param>
-        /// <param name="restAccumulation">The percent of the force to accumulate to the rest value.</param>
-        public override void AddSecondaryPositionalForce(Vector3 force, float restAccumulation)
-        {
-            if (restAccumulation > 0) {
-                m_SecondaryPositionSpring.RestValue += force * restAccumulation;
-            }
-            m_SecondaryPositionSpring.AddForce(force);
-        }
-
-        /// <summary>
-        /// Adds a delayed rotational force to the ViewType.
-        /// </summary>
-        /// <param name="force">The force to add.</param>
-        /// <param name="restAccumulation">The percent of the force to accumulate to the rest value.</param>
-        public override void AddSecondaryRotationalForce(Vector3 force, float restAccumulation)
-        {
-            if (restAccumulation > 0) {
-                var springRest = m_SecondaryRotationSpring.RestValue;
-                springRest.z += force.z * restAccumulation;
-                m_SecondaryRotationSpring.RestValue = springRest;
-            }
-            m_SecondaryRotationSpring.AddForce(force);
-        }
-
-
-        /// <summary>
-        /// Callback when the StateManager will change the active state on the current object.
-        /// </summary>
-        public override void StateWillChange()
-        {
-            // Multiple state changes can occur within the same frame. Only remember the first damping value.
-            if (m_StateChangeFrame != Time.frameCount) {
-                m_PrevFieldOfViewDamping = m_FieldOfViewDamping;
-            }
-            m_StateChangeFrame = Time.frameCount;
-        }
-
-        /// <summary>
-        /// Callback when the StateManager has changed the active state on the current object.
-        /// </summary>
-        public override void StateChange()
-        {
-            if (m_Camera.fieldOfView != m_FieldOfView
-#if ULTIMATE_CHARACTER_CONTROLLER_VR
-                && !m_VREnabled
-#endif
-                ) {
-                m_FieldOfViewChangeTime = Time.time;
-                if (m_CameraController.ActiveViewType == this) {
-                    // The field of view and location should get a head start if the damping was previously 0. This will allow the field of view and location
-                    // to move back to the original value when the state is no longer active.
-                    if (m_PrevFieldOfViewDamping == 0) {
-                        m_Camera.fieldOfView = (m_Camera.fieldOfView + m_FieldOfView) * 0.5f;
-                    }
-                }
-            }
         }
     }
 }

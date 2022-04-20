@@ -4,20 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Inventory;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+using Opsive.UltimateCharacterController.Networking;
+using Opsive.UltimateCharacterController.Networking.Character;
+#endif
+
 namespace Opsive.UltimateCharacterController.Items.Actions
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Inventory;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-    using Opsive.UltimateCharacterController.Networking;
-    using Opsive.UltimateCharacterController.Networking.Character;
-#endif
-    using UnityEngine;
-
     /// <summary>
     /// An ItemAction is any item that can be interacted with by the character.
     /// </summary>
@@ -120,7 +119,7 @@ namespace Opsive.UltimateCharacterController.Items.Actions
         /// <summary>
         /// The camera perspective between first and third person has changed.
         /// </summary>
-        /// <param name="firstPersonPerspective">Is the camera in a first person view?</param>
+        /// <param name="inFirstPerson">Is the camera in a first person view?</param>
         protected virtual void OnChangePerspectives(bool firstPersonPerspective)
         {
             m_ActivePerspectiveProperties = firstPersonPerspective ? m_FirstPersonPerspectiveProperties : m_ThirdPersonPerspectiveProperties;

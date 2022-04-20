@@ -4,16 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Input;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Camera
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.Input;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Game;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// The CameraControllerHandler manages player input and the CameraController.
     /// </summary>
@@ -23,8 +21,6 @@ namespace Opsive.UltimateCharacterController.Camera
         [SerializeField] protected string m_ZoomInputName = "Fire2";
         [Tooltip("Does the zoom button need to be held down in order for the camera to zoom?")]
         [SerializeField] protected bool m_ContinuousZoom = true;
-        [Tooltip("Should the look vector be adjusted based on the framerate while using fixed update?")]
-        [SerializeField] protected bool m_AdjustForFramerate = true;
 #if FIRST_PERSON_CONTROLLER && THIRD_PERSON_CONTROLLER
         [Tooltip("The name of the toggle perspective input mapping.")]
         [SerializeField] protected string m_TogglePerspectiveInputName = "Toggle Perspective";
@@ -39,11 +35,9 @@ namespace Opsive.UltimateCharacterController.Camera
         private GameObject m_GameObject;
         private CameraController m_CameraController;
         private GameObject m_Character;
-        private UltimateCharacterLocomotion m_CharacterLocomotion;
         private PlayerInput m_PlayerInput;
         private bool m_AllowGameplayInput;
         private List<ActiveInputEvent> m_ActiveInputList;
-        private float m_LastRotateTime;
 
         /// <summary>
         /// Initializes the handler.
@@ -82,19 +76,21 @@ namespace Opsive.UltimateCharacterController.Camera
                 EventHandler.RegisterEvent<bool>(character, "OnEnableGameplayInput", OnEnableGameplayInput);
                 EventHandler.RegisterEvent<bool>(character, "OnCharacterActivate", OnActivate);
                 m_AllowGameplayInput = true;
-                m_PlayerInput = character.GetCachedComponent<PlayerInput>();
-                m_CharacterLocomotion = character.GetCachedComponent<UltimateCharacterLocomotion>();
-                m_LastRotateTime = Time.realtimeSinceStartup;
+                m_PlayerInput = character.GetComponent<PlayerInput>();
                 enabled = character.activeInHierarchy;
             }
         }
 
         /// <summary>
-        /// The handler has been enabled.
+        /// The handler has been disabled.
         /// </summary>
-        private void OnEnable()
+        private void OnDisable()
         {
-            m_LastRotateTime = Time.realtimeSinceStartup;
+            if (m_CameraController.KinematicObjectIndex == -1) {
+                return;
+            }
+
+            KinematicObjectManager.SetCameraLookVector(m_CameraController.KinematicObjectIndex, Vector2.zero);
         }
 
         /// <summary>
@@ -138,11 +134,6 @@ namespace Opsive.UltimateCharacterController.Camera
         private void FixedUpdate()
         {
             var lookVector = m_PlayerInput.GetLookVector(true);
-            // FixedUpdate is called a fixed number of times every frame but not at fixed intervals. Apply a scaling to adjust for that.
-            if (m_AdjustForFramerate && m_CharacterLocomotion.UpdateLocation == KinematicObjectManager.UpdateLocation.FixedUpdate) {
-                lookVector *= (Time.realtimeSinceStartup - m_LastRotateTime) / Time.fixedDeltaTime;
-            }
-            m_LastRotateTime = Time.realtimeSinceStartup;
             KinematicObjectManager.SetCameraLookVector(m_CameraController.KinematicObjectIndex, lookVector);
         }
 
@@ -227,18 +218,6 @@ namespace Opsive.UltimateCharacterController.Camera
         private void OnActivate(bool activate)
         {
             enabled = m_AllowGameplayInput && m_Character != null && activate;
-        }
-
-        /// <summary>
-        /// The handler has been disabled.
-        /// </summary>
-        private void OnDisable()
-        {
-            if (m_CameraController.KinematicObjectIndex == -1) {
-                return;
-            }
-
-            KinematicObjectManager.SetCameraLookVector(m_CameraController.KinematicObjectIndex, Vector2.zero);
         }
 
         /// <summary>

@@ -4,11 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEditor;
+using Opsive.UltimateCharacterController.Objects;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
 {
-    using Opsive.UltimateCharacterController.Objects;
-    using UnityEditor;
-
     /// <summary>
     /// Custom inspector for the Destructible component.
     /// </summary>
@@ -25,10 +26,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Objects
             if (Foldout("Destruction")) {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(PropertyFromName("m_DestroyOnCollision"));
-                EditorGUILayout.PropertyField(PropertyFromName("m_WaitForParticleStop"));
-                EditorGUILayout.PropertyField(PropertyFromName("m_DestructionDelay"));
+                if (PropertyFromName("m_DestroyOnCollision").boolValue) {
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.PropertyField(PropertyFromName("m_DestructionDelay"));
+                    EditorGUI.indentLevel--;
+                }
                 EditorGUILayout.PropertyField(PropertyFromName("m_SpawnedObjectsOnDestruction"), true);
-                Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnImpactEvent"));
+                InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnImpactEvent"));
                 EditorGUI.indentLevel--;
             }
         }

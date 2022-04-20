@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+
 namespace Opsive.UltimateCharacterController.Demo
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using UnityEngine;
-
     /// <summary>
     /// Indicates that a headshot occured by changing the color of the specified material.
     /// </summary>
@@ -71,14 +71,14 @@ namespace Opsive.UltimateCharacterController.Demo
             }
 
             if (m_TextColorChangeEvent != null) {
-                SchedulerBase.Cancel(m_TextColorChangeEvent);
+                Scheduler.Cancel(m_TextColorChangeEvent);
             }
 
             m_HeadshotTextMaterial.SetColor(m_Color, m_HeadshotColor);
             m_HeadshotTextMaterial.SetColor(m_EmissiveColorID, m_HeadshotEmissiveColor);
 
             m_StartFadeTime = Time.time + m_SolidTextDuration;
-            m_TextColorChangeEvent = SchedulerBase.Schedule(m_SolidTextDuration, UpdateTextColor);
+            m_TextColorChangeEvent = Scheduler.Schedule(m_SolidTextDuration, UpdateTextColor);
 
             if (m_HeadshotClip != null) {
                 m_AudioSource.clip = m_HeadshotClip;
@@ -96,7 +96,7 @@ namespace Opsive.UltimateCharacterController.Demo
             m_HeadshotTextMaterial.SetColor(m_EmissiveColorID, Color.Lerp(m_HeadshotEmissiveColor, m_OriginalEmissiveColor, t));
             // Keep updating until the text is the original color.
             if (t < 1) {
-                m_TextColorChangeEvent = SchedulerBase.Schedule(0.02f, UpdateTextColor);
+                m_TextColorChangeEvent = Scheduler.Schedule(0.02f, UpdateTextColor);
             }
         }
 

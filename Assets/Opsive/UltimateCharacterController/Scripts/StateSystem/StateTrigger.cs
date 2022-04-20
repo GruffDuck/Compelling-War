@@ -4,17 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.StateSystem
 {
-    using Opsive.Shared.Audio;
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// Activates the specified state when the object enters the state, and deactivates the sate when the object leaves.
     /// </summary>
@@ -63,7 +61,7 @@ namespace Opsive.UltimateCharacterController.StateSystem
             StateBehavior stateBehavior;
             if ((m_RequireCharacter && (stateBehavior = other.GetComponentInParent<Character.UltimateCharacterLocomotion>()) != null) ||
                 (!m_RequireCharacter && (stateBehavior = other.GetComponentInParent<StateBehavior>()) != null)) {
-                m_ActivateStateEvent = SchedulerBase.Schedule(m_Delay, ChangeState, stateBehavior.gameObject, true);
+                m_ActivateStateEvent = Scheduler.Schedule(m_Delay, ChangeState, stateBehavior.gameObject, true);
 
                 m_ActivateAudioClipSet.PlayAudioClip(null);
             }
@@ -72,24 +70,24 @@ namespace Opsive.UltimateCharacterController.StateSystem
         /// <summary>
         /// Activates or deactivates the state on the specified GameObject.
         /// </summary>
-        /// <param name="stateGameObject">The GameObject to activate the state on.</param>
+        /// <param name="gameObject">The GameObject to activate the state on.</param>
         /// <param name="activate">Should the state be activated?</param>
-        private void ChangeState(GameObject stateGameObject, bool activate)
+        private void ChangeState(GameObject gameObject, bool activate)
         {
-            StateManager.SetState(stateGameObject, m_StateName, activate);
+            StateManager.SetState(gameObject, m_StateName, activate);
             if (m_CharacterTransformChange) {
-                EventHandler.ExecuteEvent(stateGameObject, "OnCharacterImmediateTransformChange", true);
+                EventHandler.ExecuteEvent(gameObject, "OnCharacterImmediateTransformChange", true);
             }
             m_ActivateStateEvent = null;
             int index;
-            if (m_DeathDeactivations != null && (index = m_DeathDeactivations.IndexOf(stateGameObject)) > 0) {
+            if (m_DeathDeactivations != null && (index = m_DeathDeactivations.IndexOf(gameObject)) > 0) {
                 m_DeathDeactivations.RemoveAt(index);
-                EventHandler.UnregisterEvent(stateGameObject, "OnRespawn", OnRespawn);
+                EventHandler.UnregisterEvent(gameObject, "OnRespawn", OnRespawn);
             }
 
             // The state can be disabled automatically.
             if (activate && m_Duration > 0) {
-                SchedulerBase.Schedule(m_Duration, ChangeState, stateGameObject, false);
+                Scheduler.Schedule(m_Duration, ChangeState, gameObject, false);
             }
         }
 
@@ -107,7 +105,7 @@ namespace Opsive.UltimateCharacterController.StateSystem
             if ((m_RequireCharacter && (stateBehavior = other.GetComponentInParent<Character.UltimateCharacterLocomotion>()) != null) ||
                 (!m_RequireCharacter && (stateBehavior = other.GetComponentInParent<StateBehavior>()) != null)) {
                 if (m_ActivateStateEvent != null && m_ActivateStateEvent.Active) {
-                    SchedulerBase.Cancel(m_ActivateStateEvent);
+                    Scheduler.Cancel(m_ActivateStateEvent);
                     m_ActivateStateEvent = null;
                 } else {
                     // The state shouldn't change when the object dies. It can be changed when the character respawns.
@@ -139,8 +137,8 @@ namespace Opsive.UltimateCharacterController.StateSystem
         private void OnRespawn()
         {
             for (int i = m_DeathDeactivations.Count - 1; i > -1; --i) {
-                StateManager.SetState(m_DeathDeactivations[i], m_StateName, false);
-                EventHandler.UnregisterEvent(m_DeathDeactivations[i], "OnRespawn", OnRespawn);
+                StateManager.SetState(m_DeathDeactivations[i].gameObject, m_StateName, false);
+                EventHandler.UnregisterEvent(m_DeathDeactivations[i].gameObject, "OnRespawn", OnRespawn);
             }
             m_DeathDeactivations.Clear();
         }

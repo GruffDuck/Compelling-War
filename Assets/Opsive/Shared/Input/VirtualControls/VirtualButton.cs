@@ -1,14 +1,14 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Input.VirtualControls
-{
-    using UnityEngine;
-    using UnityEngine.EventSystems;
+using UnityEngine;
+using UnityEngine.EventSystems;
 
+namespace Opsive.UltimateCharacterController.Input.VirtualControls
+{
     /// <summary>
     /// A virtual control that the player can press.
     /// </summary>

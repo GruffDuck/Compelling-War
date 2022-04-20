@@ -4,15 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEngine.UI;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Demo.UI
 {
-    using Opsive.Shared.Events;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-    using UnityEngine.UI;
-
     /// <summary>
     /// Abstract class which manages the UI for the demo zones.
     /// </summary>
@@ -27,7 +27,6 @@ namespace Opsive.UltimateCharacterController.Demo.UI
         protected Color m_PressedColor;
         protected Button[] m_Buttons;
 
-        private bool m_VisibleCursor;
         protected GameObject m_ActiveCharacter;
 
         /// <summary>
@@ -70,20 +69,11 @@ namespace Opsive.UltimateCharacterController.Demo.UI
             // The other collider is the main character.
             m_ActiveCharacter = characterLocomotion.gameObject;
 
-            m_VisibleCursor = Cursor.visible;
             // The subclass can handle initializing the character. 
             CharacterEnter(characterLocomotion);
 
-            // The zone may hide the cursor.
-            if (m_VisibleCursor) {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
-
             // Enable the UI that is specific for the zone.
             m_UIParent.SetActive(true);
-
-            EventHandler.ExecuteEvent(m_ActiveCharacter, "OnCharacterEnterUIZone", true);
         }
 
         /// <summary>
@@ -108,19 +98,6 @@ namespace Opsive.UltimateCharacterController.Demo.UI
         }
 
         /// <summary>
-        /// Sets the UI button color.
-        /// </summary>
-        /// <param name="index">The index of the button to set.</param>
-        /// <param name="color">The color of the button.</param>
-        protected void SetButtonColor(int index, Color color)
-        {
-            m_ButtonImages[index].color = color;
-            var buttonColors = m_Buttons[index].colors;
-            buttonColors.normalColor = color;
-            m_Buttons[index].colors = buttonColors;
-        }
-
-        /// <summary>
         /// An object has exited the trigger.
         /// </summary>
         /// <param name="other">The collider that exited the trigger.</param>
@@ -140,13 +117,6 @@ namespace Opsive.UltimateCharacterController.Demo.UI
 
             // Reset the UI and active character.
             m_UIParent.SetActive(false);
-
-            EventHandler.ExecuteEvent(m_ActiveCharacter, "OnCharacterEnterUIZone", false);
-            EventHandler.ExecuteEvent(m_ActiveCharacter, "OnEnableGameplayInput", true);
-            if (m_VisibleCursor) {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
             m_ActiveCharacter = null;
         }
 

@@ -4,21 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Objects.ItemAssist;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Objects
 {
-    using Opsive.Shared.Audio;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Events;
-    using Opsive.UltimateCharacterController.Objects.ItemAssist;
-    using Opsive.UltimateCharacterController.Traits.Damage;
-    using Opsive.UltimateCharacterController.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-
-    using EventHandler = Opsive.Shared.Events.EventHandler;
-
     /// <summary>
     /// Creates an explosion which applies a force and damage to any object that is within the specified radius.
     /// </summary>
@@ -28,8 +24,6 @@ namespace Opsive.UltimateCharacterController.Objects
         [SerializeField] protected bool m_ExplodeOnEnable;
         [Tooltip("Determines how far out the explosion affects other objects.")]
         [SerializeField] protected float m_Radius = 5;
-        [Tooltip("Processes the damage dealt to a Damage Target.")]
-        [SerializeField] protected DamageProcessor m_DamageProcessor;
         [Tooltip("The maximum amount of damage the explosion applies to objects with the Health component.")]
         [SerializeField] protected float m_DamageAmount = 10;
         [Tooltip("The maximum amount of force the explosion applies to nearby Rigidbody/IForceObject objects.")]
@@ -52,7 +46,6 @@ namespace Opsive.UltimateCharacterController.Objects
 
         public bool ExplodeOnEnable { get { return m_ExplodeOnEnable; } set { m_ExplodeOnEnable = value; } }
         public float Radius { get { return m_Radius; } set { m_Radius = value; } }
-        public DamageProcessor DamageProcessor { get { return m_DamageProcessor; } set { m_DamageProcessor = value; } }
         public float DamageAmount { get { return m_DamageAmount; } set { m_DamageAmount = value; } }
         public float ImpactForce { get { return m_ImpactForce; } set { m_ImpactForce = value; } }
         public int ImpactForceFrames { get { return m_ImpactForceFrames; } set { m_ImpactForceFrames = value; } }
@@ -67,7 +60,6 @@ namespace Opsive.UltimateCharacterController.Objects
         private HashSet<object> m_ObjectExplosions = new HashSet<object>();
         private Collider[] m_CollidersHit;
         private RaycastHit m_RaycastHit;
-        private ScheduledEventBase m_DestructionEvent;
 
         /// <summary>
         /// Initialize the default values.
@@ -77,6 +69,7 @@ namespace Opsive.UltimateCharacterController.Objects
             m_GameObject = gameObject;
             m_Transform = transform;
             m_CollidersHit = new Collider[m_MaxCollisionCount];
+            AudioManager.Register(m_GameObject);
         }
 
         /// <summary>
@@ -85,7 +78,7 @@ namespace Opsive.UltimateCharacterController.Objects
         private void OnEnable()
         {
             if (m_ExplodeOnEnable) {
-                Explode(m_DamageAmount, m_ImpactForce, m_ImpactForceFrames, null, null);
+                Explode(m_DamageAmount, m_ImpactForce, m_ImpactForceFrames, null);
             }
         }
 
@@ -94,16 +87,16 @@ namespace Opsive.UltimateCharacterController.Objects
         /// </summary>
         public void Explode()
         {
-            Explode(m_DamageAmount, m_ImpactForce, m_ImpactForceFrames, null, null);
+            Explode(m_DamageAmount, m_ImpactForce, m_ImpactForceFrames, null);
         }
 
         /// <summary>
         /// Do the explosion.
         /// </summary>
-        /// <param name="originator">The originator of the object</param>
+        /// <param name="damageAmount">The amount of damage to apply to the hit objects.</param>
         public void Explode(GameObject originator)
         {
-            Explode(m_DamageAmount, m_ImpactForce, m_ImpactForceFrames, originator, null);
+            Explode(m_DamageAmount, m_ImpactForce, m_ImpactForceFrames, originator);
         }
 
         /// <summary>
@@ -113,8 +106,9 @@ namespace Opsive.UltimateCharacterController.Objects
         /// <param name="impactForce">The amount of force to apply to the hit object.</param>
         /// <param name="impactForceFrames">The number of frames to add the force to.</param>
         /// <param name="originator">The originator of the object.</param>
-        public void Explode(float damageAmount, float impactForce, int impactForceFrames, GameObject originator, GameObject owner = null)
+        public void Explode(float damageAmount, float impactForce, int impactForceFrames, GameObject originator)
         {
+            Health health = null;
             Rigidbody colliderRigidbody = null;
             IForceObject forceObject = null;
             var hitCount = Physics.OverlapSphereNonAlloc(m_Transform.position, m_Radius, m_CollidersHit, m_ImpactLayers, QueryTriggerInteraction.Ignore);
@@ -189,6 +183,8 @@ namespace Opsive.UltimateCharacterController.Objects
                 var hitDirection = closestPoint - m_Transform.position;
 
                 // Allow a custom event to be received.
+                EventHandler.ExecuteEvent(m_CollidersHit[i].transform.gameObject, "OnObjectImpact", hitDamageAmount, closestPoint, hitDirection * m_ImpactForce, originator, m_CollidersHit[i]);
+                // TODO: Version 2.1.5 adds another OnObjectImpact parameter. Remove the above event later once there has been a chance to migrate over.
                 EventHandler.ExecuteEvent<float, Vector3, Vector3, GameObject, object, Collider>(m_CollidersHit[i].transform.gameObject, "OnObjectImpact", hitDamageAmount, closestPoint, hitDirection * m_ImpactForce, originator, this, m_CollidersHit[i]);
                 if (m_OnImpactEvent != null) {
                     m_OnImpactEvent.Invoke(hitDamageAmount, closestPoint, hitDirection * m_ImpactForce, originator);
@@ -196,19 +192,15 @@ namespace Opsive.UltimateCharacterController.Objects
 
                 // If the shield didn't absorb all of the damage then it should be applied to the character.
                 if (hitDamageAmount > 0) {
-                    var damageTarget = DamageUtility.GetDamageTarget(m_CollidersHit[i].gameObject);
-                    if (damageTarget != null) {
-                        // If the Damage Target exists it will apply an explosive force to the character/character in addition to deducting the health.
-                        // Otherwise just apply the force to the character/rigidbody. 
-                        var pooledDamageData = GenericObjectPool.Get<DamageData>();
+                    // If the Health component exists it will apply an explosive force to the character/character in addition to deducting the health.
+                    // Otherwise just apply the force to the character/rigidbody. 
+                    if ((health = m_CollidersHit[i].gameObject.GetCachedParentComponent<Health>()) != null) {
+                        // The further out the collider is, the less it is damaged.
                         var damageModifier = Mathf.Max(1 - (hitDirection.magnitude / m_Radius), 0.01f);
-                        pooledDamageData.SetDamage(hitDamageAmount * damageModifier,  m_Transform.position, hitDirection.normalized, impactForce * damageModifier, impactForceFrames, m_Radius, originator, (owner != null ? (object)owner : this), null);
-                        if (m_DamageProcessor == null) { m_DamageProcessor = DamageProcessor.Default; }
-                        m_DamageProcessor.Process(damageTarget, pooledDamageData);
-                        GenericObjectPool.Return(pooledDamageData);
+                        health.Damage(hitDamageAmount * damageModifier, m_Transform.position, hitDirection.normalized, impactForce * damageModifier, impactForceFrames, m_Radius, originator, this, null);
                     } else if (forceObject != null) {
                         var damageModifier = Mathf.Max(1 - (hitDirection.magnitude / m_Radius), 0.01f);
-                        forceObject.AddForce(impactForce * damageModifier * hitDirection.normalized);
+                        forceObject.AddForce(hitDirection.normalized * impactForce * damageModifier);
                     } else if ((colliderRigidbody = m_CollidersHit[i].gameObject.GetCachedComponent<Rigidbody>()) != null) {
                         colliderRigidbody.AddExplosionForce(impactForce * MathUtility.RigidbodyForceMultiplier, m_Transform.position, m_Radius);
                     }
@@ -219,18 +211,7 @@ namespace Opsive.UltimateCharacterController.Objects
             // An audio clip can play when the object explodes.
             m_ExplosionAudioClipSet.PlayAudioClip(m_GameObject);
 
-            m_DestructionEvent = SchedulerBase.Schedule(m_Lifespan, Destroy);
-        }
-
-        /// <summary>
-        /// The object has been disabled.
-        /// </summary>
-        public void OnDisable()
-        {
-            if (m_DestructionEvent != null) {
-                SchedulerBase.Cancel(m_DestructionEvent);
-                m_DestructionEvent = null;
-            }
+            Scheduler.Schedule(m_Lifespan, Destroy);
         }
 
         /// <summary>
@@ -238,8 +219,7 @@ namespace Opsive.UltimateCharacterController.Objects
         /// </summary>
         private void Destroy()
         {
-            m_DestructionEvent = null;
-            ObjectPoolBase.Destroy(gameObject);
+            ObjectPool.Destroy(gameObject);
         }
     }
 }

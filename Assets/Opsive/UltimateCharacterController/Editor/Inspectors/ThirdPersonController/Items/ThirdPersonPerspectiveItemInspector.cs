@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEditor;
+using Opsive.UltimateCharacterController.ThirdPersonController.Items;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Items;
+using System;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonController.Items
 {
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Items;
-    using Opsive.UltimateCharacterController.ThirdPersonController.Items;
-    using System;
-    using UnityEditor;
-
     /// <summary>
     /// Shows a custom inspector for the ThirdPersonPerspectiveItem.
     /// </summary>
@@ -24,11 +24,17 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
         {
             CheckForObject();
 
+            var useHumanoidBone = PropertyFromName("m_UseParentHumanoidBone");
+            EditorGUILayout.PropertyField(useHumanoidBone);
+            if (useHumanoidBone.boolValue) {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(PropertyFromName("m_ParentHumanoidBone"));
+                EditorGUI.indentLevel--;
+            }
             EditorGUILayout.PropertyField(PropertyFromName("m_LocalSpawnPosition"));
             EditorGUILayout.PropertyField(PropertyFromName("m_LocalSpawnRotation"));
-            EditorGUILayout.PropertyField(PropertyFromName("m_LocalSpawnScale"));
         }
-
+        
         /// <summary>
         /// Returns the actions to draw before the State list is drawn.
         /// </summary>
@@ -42,9 +48,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
                 if (Foldout("IK")) {
                     EditorGUI.indentLevel++;
                     EditorGUILayout.PropertyField(PropertyFromName("m_NonDominantHandIKTarget"));
-                    EditorGUILayout.PropertyField(PropertyFromName("m_NonDominantHandIKTargetID"));
                     EditorGUILayout.PropertyField(PropertyFromName("m_NonDominantHandIKTargetHint"));
-                    EditorGUILayout.PropertyField(PropertyFromName("m_NonDominantHandIKTargetHintID"));
                     EditorGUI.indentLevel--;
                 }
             };

@@ -1,21 +1,21 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Editor.Inspectors.StateSystem
-{
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using System;
-    using System.Reflection;
-    using System.Collections;
-    using System.Collections.Generic;
-    using UnityEditor;
-    using UnityEngine;
+using UnityEngine;
+using UnityEditor;
+using System;
+using System.Reflection;
+using System.Collections;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
 
+namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem
+{
     /// <summary>
     /// Contains all of the editor logic for presets. A preset is a set of presaved values that can be applied at runtime.
     /// </summary>
@@ -33,7 +33,7 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
         {
             // If the preset is a child of a StateConfiguration asset then the AllPublic MemberVisiblity type should be shown.
             if (!AssetDatabase.IsMainAsset(target)) {
-                var mainAsset = AssetDatabase.LoadAssetAtPath(AssetDatabase.GetAssetPath(target), TypeUtility.GetType("Opsive.UltimateCharacterController.StateSystem.StateConfiguration"));
+                var mainAsset = AssetDatabase.LoadAssetAtPath(AssetDatabase.GetAssetPath(target), typeof(StateConfiguration)) as StateConfiguration;
                 if (mainAsset != null) {
                     m_Visiblity = MemberVisibility.AllPublic;
                 }
@@ -54,10 +54,7 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
 
             // Get a list of all available property types on the current preset.
             var preset = target as PersistablePreset;
-            if (preset == null) {
-                return;
-            }
-            var objType = TypeUtility.GetType(preset.Data.ObjectType);
+            var objType = UnityEngineUtility.GetType(preset.Data.ObjectType);
             if (objType != null) {
                 var valuePositionMap = new Dictionary<int, int>(preset.Data.ValueHashes.Length);
                 for (int i = 0; i < preset.Data.ValueHashes.Length; ++i) {
@@ -75,7 +72,7 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
                         }
 
                         // The property is valid. Add it to the list.
-                        availablePropertyNames.Add(Shared.Editor.Utility.EditorUtility.SplitCamelCase(properties[i].Name));
+                        availablePropertyNames.Add(InspectorUtility.SplitCamelCase(properties[i].Name));
                         m_AvailableProperies.Add(properties[i]);
                     }
                 }
@@ -98,9 +95,6 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
             var preset = target as PersistablePreset;
-            if (preset == null) {
-                return;
-            }
             var fullName = preset.Data.ObjectType;
             var splitName = fullName.Split('.');
             GUILayout.Label(splitName[splitName.Length - 1] + " Preset", EditorStyles.boldLabel);
@@ -108,7 +102,7 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
             EditorGUILayout.EndHorizontal();
 
             // Show the property values within a table.
-            var objType = TypeUtility.GetType(preset.Data.ObjectType);
+            var objType = UnityEngineUtility.GetType(preset.Data.ObjectType);
             if (objType != null) {
                 // Populate the position map so ObjectInspector.DrawProperties to know which properties to draw.
                 var valuePositionMap = new Dictionary<int, int>(preset.Data.ValueHashes.Length);
@@ -117,11 +111,11 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
                 }
 
                 // Draw all of the serialized properties. Implement the start and end callbacks so the delete button can be drawn next to a foldout in the case of a list, class, or struct.
-                Utility.ObjectInspector.DrawProperties(objType, null, 0, valuePositionMap, preset.Data, m_Visiblity, () => { GUILayout.BeginHorizontal(); }, (index, unityObjectIndexes) =>
+                ObjectInspector.DrawProperties(objType, null, 0, valuePositionMap, preset.Data, m_Visiblity, () => { GUILayout.BeginHorizontal(); }, (int index, List<int> unityObjectIndexes) =>
                 {
-                    Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(preset, "Change Value");
+                    InspectorUtility.RecordUndoDirtyObject(preset, "Change Value");
                     var removed = false;
-                    if (GUILayout.Button(Utility.InspectorStyles.DeleteIcon, Utility.InspectorStyles.NoPaddingButtonStyle, GUILayout.Width(16))) {
+                    if (GUILayout.Button(InspectorStyles.DeleteIcon, InspectorStyles.NoPaddingButtonStyle, GUILayout.Width(16))) {
                         RemoveElement(index, unityObjectIndexes);
                         removed = true;
                     }
@@ -167,7 +161,7 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
                                 // A new GameObject must be created so the component can be added to it. MonoBehaviours cannot use Activator.CreateInstance.
                                 GameObject gameObject = null;
                                 object obj;
-                                var objectType = TypeUtility.GetType(preset.Data.ObjectType);
+                                var objectType = UnityEngineUtility.GetType(preset.Data.ObjectType);
                                 if (typeof(MonoBehaviour).IsAssignableFrom(objectType)) {
                                     gameObject = new GameObject();
                                     obj = gameObject.AddComponent(objectType);
@@ -194,7 +188,7 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
             }
 
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(preset, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(preset, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -206,8 +200,7 @@ namespace Opsive.Shared.Editor.Inspectors.StateSystem
         /// <param name="unityObjectIndexes">The list of indexes that correspond to the Unity objects which are being removed.</param>
         private void RemoveElement(int index, List<int> unityObjectIndexes)
         {
-            var bitwiseHash = new Version((target as PersistablePreset).Data.Version).CompareTo(new Version("3.1")) >= 0;
-            Serialization.RemoveProperty(index, unityObjectIndexes, (target as PersistablePreset).Data, m_Visiblity, bitwiseHash);
+            Serialization.RemoveProperty(index, unityObjectIndexes, (target as PersistablePreset).Data, m_Visiblity);
             InitializeAvailablePropertyArray();
         }
     }

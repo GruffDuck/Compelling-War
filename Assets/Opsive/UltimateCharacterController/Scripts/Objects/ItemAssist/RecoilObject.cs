@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+
 namespace Opsive.UltimateCharacterController.Objects.ItemAssist
 {
-    using UnityEngine;
-
     /// <summary>
     /// Specifies that the attached object should cause recoil when hit with a MeleeWeapon.
     /// </summary>

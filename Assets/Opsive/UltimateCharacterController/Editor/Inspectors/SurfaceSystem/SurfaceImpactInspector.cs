@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Custom inspector for the SurfaceImpact component.
     /// </summary>
@@ -20,10 +20,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
         /// <summary>
         /// Creates a new SurfaceImpact.
         /// </summary>
-        [MenuItem("Assets/Create/Opsive/Ultimate Character Controller/Surface Impact")]
+        [MenuItem("Assets/Create/Ultimate Character Controller/Surface Impact")]
         public static void CreateSurfaceImpact()
         {
-            var path = EditorUtility.SaveFilePanel("Save Surface Impact", Shared.Editor.Inspectors.Utility.InspectorUtility.GetSaveFilePath(), "SurfaceImpact.asset", "asset");
+            var path = EditorUtility.SaveFilePanel("Save Surface Impact", InspectorUtility.GetSaveFilePath(), "SurfaceImpact.asset", "asset");
             if (path.Length != 0 && Application.dataPath.Length < path.Length) {
                 var surfaceImpact = ScriptableObject.CreateInstance<SurfaceImpact>();
 
@@ -33,6 +33,14 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
                 AssetDatabase.CreateAsset(surfaceImpact, path);
                 AssetDatabase.ImportAsset(path);
             }
+        }
+
+        /// <summary>
+        /// Draws the custom inspector.
+        /// </summary>
+        public override void OnInspectorGUI()
+        {
+            base.OnInspectorGUI();
         }
     }
 }

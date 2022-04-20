@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Objects.ItemAssist;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
 {
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Objects.ItemAssist;
-    using UnityEngine;
-
     /// <summary>
     /// The RecoilAnimatorAudioState will return a Item Substate Index parameter based on the object's recoil state.
     /// If the character hit a blocking object then the block recoil state index value will be added to the current index value.
@@ -26,7 +26,7 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
         /// <summary>
         /// Moves to the next state.
         /// </summary>
-        /// <param name="hitColliderCount">The number of colliders that were hit.</param>
+        /// <param name="hitCollidersCount">The number of colliders that were hit.</param>
         /// <param name="hitColliders">The colliders that were hit.</param>
         /// <param name="useStateIndex">The index that was played by the use state.</param>
         public virtual void NextState(int hitColliderCount, Collider[] hitColliders, int useStateIndex)

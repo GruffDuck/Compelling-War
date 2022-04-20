@@ -4,14 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Character.Effects;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Effects
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.Character.Effects;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Draws a custom inspector for the Shake effect.
     /// </summary>
@@ -25,7 +24,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Effects
         /// <param name="parent">The Unity Object that the object belongs to.</param>
         protected override void DrawInspectorDrawerFields(object target, Object parent)
         {
-            Shared.Editor.Inspectors.Utility.ObjectInspector.DrawFields(target, true);
+            ObjectInspector.DrawFields(target, true);
             var shakeTarget = (Shake.ShakeTarget)EditorGUILayout.EnumFlagsField(new GUIContent("Shake Target", InspectorUtility.GetFieldTooltip(target, "m_Target")),
                                                                         InspectorUtility.GetFieldValue<Shake.ShakeTarget>(target, "m_Target"));
             InspectorUtility.SetFieldValue(target, "m_Target", shakeTarget);

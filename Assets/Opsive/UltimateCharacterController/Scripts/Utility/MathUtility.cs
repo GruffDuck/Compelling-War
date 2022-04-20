@@ -3,12 +3,11 @@
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
+using UnityEngine;
+using System.Collections.Generic;
 
 namespace Opsive.UltimateCharacterController.Utility
 {
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// A collection of math functions.
     /// </summary>
@@ -63,7 +62,7 @@ namespace Opsive.UltimateCharacterController.Utility
         /// </summary>
         /// <param name="worldPosition">The world position of the object.</param>
         /// <param name="rotation">The world rotation of the object.</param>
-        /// <param name="localPosition">The local position of the object.</param>
+        /// <param name="localPosition">The local position of the object</param>
         /// <returns>The world space position.</returns>
         public static Vector3 TransformPoint(Vector3 worldPosition, Quaternion rotation, Vector3 localPosition)
         {
@@ -220,9 +219,6 @@ namespace Opsive.UltimateCharacterController.Utility
         /// <returns>An angle between min and max degrees.</returns>
         public static float ClampAngle(float angle, float min, float max)
         {
-            if (min == max) {
-                return min;
-            }
             var minDiff = ClampInnerAngle(min - angle);
             var maxDiff = ClampInnerAngle(angle - max);
             if (Mathf.Abs(minDiff) < Mathf.Abs(maxDiff)) {
@@ -247,9 +243,6 @@ namespace Opsive.UltimateCharacterController.Utility
         /// <returns>An angle between min and max degrees.</returns>
         public static float ClampAngle(float angle, float deltaAngle, float min, float max)
         {
-            if (min == max) {
-                return min;
-            }
             var minDiff = ClampInnerAngle(min - angle);
             var maxDiff = ClampInnerAngle(angle - max);
             if (Mathf.Abs(minDiff) < Mathf.Abs(maxDiff)) {
@@ -357,10 +350,10 @@ namespace Opsive.UltimateCharacterController.Utility
             var pointStartDirection = point - start;
             var endStartDirection = end - start;
             var segment = (Vector3.Dot(pointStartDirection, endStartDirection) / Vector3.Dot(endStartDirection, endStartDirection));
-            if (segment >= 0 && segment <= 1 && (!lowerPoint || capsuleCollider.transform.InverseTransformPoint(point).y < 0)) { // On cylinder.
+            if (segment >= 0 && segment <= 1) { // On cylinder.
                 // If the point is on the segment then the collision point is within the collider.
                 var closestPoint = start + segment * endStartDirection;
-                var pointDirection = capsuleCollider.radius * radiusMultiplier * (point - closestPoint).normalized;
+                var pointDirection = (point - closestPoint).normalized * capsuleCollider.radius * radiusMultiplier;
                 if (lowerPoint) {
                     // If the direction is above the collider then inverse the direction. This will prevent the closest point being on top of the collider when it should be on the bottom.
                     var localCylinderDirection = transform.InverseTransformDirection(pointDirection);
@@ -380,7 +373,7 @@ namespace Opsive.UltimateCharacterController.Utility
                     }
                 }
                 var dot = Vector3.Dot(capsuleDirection, hitDirection);
-                var sphereCenter = capsuleCenter + (capsuleLength * Mathf.Sign(dot) * capsuleDirection);
+                var sphereCenter = capsuleCenter + (capsuleDirection * capsuleLength * Mathf.Sign(dot));
                 return ClosestPointOnSphere(transform, point, sphereCenter, capsuleCollider.radius * radiusMultiplier, sphereCheck, lowerPoint);
             }
         }
@@ -393,7 +386,6 @@ namespace Opsive.UltimateCharacterController.Utility
         /// <param name="sphereCenter">The center of the sphere.</param>
         /// <param name="radius">The radius of the sphere.</param>
         /// <param name="sphereCheck">Should a sphere check be performed? If false the Pythagorean theorem will be used.</param>
-        /// <param name="lowerPoint">Should the lowest of the point on the sphere be checked?</param>
         /// <returns>The closest point on a sphere.</returns>
         private static Vector3 ClosestPointOnSphere(Transform transform, Vector3 point, Vector3 sphereCenter, float radius, bool sphereCheck, bool lowerPoint)
         {
@@ -568,8 +560,8 @@ namespace Opsive.UltimateCharacterController.Utility
         /// int will occupy the hundeds place. For example, a value of 30, 52, 1 will return 30052001.
         /// </summary>
         /// <param name="a">The first integer to concatentate.</param>
-        /// <param name="b">The second integer to concatentate.</param>
-        /// <param name="c">The third integer to concatentate.</param>
+        /// <param name="a">The second integer to concatentate.</param>
+        /// <param name="a">The third integer to concatentate.</param>
         /// <returns>The concatenated integer.</returns>
         public static int Concatenate(int a, int b, int c)
         {

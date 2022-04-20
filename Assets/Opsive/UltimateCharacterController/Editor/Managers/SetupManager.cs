@@ -4,21 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Camera;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Utility.Builders;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using System;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Editor.Managers
 {
-    using Opsive.Shared.Game;
-    using Opsive.Shared.Editor.Inspectors.Input;
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Camera;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.StateSystem;
-    using Opsive.UltimateCharacterController.Utility.Builders;
-    using System;
-    using System.Collections.Generic;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// The SetupManager shows any project or scene related setup options.
     /// </summary>
@@ -27,7 +25,6 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
     {
         private const string c_MonitorsPrefabGUID = "b5bf2e4077598914b83fc5e4ca20f2f4";
         private const string c_VirtualControlsPrefabGUID = "33d3d57ba5fc7484c8d09150e45066a4";
-        private const string c_3DAudioManagerModuleGUID = "7c2f6e9d4d7571042964493904b06c50";
 
         /// <summary>
         /// Specifies the perspective that the ViewType can change into.
@@ -77,27 +74,23 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
             // Get a list of the available view types.
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             for (int i = 0; i < assemblies.Length; ++i) {
-                try {
-                    var assemblyTypes = assemblies[i].GetTypes();
-                    for (int j = 0; j < assemblyTypes.Length; ++j) {
-                        // Must derive from ViewType.
-                        if (!typeof(UltimateCharacterController.Camera.ViewTypes.ViewType).IsAssignableFrom(assemblyTypes[j])) {
-                            continue;
-                        }
-
-                        // Ignore abstract classes.
-                        if (assemblyTypes[j].IsAbstract) {
-                            continue;
-                        }
-
-                        if (assemblyTypes[j].FullName.Contains("FirstPersonController")) {
-                            m_FirstPersonViewTypes.Add(assemblyTypes[j]);
-                        } else if (assemblyTypes[j].FullName.Contains("ThirdPersonController")) {
-                            m_ThirdPersonViewTypes.Add(assemblyTypes[j]);
-                        }
+                var assemblyTypes = assemblies[i].GetTypes();
+                for (int j = 0; j < assemblyTypes.Length; ++j) {
+                    // Must derive from ViewType.
+                    if (!typeof(Camera.ViewTypes.ViewType).IsAssignableFrom(assemblyTypes[j])) {
+                        continue;
                     }
-                } catch (Exception) {
-                    continue;
+
+                    // Ignore abstract classes.
+                    if (assemblyTypes[j].IsAbstract) {
+                        continue;
+                    }
+
+                    if (assemblyTypes[j].FullName.Contains("FirstPersonController")) {
+                        m_FirstPersonViewTypes.Add(assemblyTypes[j]);
+                    } else if (assemblyTypes[j].FullName.Contains("ThirdPersonController")) {
+                        m_ThirdPersonViewTypes.Add(assemblyTypes[j]);
+                    }
                 }
             }
 
@@ -122,14 +115,6 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                     m_StateConfiguration = stateConfiguration;
                 }
             }
-        }
-
-        /// <summary>
-        /// Opens the Project Setup tab.
-        /// </summary>
-        public void OpenProjectSetup()
-        {
-            m_DrawSceneSetup = false;
         }
 
         /// <summary>
@@ -183,7 +168,10 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 isSupported = false;
             }
 #endif
-            m_Perspective = selectedPerspective;
+            if (selectedPerspective != m_Perspective) {
+                m_Perspective = selectedPerspective;
+            }
+
             m_CanCreateCamera = isSupported;
             if (!isSupported) {
                 return;
@@ -265,17 +253,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 // If the main camera can't be found then use the first available camera.
                 var cameras = UnityEngine.Camera.allCameras;
                 if (cameras != null && cameras.Length > 0) {
-                    // Prefer cameras that are at the root level.
-                    for (int i = 0; i < cameras.Length; ++i) {
-                        if (cameras[i].transform.parent == null) {
-                            camera = cameras[i];
-                            break;
-                        }
-                    }
-                    // No cameras are at the root level. Set the first available camera.
-                    if (camera == null) {
-                        camera = cameras[0];
-                    }
+                    camera = cameras[0];
                 }
 
                 // A new camera should be created if there isn't a valid camera.
@@ -289,42 +267,43 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
 
             // The near clip plane should adjusted for viewing close objects.
             camera.nearClipPlane = 0.01f;
-
+            
             // Add the CameraController if it isn't already added.
             cameraGameObject = camera.gameObject;
             if (cameraGameObject.GetComponent<CameraController>() == null) {
                 var cameraController = cameraGameObject.AddComponent<CameraController>();
                 if (m_Perspective == Perspective.Both) {
-                    ViewTypeBuilder.AddViewType(cameraController, typeof(UltimateCharacterController.Camera.ViewTypes.Transition));
+                    ViewTypeBuilder.AddViewType(cameraController, typeof(Camera.ViewTypes.Transition));
                 }
                 if (m_StartFirstPersonPerspective) {
                     if (!string.IsNullOrEmpty(m_ThirdPersonViewType)) {
-                        ViewTypeBuilder.AddViewType(cameraController, Shared.Utility.TypeUtility.GetType(m_ThirdPersonViewType));
+                        ViewTypeBuilder.AddViewType(cameraController, UnityEngineUtility.GetType(m_ThirdPersonViewType));
                     }
                     if (!string.IsNullOrEmpty(m_FirstPersonViewType)) {
-                        ViewTypeBuilder.AddViewType(cameraController, Shared.Utility.TypeUtility.GetType(m_FirstPersonViewType));
+                        ViewTypeBuilder.AddViewType(cameraController, UnityEngineUtility.GetType(m_FirstPersonViewType));
                     }
                 } else {
                     if (!string.IsNullOrEmpty(m_FirstPersonViewType)) {
-                        ViewTypeBuilder.AddViewType(cameraController, Shared.Utility.TypeUtility.GetType(m_FirstPersonViewType));
+                        ViewTypeBuilder.AddViewType(cameraController, UnityEngineUtility.GetType(m_FirstPersonViewType));
                     }
                     if (!string.IsNullOrEmpty(m_ThirdPersonViewType)) {
-                        ViewTypeBuilder.AddViewType(cameraController, Shared.Utility.TypeUtility.GetType(m_ThirdPersonViewType));
+                        ViewTypeBuilder.AddViewType(cameraController, UnityEngineUtility.GetType(m_ThirdPersonViewType));
                     }
+
                 }
 
                 // Detect if a character exists in the scene. Automatically add the character if it does.
-                var characters = UnityEngine.Object.FindObjectsOfType<UltimateCharacterController.Character.CharacterLocomotion>();
+                var characters = GameObject.FindObjectsOfType<UltimateCharacterController.Character.CharacterLocomotion>();
                 if (characters != null && characters.Length == 1) {
                     cameraController.InitCharacterOnAwake = true;
                     cameraController.Character = characters[0].gameObject;
                 }
 
                 // Setup the components which help the Camera Controller.
-                Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<CameraControllerHandler>(cameraGameObject);
+                InspectorUtility.AddComponent<CameraControllerHandler>(cameraGameObject);
 #if THIRD_PERSON_CONTROLLER
                 if (m_Perspective != Perspective.First) {
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<ThirdPersonController.Camera.ObjectFader>(cameraGameObject);
+                    InspectorUtility.AddComponent<ThirdPersonController.Camera.ObjectFader>(cameraGameObject);
                 }
 #endif
                 addedCameraController = true;
@@ -332,7 +311,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
                 if (m_StateConfiguration != null) {
                     if (m_ProfileIndex > 0) {
                         m_StateConfiguration.AddStatesToGameObject(m_ProfileName, cameraGameObject);
-                        Shared.Editor.Utility.EditorUtility.SetDirty(cameraGameObject);
+                        InspectorUtility.SetDirty(cameraGameObject);
                     }
                 }
             }
@@ -347,37 +326,28 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// <summary>
         /// Adds the singleton manager components.
         /// </summary>
-        public static void AddManagers()
+        private void AddManagers()
         {
             // Create the "Game" components if it doesn't already exists.
             Scheduler scheduler;
             GameObject gameGameObject;
-            if ((scheduler = UnityEngine.Object.FindObjectOfType<Scheduler>()) == null) {
+            if ((scheduler = GameObject.FindObjectOfType<Scheduler>()) == null) {
                 gameGameObject = new GameObject("Game");
             } else {
                 gameGameObject = scheduler.gameObject;
             }
 
             // Add the Singletons.
-            Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<SurfaceSystem.SurfaceManager>(gameGameObject);
-            Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<SurfaceSystem.DecalManager>(gameGameObject);
-            Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<KinematicObjectManager>(gameGameObject);
-            Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<ObjectPool>(gameGameObject);
-            Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<Scheduler>(gameGameObject);
-            var audiomanager = Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<Shared.Audio.AudioManager>(gameGameObject);
-            Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<SpawnPointManager>(gameGameObject);
-            Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<StateManager>(gameGameObject);
-            Shared.Editor.Inspectors.Utility.InspectorUtility.AddComponent<LayerManager>(gameGameObject);
-
-            if (audiomanager.AudioManagerModule == null) {
-                var defaultAudioManagerModulePath = AssetDatabase.GUIDToAssetPath(c_3DAudioManagerModuleGUID);
-                if (!string.IsNullOrEmpty(defaultAudioManagerModulePath)) {
-                    var audioManagerModule = AssetDatabase.LoadAssetAtPath(defaultAudioManagerModulePath, typeof(Shared.Audio.AudioManagerModule)) as Shared.Audio.AudioManagerModule;
-                    audiomanager.AudioManagerModule = audioManagerModule;
-                }
-            }
-
-            Debug.Log("The managers have been added.");
+            InspectorUtility.AddComponent<SurfaceSystem.SurfaceManager>(gameGameObject);
+            InspectorUtility.AddComponent<SurfaceSystem.DecalManager>(gameGameObject);
+            InspectorUtility.AddComponent<KinematicObjectManager>(gameGameObject);
+            InspectorUtility.AddComponent<ObjectPool>(gameGameObject);
+            InspectorUtility.AddComponent<Scheduler>(gameGameObject);
+            InspectorUtility.AddComponent<Audio.AudioManager>(gameGameObject);
+            InspectorUtility.AddComponent<SpawnPointManager>(gameGameObject);
+            InspectorUtility.AddComponent<StateManager>(gameGameObject);
+            InspectorUtility.AddComponent<LayerManager>(gameGameObject);
+            Debug.Log("The managers have has been added.");
         }
 
         /// <summary>
@@ -385,10 +355,10 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// </summary>
         private void AddUI()
         {
-            var canvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+            var canvas = GameObject.FindObjectOfType<Canvas>();
             if (canvas == null) {
                 EditorApplication.ExecuteMenuItem("GameObject/UI/Canvas");
-                canvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+                canvas = GameObject.FindObjectOfType<Canvas>();
             }
 
             // Look up based on guid.
@@ -420,10 +390,10 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// </summary>
         private void AddVirtualControls()
         {
-            var canvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+            var canvas = GameObject.FindObjectOfType<Canvas>();
             if (canvas == null) {
                 EditorApplication.ExecuteMenuItem("GameObject/UI/Canvas");
-                canvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+                canvas = GameObject.FindObjectOfType<Canvas>();
             }
 
             // Look up based on guid.
@@ -455,38 +425,11 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// </summary>
         private void DrawProjectSetup()
         {
-            // Show a warning if the button mappings or layers have not been updated.
-            var serializedObject = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/InputManager.asset")[0]);
-            var axisProperty = serializedObject.FindProperty("m_Axes");
-            var hasInputs = UnityInputBuilder.FindAxisProperty(axisProperty, "Action", false) != null && UnityInputBuilder.FindAxisProperty(axisProperty, "Crouch", false) != null;
-
-            var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
-            var layersProperty = tagManager.FindProperty("layers");
-            var hasLayers = layersProperty.GetArrayElementAtIndex(LayerManager.Character).stringValue == "Character";
-
-            if (!hasInputs || !hasLayers) {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                EditorGUILayout.HelpBox("The default button mappings or layers have not been added. If you are just getting started you should update the button mappings and layers with the button below. " +
-                    "This can be changed layer.", MessageType.Warning);
-
-                GUILayout.BeginHorizontal();
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Update Buttons and Layers", GUILayout.Width(170))) {
-                    Utility.CharacterInputBuilder.UpdateInputManager();
-                    UpdateLayers();
-                }
-                GUILayout.FlexibleSpace();
-                GUILayout.EndHorizontal();
-                EditorGUILayout.EndVertical();
-                GUILayout.Space(10);
-            }
-
-            ManagerUtility.DrawControlBox("Button Mappings", null, "Add the default button mappings to the Unity Input Manager. If you are using a custom button mapping or " +
-                            "an input integration then you do not need to update the Unity button mappings.", true, "Update Buttons", 
-                            Utility.CharacterInputBuilder.UpdateInputManager, "The button mappings were successfully updated.");
+            ManagerUtility.DrawControlBox("Button Mappings", null, "This option will add the default button mappings to the Unity Input Manager. If you are using a custom button mapping or " +
+                            "an input integration then you do not neeed to update the Unity button mappings.", true, "Update Buttons", 
+                            Utility.UnityInputBuilder.UpdateInputManager, "The button mappings were successfully updated.");
             GUILayout.Space(10);
-
-            ManagerUtility.DrawControlBox("Layers", null, "Update the project layers to the default character controller layers. The layers do not need to be updated " +
+            ManagerUtility.DrawControlBox("Layers", null, "This option will update the project layers to the default character controller layers. The layers do not need to be updated " +
                             "if you have already setup a custom set of layers.", true, "Update Layers", UpdateLayers, "The layers were successfully updated.");
         }
 
@@ -512,7 +455,7 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         /// <summary>
         /// Sets the layer index to the specified name if the string value is empty.
         /// </summary>
-        public static void AddLayer(SerializedProperty layersProperty, int index, string name)
+        private static void AddLayer(SerializedProperty layersProperty, int index, string name)
         {
             var layerElement = layersProperty.GetArrayElementAtIndex(index);
             if (string.IsNullOrEmpty(layerElement.stringValue)) {

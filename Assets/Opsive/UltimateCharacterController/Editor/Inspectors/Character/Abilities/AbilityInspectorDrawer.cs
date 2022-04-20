@@ -4,20 +4,20 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Character.Abilities.Starters;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using Opsive.UltimateCharacterController.Editor.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Character.Abilities.Starters;
-    using Opsive.UltimateCharacterController.Traits;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using Opsive.UltimateCharacterController.Editor.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-    using UnityEditor;
-    using UnityEditorInternal;
-
     /// <summary>
     /// Draws a custom inspector for the base Ability type.
     /// </summary>
@@ -40,39 +40,35 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         {
             m_Ability = (target as Ability);
 
-            if (!(parent is Component)) {
-                return;
-            }
-
             DrawInputFieldsFields(target, parent);
 
-            InspectorUtility.DrawAttributeModifier((parent as Component).GetComponent<AttributeManager>(), (target as Ability).AttributeModifier, "Attribute Name");
+            InspectorUtility.DrawAttributeModifier(parent, (parent as Component).GetComponent<AttributeManager>(), (target as Ability).AttributeModifier, "Attribute Name");
 
             EditorGUILayout.BeginHorizontal();
             InspectorUtility.DrawField(target, "m_State");
             GUI.enabled = !string.IsNullOrEmpty(InspectorUtility.GetFieldValue<string>(target, "m_State"));
             // The InspectorUtility doesn't support a toggle with the text on the right.
-            var field = InspectorUtility.GetField(target, "m_StateAppendItemIdentifierName");
+            var field = InspectorUtility.GetField(target, "m_StateAppendItemTypeName");
             GUILayout.Space(-5);
             var value = EditorGUILayout.ToggleLeft(new GUIContent("Append Item", InspectorUtility.GetFieldTooltip(field)), (bool)field.GetValue(target), GUILayout.Width(110));
-            InspectorUtility.SetFieldValue(target, "m_StateAppendItemIdentifierName", value);
+            InspectorUtility.SetFieldValue(target, "m_StateAppendItemTypeName", value);
             GUI.enabled = true;
             EditorGUILayout.EndHorizontal();
             InspectorUtility.DrawField(target, "m_AbilityIndexParameter");
 
             DrawInspectorDrawerFields(target, parent);
 
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Audio")) {
+            if (InspectorUtility.Foldout(target, "Audio")) {
                 EditorGUI.indentLevel++;
-                if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Start")) {
+                if (InspectorUtility.Foldout(target, "Start")) {
                     EditorGUI.indentLevel++;
-                    m_ReorderableStartAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Ability.StartAudioClipSet, m_ReorderableStartAudioClipsList, OnStartAudioClipDraw, OnStartAudioClipListAdd, OnStartAudioClipListRemove);
+                    m_ReorderableStartAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Ability.StartAudioClipSet, null, m_ReorderableStartAudioClipsList, OnStartAudioClipDraw, OnStartAudioClipListAdd, OnStartAudioClipListRemove);
                     EditorGUI.indentLevel--;
                 }
                 DrawAudioFields();
-                if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Stop")) {
+                if (InspectorUtility.Foldout(target, "Stop")) {
                     EditorGUI.indentLevel++;
-                    m_ReorderableStopAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Ability.StopAudioClipSet, m_ReorderableStopAudioClipsList, OnStopAudioClipDraw, OnStopAudioClipListAdd, OnStopAudioClipListRemove);
+                    m_ReorderableStopAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_Ability.StopAudioClipSet, null, m_ReorderableStopAudioClipsList, OnStopAudioClipDraw, OnStopAudioClipListAdd, OnStopAudioClipListRemove);
                     EditorGUI.indentLevel--;
                 }
                 EditorGUI.indentLevel--;
@@ -82,7 +78,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
             var newStartEffectValue = InspectorUtility.DrawTypePopup(typeof(UltimateCharacterController.Character.Effects.Effect), startEffectValue, "Start Effect", true);
             if (startEffectValue != newStartEffectValue) {
                 InspectorUtility.SetFieldValue(target, "m_StartEffectName", newStartEffectValue);
-                Shared.Editor.Utility.EditorUtility.SetDirty(parent);
+                InspectorUtility.SetDirty(parent);
             }
 
             if (!string.IsNullOrEmpty(newStartEffectValue)) {
@@ -91,23 +87,29 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                 EditorGUI.indentLevel--;
             }
 
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "General")) {
+            if (InspectorUtility.Foldout(target, "General")) {
                 EditorGUI.indentLevel++;
                 InspectorUtility.DrawField(target, "m_InspectorDescription");
+                var itemAbilityMoveTowards = (target is MoveTowards) || target is UltimateCharacterController.Character.Abilities.Items.ItemAbility;
+                if (itemAbilityMoveTowards) {
+                    GUI.enabled = false;
+                }
                 InspectorUtility.DrawField(target, "m_AllowPositionalInput");
                 InspectorUtility.DrawField(target, "m_AllowRotationalInput");
+                GUI.enabled = true;
                 InspectorUtility.DrawField(target, "m_UseGravity");
                 InspectorUtility.DrawField(target, "m_UseRootMotionPosition");
                 InspectorUtility.DrawField(target, "m_UseRootMotionRotation");
                 InspectorUtility.DrawField(target, "m_DetectHorizontalCollisions");
                 InspectorUtility.DrawField(target, "m_DetectVerticalCollisions");
                 InspectorUtility.DrawField(target, "m_AnimatorMotion");
-                var itemAbilityMoveTowards = (target is MoveTowards) || (target is UltimateCharacterController.Character.Abilities.Items.ItemAbility);
-                GUI.enabled = !itemAbilityMoveTowards;
+                if (itemAbilityMoveTowards) {
+                    GUI.enabled = false;
+                }
                 var inventory = (parent as Component).GetComponent<UltimateCharacterController.Inventory.InventoryBase>();
-                if (inventory != null && (parent as Component).GetComponent<UltimateCharacterController.Inventory.ItemSetManagerBase>() != null) {
+                if (inventory != null && (parent as Component).GetComponent<UltimateCharacterController.Inventory.ItemSetManager>() != null) {
                     var slotCount = inventory.SlotCount;
-                    if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "Allow Equipped Items")) {
+                    if (InspectorUtility.Foldout(target, "Allow Equipped Items")) {
                         EditorGUI.indentLevel++;
                         var mask = InspectorUtility.GetFieldValue<int>(target, "m_AllowEquippedSlotsMask");
                         var newMask = 0;
@@ -124,7 +126,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                         if (mask != newMask) {
                             InspectorUtility.SetFieldValue(target, "m_AllowEquippedSlotsMask", newMask);
                         }
-                        InspectorUtility.DrawField(target, "m_AllowItemDefinitions");
+                        InspectorUtility.DrawField(target, "m_AllowItemTypes");
                         InspectorUtility.DrawField(target, "m_ImmediateUnequip");
                         InspectorUtility.DrawField(target, "m_ReequipSlots");
                         if (itemAbilityMoveTowards && InspectorUtility.GetFieldValue<bool>(target, "m_ReequipSlots")) {
@@ -138,7 +140,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                 EditorGUI.indentLevel--;
             }
 
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(target, "UI")) {
+            if (InspectorUtility.Foldout(target, "UI")) {
                 EditorGUI.indentLevel++;
                 InspectorUtility.DrawField(target, "m_AbilityMessageText");
                 InspectorUtility.DrawField(target, "m_AbilityMessageIcon");
@@ -161,9 +163,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                     EditorGUI.indentLevel++;
                     var selected = 0;
                     var forceUpdate = true;
-                    if (m_Ability.StarterData != null && !string.IsNullOrEmpty(m_Ability.StarterData.ObjectType)) {
+                    var ability = target as Ability;
+                    if (ability.StarterData != null && !string.IsNullOrEmpty(ability.StarterData.ObjectType)) {
                         for (int i = 0; i < s_AbilityStarterTypeCache.Count; ++i) {
-                            if (s_AbilityStarterTypeCache[i].FullName == m_Ability.StarterData.ObjectType) {
+                            if (s_AbilityStarterTypeCache[i].FullName == ability.StarterData.ObjectType) {
                                 selected = i;
                                 forceUpdate = false;
                                 break;
@@ -183,14 +186,14 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                             GUI.changed = true;
                         }
                         var starter = System.Activator.CreateInstance(s_AbilityStarterTypeCache[newSelected]) as AbilityStarter;
-                        m_Ability.StarterData = Shared.Utility.Serialization.Serialize(starter);
+                        ability.StarterData = Serialization.Serialize(starter);
                     }
 
-                    if (m_Ability.Starter != null) {
+                    if (ability.Starter != null) {
                         EditorGUI.indentLevel++;
-                        InspectorUtility.DrawObject(m_Ability.Starter, false, true, parent, false, () =>
+                        InspectorUtility.DrawObject(ability.Starter, false, true, parent, false, () =>
                         {
-                            m_Ability.StarterData = Shared.Utility.Serialization.Serialize<AbilityStarter>(m_Ability.Starter);
+                            ability.StarterData = Serialization.Serialize<AbilityStarter>(ability.Starter);
                         });
                         EditorGUI.indentLevel--;
                     }
@@ -223,10 +226,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
                     inputNames[i] = EditorGUILayout.TextField(new GUIContent(fieldName, InspectorUtility.GetFieldTooltip(target, "m_InputName")), inputNames[i]);
 
                     if (i == inputNames.Length - 1) {
-                        if (i > 0 && GUILayout.Button(Shared.Editor.Inspectors.Utility.InspectorStyles.RemoveIcon, Shared.Editor.Inspectors.Utility.InspectorStyles.NoPaddingButtonStyle, GUILayout.Width(18))) {
+                        if (i > 0 && GUILayout.Button(InspectorStyles.RemoveIcon, InspectorStyles.NoPaddingButtonStyle, GUILayout.Width(18))) {
                             System.Array.Resize(ref inputNames, inputNames.Length - 1);
                         }
-                        if (GUILayout.Button(Shared.Editor.Inspectors.Utility.InspectorStyles.AddIcon, Shared.Editor.Inspectors.Utility.InspectorStyles.NoPaddingButtonStyle, GUILayout.Width(18))) {
+                        if (GUILayout.Button(InspectorStyles.AddIcon, InspectorStyles.NoPaddingButtonStyle, GUILayout.Width(18))) {
                             System.Array.Resize(ref inputNames, inputNames.Length + 1);
                             inputNames[inputNames.Length - 1] = inputNames[inputNames.Length - 2];
                         }
@@ -289,7 +292,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character
         /// <param name="parent">The Unity Object that the object belongs to.</param>
         protected virtual void DrawInspectorDrawerFields(object target, Object parent)
         {
-            Shared.Editor.Inspectors.Utility.ObjectInspector.DrawFields(target, false);
+            ObjectInspector.DrawFields(target, false);
         }
 
         /// <summary>

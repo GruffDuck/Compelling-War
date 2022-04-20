@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEditor;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using System;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
 {
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using Opsive.UltimateCharacterController.Traits;
-    using System;
-    using UnityEditor;
-
     /// <summary>
     /// Shows a custom inspector for the CharacterHealth component.
     /// </summary>
@@ -47,7 +47,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
                 var newDamagedEffectValue = InspectorUtility.DrawTypePopup(typeof(UltimateCharacterController.Character.Effects.Effect), damagedEffectValue, "Damaged Effect", true);
                 if (damagedEffectValue != newDamagedEffectValue) {
                     PropertyFromName("m_DamagedEffectName").stringValue = newDamagedEffectValue;
-                    Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                    InspectorUtility.SetDirty(target);
                 }
                 if (!string.IsNullOrEmpty(newDamagedEffectValue)) {
                     EditorGUI.indentLevel++;

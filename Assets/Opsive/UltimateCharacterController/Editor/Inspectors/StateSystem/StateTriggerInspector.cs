@@ -4,15 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem.CharacterAssist
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-    using Opsive.UltimateCharacterController.StateSystem;
-    using UnityEditor;
-    using UnityEditorInternal;
-    using UnityEngine;
-
     /// <summary>
     /// Custom inspector for the StateTrigger component.
     /// </summary>
@@ -47,12 +47,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem.Chara
             EditorGUILayout.PropertyField(PropertyFromName("m_CharacterTransformChange"));
             if (Foldout("Audio")) {
                 EditorGUI.indentLevel++;
-                m_ReorderableActivateAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_StateTrigger.ActivateAudioClipSet, m_ReorderableActivateAudioClipsList, OnActivateAudioClipDraw, OnActivateAudioClipListAdd, OnActivateAudioClipListRemove);
+                m_ReorderableActivateAudioClipsList = AudioClipSetInspector.DrawAudioClipSet(m_StateTrigger.ActivateAudioClipSet, PropertyFromName("m_ActivateAudioClipSet"), m_ReorderableActivateAudioClipsList, OnActivateAudioClipDraw, OnActivateAudioClipListAdd, OnActivateAudioClipListRemove);
                 EditorGUI.indentLevel--;
             }
 
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Value Change");
+                InspectorUtility.RecordUndoDirtyObject(target, "Value Change");
                 serializedObject.ApplyModifiedProperties();
             }
         }

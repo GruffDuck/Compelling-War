@@ -1,14 +1,14 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Editor.Inspectors.Input
-{
-    using Opsive.Shared.Input;
-    using UnityEditor;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Input;
 
+namespace Opsive.UltimateCharacterController.Editor.Inspectors.Input
+{
     /// <summary>
     /// Shows a custom inspector for the UnityInput.
     /// </summary>

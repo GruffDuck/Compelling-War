@@ -4,28 +4,24 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Inventory;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Character.Abilities.Items
 {
-    using Opsive.Shared.Game;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Inventory;
-    using UnityEngine;
-
     /// <summary>
     /// The ItemSetAbilityBase ability acts as a base class for common ItemSet operations such as equipping the previous or next item.
     /// </summary>
     public abstract class ItemSetAbilityBase : ItemAbility
     {
         [Tooltip("The category that the ability should respond to.")]
-        [HideInInspector] [SerializeField] protected uint m_ItemSetCategoryID;
-        [Tooltip("If the Use or Reload abilities are active should the ability not be able to start?")]
-        [SerializeField] protected bool m_PreventStartUseReloadActive = true;
+        [HideInInspector] [SerializeField] protected int m_ItemSetCategoryID;
 
-        public uint ItemSetCategoryID { get { return m_ItemSetCategoryID; } }
-        public bool PreventStartUseReloadActive { get { return m_PreventStartUseReloadActive; } set { m_PreventStartUseReloadActive = value; } }
+        public int ItemSetCategoryID { get { return m_ItemSetCategoryID; } set { m_ItemSetCategoryID = value; } }
 
         protected EquipUnequip m_EquipUnequipItemAbility;
-        protected ItemSetManagerBase m_ItemSetManager;
+        protected ItemSetManager m_ItemSetManager;
         protected int m_ItemSetCategoryIndex;
 
         public int ItemSetCategoryIndex { get { return m_ItemSetCategoryIndex; } }
@@ -37,10 +33,9 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
         {
             base.Awake();
 
-            m_ItemSetManager = m_GameObject.GetCachedComponent<ItemSetManagerBase>();
-            m_ItemSetManager.Initialize(false);
-            // If the CategoryID is empty then the category hasn't been initialized. Use the first category index.
-            if (RandomID.IsIDEmpty(m_ItemSetCategoryID) && m_ItemSetManager.CategoryItemSets.Length > 0) {
+            m_ItemSetManager = m_GameObject.GetCachedComponent<ItemSetManager>();
+            // If the CategoryID is 0 then the category hasn't been initialized. Use the first category index.
+            if (m_ItemSetCategoryID == 0 && m_ItemSetManager.CategoryItemSets.Length > 0) {
                 m_ItemSetCategoryID = m_ItemSetManager.CategoryItemSets[0].CategoryID;
             }
             m_ItemSetCategoryIndex = m_ItemSetManager.CategoryIDToIndex(m_ItemSetCategoryID);
@@ -64,11 +59,11 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
         public override bool CanStartAbility()
         {
             // Use and Reload can prevent the ability from equipping or unequipping items.
-            if (m_PreventStartUseReloadActive && (m_CharacterLocomotion.IsAbilityTypeActive<Use>()
+            if (m_CharacterLocomotion.IsAbilityTypeActive<Use>()
 #if ULTIMATE_CHARACTER_CONTROLLER_SHOOTER
                 || m_CharacterLocomotion.IsAbilityTypeActive<Reload>()
 #endif
-                )) {
+                ) {
                 return false;
             }
             return base.CanStartAbility();

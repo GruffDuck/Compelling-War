@@ -1,24 +1,23 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.StateSystem
-{
-    using Opsive.Shared.Utility;
-    using System;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Reflection;
-    using UnityEngine;
+using UnityEngine;
+using System.Reflection;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Utility;
+using System;
+using System.Collections;
 
+namespace Opsive.UltimateCharacterController.StateSystem
+{
     /// <summary>
     /// Represents a set of values for any number of component properties. In order for the value to be applied to a property a getter and setter must exist,
     /// along with a derived class from BaseDelegate which creates the delegate which interfaces with the property getter and setter. Properties can be 
-    /// ignored with the [Opsive.UltimateCharacterController.Opsive.Shared.Utility.NonSerialized] attribute.
+    /// ignored with the [Opsive.UltimateCharacterController.Utility.NonSerialized] attribute.
     /// </summary>
-    [FormerlySerializedAs("Opsive.UltimateCharacterController.StateSystem.Preset")]
     public class Preset : ScriptableObject
     {
         protected BaseDelegate[] m_Delegates;
@@ -29,6 +28,7 @@ namespace Opsive.Shared.StateSystem
         /// <summary>
         /// Creates a preset based off of the specified component.
         /// </summary>
+        /// <param name="obj">The object to retrieve the property values of.</param>
         /// <returns>The created preset. Null if no properties have been found to create the preset with.</returns>
         public static Preset CreatePreset()
         {
@@ -108,7 +108,6 @@ namespace Opsive.Shared.StateSystem
         /// <summary>
         /// Abstract class which allows for a delegate to be created which can be called on when the preset value should be applied.
         /// </summary>
-        [UnityEngine.Scripting.Preserve]
         public abstract class BaseDelegate
         {
             public abstract MethodInfo SetMethod { get; }
@@ -134,6 +133,9 @@ namespace Opsive.Shared.StateSystem
             /// <summary>
             /// Updates the stored value with the current property value.
             /// </summary>
+            /// <param name="obj">The object which the delegate operates on.</param>
+            /// <param name="property">The property that the delegate will invoke.</param>
+            /// <param name="visibility">Specifies the visibility of the field/properties that should be retrieved.</param>
             public abstract void UpdateValue();
 
             /// <summary>
@@ -146,8 +148,11 @@ namespace Opsive.Shared.StateSystem
         /// Generic class which implements a type specific delegate and value that can be called on when the preset value should be applied.
         /// See AOTLinker for an explanation of why a different class name is used for AOT platforms.
         /// </summary>
-        [UnityEngine.Scripting.Preserve]
+#if NET_4_6 || UNITY_2018_3_OR_NEWER || UNITY_WEBGL || UNITY_IOS || UNITY_ANDROID || UNITY_WII || UNITY_WIIU || UNITY_SWITCH || UNITY_PS3 || UNITY_PS4 || UNITY_XBOXONE || UNITY_WSA
         public class GenericDelegate<T> : BaseDelegate
+#else
+        public class GenericDelegate<T> : BaseDelegate where T : Type
+#endif
         {
             private T m_Value;
             private MethodInfo m_SetMethod;
@@ -170,11 +175,14 @@ namespace Opsive.Shared.StateSystem
                 m_SetMethod = property.GetSetMethod(visibility != MemberVisibility.Public);
                 if (m_SetMethod != null) {
                     m_Setter = (Action<T>)Delegate.CreateDelegate(typeof(Action<T>), obj, m_SetMethod);
-                    var bitwiseHash = new Version(data.Version).CompareTo(new Version("3.1")) >= 0;
-                    var value = Serializer.BytesToValue(typeof(T), property.Name, valuePositionMap, 0, data.Values, data.ValuePositions, data.UnityObjects, false, visibility, bitwiseHash);
+#if NET_4_6 || UNITY_2018_3_OR_NEWER || UNITY_WEBGL || UNITY_IOS || UNITY_ANDROID || UNITY_WII || UNITY_WIIU || UNITY_SWITCH || UNITY_PS3 || UNITY_PS4 || UNITY_XBOXONE || UNITY_WSA
+                    var value = Serializer.BytesToValue(typeof(T), property.Name, valuePositionMap, 0, data.Values, data.ValuePositions, data.UnityObjects, false, visibility);
                     if (value != null && !value.Equals(null)) {
                         m_Value = (T)value;
                     }
+#else
+                    m_Value = Serializer<T>.BytesToValue(property.Name, valuePositionMap, 0, data.Values, data.ValuePositions, data.UnityObjects, false, visibility);
+#endif
                     var type = typeof(T);
                     m_IsIList = typeof(IList).IsAssignableFrom(type);
                     if (m_IsIList) {
@@ -212,7 +220,11 @@ namespace Opsive.Shared.StateSystem
                     if (m_IsIList) {
                         if (typeof(T).IsArray) {
                             var value = m_Getter() as Array;
+#if NET_4_6 || UNITY_2018_3_OR_NEWER || UNITY_WEBGL || UNITY_IOS || UNITY_ANDROID || UNITY_WII || UNITY_WIIU || UNITY_SWITCH || UNITY_PS3 || UNITY_PS4 || UNITY_XBOXONE || UNITY_WSA
                             m_Value = (T)(object)Array.CreateInstance(type.GetElementType(), value == null ? 0 : value.Length);
+#else
+                            m_Value = Array.CreateInstance(type.GetElementType(), value == null ? 0 : value.Length) as T;
+#endif
                         } else {
                             var baseType = type;
                             while (!baseType.IsGenericType) {

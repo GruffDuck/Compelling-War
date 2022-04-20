@@ -1,30 +1,23 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Editor.Inspectors.Input
-{
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
-    using Opsive.Shared.Editor.Inspectors.StateSystem;
-#endif
-    using Opsive.Shared.Input;
-    using System;
-    using UnityEditor;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Input;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
+using System;
 
+namespace Opsive.UltimateCharacterController.Editor.Inspectors.Input
+{
     /// <summary>
     /// Shows a custom inspector for the PlayerInput.
     /// </summary>
     [CustomEditor(typeof(PlayerInput))]
-    public class PlayerInputInspector :
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
-        StateBehaviorInspector
-#else
-        InspectorBase
-#endif
+    public class PlayerInputInspector : StateBehaviorInspector
     {
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
         /// <summary>
         /// Returns the actions to draw before the State list is drawn.
         /// </summary>
@@ -35,13 +28,6 @@ namespace Opsive.Shared.Editor.Inspectors.Input
 
             baseCallback += () =>
             {
-#else
-        public override void OnInspectorGUI()
-        {
-            base.OnInspectorGUI();
-            EditorGUI.BeginChangeCheck();
-#endif
-
                 EditorGUILayout.PropertyField(PropertyFromName("m_HorizontalLookInputName"));
                 EditorGUILayout.PropertyField(PropertyFromName("m_VerticalLookInputName"));
                 var lookVector = PropertyFromName("m_LookVectorMode");
@@ -57,29 +43,19 @@ namespace Opsive.Shared.Editor.Inspectors.Input
                     EditorGUI.indentLevel--;
                 }
                 EditorGUILayout.PropertyField(PropertyFromName("m_ControllerConnectedCheckRate"));
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
                 EditorGUILayout.PropertyField(PropertyFromName("m_ConnectedControllerState"));
-#endif
 
                 DrawInputFields();
 
                 // Event fields should be last.
                 if (Foldout("Events")) {
                     EditorGUI.indentLevel++;
-                    Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_EnableGamplayInputEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_EnableGamplayInputEvent"));
                     EditorGUI.indentLevel--;
                 }
-#if FIRST_PERSON_CONTROLLER || THIRD_PERSON_CONTROLLER
             };
 
             return baseCallback;
-#else
-
-            if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
-                serializedObject.ApplyModifiedProperties();
-            }
-#endif
         }
 
         /// <summary>

@@ -4,13 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Items
 {
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Component which represents the item object actually rendererd. The main responsibility is to determine the location that the object should be rendered at.
     /// </summary>
@@ -22,14 +21,11 @@ namespace Opsive.UltimateCharacterController.Items
         [SerializeField] protected Vector3 m_LocalSpawnPosition;
         [Tooltip("If Object is a prefab, specifies the local rotation of the spawned object.")]
         [SerializeField] protected Vector3 m_LocalSpawnRotation;
-        [Tooltip("If Object is a prefab, specifies the local scale of the spawned object.")]
-        [SerializeField] protected Vector3 m_LocalSpawnScale = Vector3.one;
 
         [NonSerialized] public GameObject Object { get { return m_Object; } set { m_Object = value; } }
 
         public abstract bool FirstPersonItem { get; }
 
-        protected bool m_Initialized;
         protected GameObject m_Character;
         protected Item m_Item;
 
@@ -40,8 +36,6 @@ namespace Opsive.UltimateCharacterController.Items
         /// <returns>True if the item was initialized successfully.</returns>
         public virtual bool Initialize(GameObject character)
         {
-            if (m_Initialized) { return true; }
-
             m_Character = character;
             if (m_Object != null) {
                 var item = m_Object.GetComponentInParent<Item>();
@@ -56,17 +50,14 @@ namespace Opsive.UltimateCharacterController.Items
                     m_Object.transform.localScale = localScale;
                     m_Object.transform.localPosition = m_LocalSpawnPosition;
                     m_Object.transform.localRotation = Quaternion.Euler(m_LocalSpawnRotation);
-                    m_Object.transform.localScale = m_LocalSpawnScale;
                 }
 
                 // Layer sanity check.
                 if (m_Object.layer == m_Character.layer) {
-                    Debug.LogWarning($"Warning: The item {name} has the same layer as the character. This will likely cause collision problems and should be changed.");
+                    Debug.LogWarning("Warning: The item " + name + " has the same layer as the character. This will likely cause collision problems and should be changed.");
                 }
             }
             m_Item = gameObject.GetCachedComponent<Item>();
-
-            m_Initialized = true;
             return true;
         }
 
@@ -87,15 +78,14 @@ namespace Opsive.UltimateCharacterController.Items
         /// <summary>
         /// Is the VisibleItem active?
         /// </summary>
-        /// <returns>True if the VisibleItem is active.</returns>
+        /// <returns>True if the VisibleItem is active.</param>
         public virtual bool IsActive() { return m_Object.activeSelf; }
 
         /// <summary>
         /// Activates or deactivates the VisibleItem.
         /// </summary>
         /// <param name="active">Should the VisibleItem be activated?</param>
-        /// <param name="hasItem">Does the inventory contain the item?</param>
-        public virtual void SetActive(bool active, bool hasItem) { m_Object.SetActive(active); }
+        public virtual void SetActive(bool active) { m_Object.SetActive(active); }
 
         /// <summary>
         /// Returns the current VisibleItem object.
@@ -139,23 +129,6 @@ namespace Opsive.UltimateCharacterController.Items
             if (m_Object != null) {
                 m_Object.SetActive(false);
             }
-        }
-
-        /// <summary>
-        /// Resets the PerspectiveItem back to the initial values.
-        /// </summary>
-        public virtual void ResetInitialization()
-        {
-            if (!m_Initialized) { 
-                return;
-            }
-            m_Initialized = false;
-
-            var visibleObject = GetVisibleObject();
-            if (visibleObject != null) {
-                visibleObject.transform.SetParent(m_Item.transform);
-            }
-
         }
     }
 }

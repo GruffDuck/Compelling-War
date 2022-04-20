@@ -4,21 +4,21 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEngine.Events;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Events;
+#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
+using Opsive.UltimateCharacterController.Networking;
+using Opsive.UltimateCharacterController.Networking.Traits;
+#endif
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Traits
 {
-    using Opsive.Shared.Audio;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.Shared.Events;
-#if ULTIMATE_CHARACTER_CONTROLLER_MULTIPLAYER
-    using Opsive.UltimateCharacterController.Networking;
-    using Opsive.UltimateCharacterController.Networking.Traits;
-#endif
-    using UnityEngine;
-    using UnityEngine.Events;
-
     /// <summary>
     /// Specifies the location the object should spawn.
     /// </summary>
@@ -116,10 +116,10 @@ namespace Opsive.UltimateCharacterController.Traits
 #endif
 
             if (m_ScheduledRespawnEvent != null) {
-                SchedulerBase.Cancel(m_ScheduledRespawnEvent);
+                Scheduler.Cancel(m_ScheduledRespawnEvent);
                 m_ScheduledRespawnEvent = null;
             }
-            m_ScheduledRespawnEvent = SchedulerBase.Schedule(Random.Range(m_MinRespawnTime, m_MaxRespawnTime), Respawn);
+            m_ScheduledRespawnEvent = Scheduler.Schedule(Random.Range(m_MinRespawnTime, m_MaxRespawnTime), Respawn);
         }
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace Opsive.UltimateCharacterController.Traits
 #endif
 
             if (ScheduleRespawnOnDisable && m_ScheduledRespawnEvent == null) {
-                m_ScheduledRespawnEvent = SchedulerBase.Schedule(Random.Range(m_MinRespawnTime, m_MaxRespawnTime), Respawn);
+                m_ScheduledRespawnEvent = Scheduler.Schedule(Random.Range(m_MinRespawnTime, m_MaxRespawnTime), Respawn);
             }
         }
 
@@ -153,7 +153,7 @@ namespace Opsive.UltimateCharacterController.Traits
                     rotation = m_Transform.rotation;
                     // If the object can't be spawned then try again in the future.
                     if (!SpawnPointManager.GetPlacement(m_GameObject, m_Grouping, ref position, ref rotation)) {
-                        m_ScheduledRespawnEvent = SchedulerBase.Schedule(Random.Range(m_MinRespawnTime, m_MaxRespawnTime), Respawn);
+                        m_ScheduledRespawnEvent = Scheduler.Schedule(Random.Range(m_MinRespawnTime, m_MaxRespawnTime), Respawn);
                         return;
                     }
                 } else { // Spawn Location.
@@ -182,9 +182,10 @@ namespace Opsive.UltimateCharacterController.Traits
             if (transformChange) {
                 // Characters require a specific setter for the position and rotation.
                 if (m_CharacterLocomotion != null) {
-                    m_CharacterLocomotion.SetPositionAndRotation(position, rotation, false);
+                    m_CharacterLocomotion.SetPositionAndRotation(position, rotation);
                 } else {
-                    m_Transform.SetPositionAndRotation(position, rotation);
+                    m_Transform.position = position;
+                    m_Transform.rotation = rotation;
                 }
             }
 
@@ -206,23 +207,12 @@ namespace Opsive.UltimateCharacterController.Traits
         }
 
         /// <summary>
-        /// Cancels the respawn.
-        /// </summary>
-        public void CancelRespawn()
-        {
-            if (m_ScheduledRespawnEvent != null) {
-                SchedulerBase.Cancel(m_ScheduledRespawnEvent);
-                m_ScheduledRespawnEvent = null;
-            }
-        }
-
-        /// <summary>
         /// The GameObject has been destroyed.
         /// </summary>
         protected virtual void OnDestroy()
         {
             if (m_ScheduledRespawnEvent != null) {
-                SchedulerBase.Cancel(m_ScheduledRespawnEvent);
+                Scheduler.Cancel(m_ScheduledRespawnEvent);
                 m_ScheduledRespawnEvent = null;
             }
             EventHandler.UnregisterEvent<Vector3, Vector3, GameObject>(m_GameObject, "OnDeath", OnDeath);

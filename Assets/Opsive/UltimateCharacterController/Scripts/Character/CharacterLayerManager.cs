@@ -4,16 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Game;
+
 namespace Opsive.UltimateCharacterController.Character
 {
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Game;
-    using UnityEngine;
-
     /// <summary>
     /// Sets up custom layers for the character.
     /// </summary>
-    public class CharacterLayerManager : StateBehavior
+    public class CharacterLayerManager : MonoBehaviour
     {
         [Tooltip("Layer Mask that specifies the layer that the enemies use.")]
         [SerializeField] protected LayerMask m_EnemyLayers = 1 << LayerManager.Enemy;
@@ -22,9 +21,9 @@ namespace Opsive.UltimateCharacterController.Character
         [Tooltip("Layer mask that specifies any layers that represent a solid object (such as the ground or a moving platform).")]
         [SerializeField] protected LayerMask m_SolidObjectLayers = ~((1 << LayerManager.IgnoreRaycast) | (1 << LayerManager.Water) | (1 << LayerManager.UI) | (1 << LayerManager.VisualEffect) | (1 << LayerManager.Overlay) | (1 << LayerManager.SubCharacter));
 
-        public LayerMask EnemyLayers { get { return m_EnemyLayers; } set { m_EnemyLayers = value; } }
-        public LayerMask InvisibleLayers { get { return m_InvisibleLayers; } set { m_InvisibleLayers = value; } }
-        public LayerMask SolidObjectLayers { get { return m_SolidObjectLayers; } set { m_SolidObjectLayers = value; } }
+        public LayerMask EnemyLayers { get { return m_EnemyLayers; } }
+        public LayerMask InvisibleLayers { get { return m_InvisibleLayers; } }
+        public LayerMask SolidObjectLayers { get { return m_SolidObjectLayers; } }
 
         // Represents the mask that ignores any invisible objects.
         public int IgnoreInvisibleLayers { get { return ~m_InvisibleLayers; } }
@@ -35,15 +34,13 @@ namespace Opsive.UltimateCharacterController.Character
 
         private LayerMask m_CharacterLayer = 1 << LayerManager.Character;
 
-        public LayerMask CharacterLayer { get { return m_CharacterLayer; } set { m_CharacterLayer = value; } }
+        public LayerMask CharacterLayer { get { return m_CharacterLayer; } }
 
         /// <summary>
         /// Setups the character layer.
         /// </summary>
-        protected override void Awake()
+        public void Awake()
         {
-            base.Awake();
-
             m_CharacterLayer = 1 << gameObject.layer;
 
             LayerManager.Initialize();

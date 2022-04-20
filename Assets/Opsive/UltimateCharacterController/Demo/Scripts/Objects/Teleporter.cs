@@ -4,14 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Demo.Objects
 {
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Teleports the character to the specified destination.
     /// </summary>
@@ -42,7 +41,7 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
 
         private bool m_IgnoreCharacterEnter;
 
-        public bool IgnoreCharacterEnter { set { m_IgnoreCharacterEnter = value; } }
+        public bool IgnoreCharacterEnter { set { m_IgnoreCharacterEnter = true; } }
 
         /// <summary>
         /// Initialize the default values.
@@ -64,17 +63,11 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
 
             UltimateCharacterLocomotion characterLocomotion;
             if ((characterLocomotion = other.GetComponentInParent<UltimateCharacterLocomotion>()) != null) {
-                // Do not allow teleportation if the Drive or Ride abilities are active.
-                if (characterLocomotion.IsAbilityTypeActive<UltimateCharacterController.Character.Abilities.Drive>() ||
-                    characterLocomotion.IsAbilityTypeActive<UltimateCharacterController.Character.Abilities.Ride>()) {
-                    return;
-                }
-
                 var destinationTeleporter = m_Destination.GetComponentInParent<Teleporter>();
                 if (destinationTeleporter != null) {
                     destinationTeleporter.IgnoreCharacterEnter = true;
                 }
-                characterLocomotion.SetPositionAndRotation(m_Destination.position, m_Destination.rotation, m_SnapAnimator, false);
+                characterLocomotion.SetPositionAndRotation(m_Destination.position, m_Destination.rotation, m_SnapAnimator);
 
                 if (m_AudioSource != null && m_TeleportAudioClip != null) {
                     m_AudioSource.clip = m_TeleportAudioClip;
@@ -82,7 +75,7 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
                 }
 
                 if (!string.IsNullOrEmpty(m_StateName)) {
-                    StateManager.SetState(characterLocomotion.gameObject, m_StateName, true);
+                    StateSystem.StateManager.SetState(characterLocomotion.gameObject, m_StateName, true);
                 }
             }
         }

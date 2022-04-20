@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Game
 {
-    using UnityEngine;
-    using UnityEngine.SceneManagement;
-    using System.Collections.Generic;
-
     /// <summary>
     /// Singleton object which manages the index values of the Unity layers.
     /// </summary>
@@ -169,6 +169,7 @@ namespace Opsive.UltimateCharacterController.Game
             SceneManager.sceneUnloaded += SceneUnloaded;
         }
 
+#if UNITY_2019_3_OR_NEWER
         /// <summary>
         /// Reset the static variables for domain reloading.
         /// </summary>
@@ -178,5 +179,6 @@ namespace Opsive.UltimateCharacterController.Game
             s_Initialized = false;
             s_Instance = null;
         }
+#endif
     }
 }

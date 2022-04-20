@@ -4,14 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using System;
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
 {
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using Opsive.UltimateCharacterController.Traits;
-    using UnityEditor;
-    using UnityEditorInternal;
-    using UnityEngine;
-
     /// <summary>
     /// Draws a custom inspector for the hitbox.
     /// </summary>
@@ -30,8 +31,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             }
             // Indent the list so it lines up with the rest of the content.
             var rect = GUILayoutUtility.GetRect(0, reorderableList.GetHeight());
-            rect.x += EditorGUI.indentLevel * Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth;
-            rect.xMax -= EditorGUI.indentLevel * Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth;
+            rect.x += EditorGUI.indentLevel * InspectorUtility.IndentWidth;
+            rect.xMax -= EditorGUI.indentLevel * InspectorUtility.IndentWidth;
             reorderableList.DoList(rect);
         }
 
@@ -54,7 +55,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             hitbox.FindPropertyRelative("m_DamageMultiplier").floatValue = 1;
 
             var serializedObject = reorderableList.serializedProperty.serializedObject;
-            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(serializedObject.targetObject, "Change Value");
+            InspectorUtility.RecordUndoDirtyObject(serializedObject.targetObject, "Change Value");
             serializedObject.ApplyModifiedProperties();
         }
 
@@ -68,12 +69,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
             var hitbox = reorderableList.serializedProperty.GetArrayElementAtIndex(index);
             var colliderProperty = hitbox.FindPropertyRelative("m_Collider");
             var multiplierProperty = hitbox.FindPropertyRelative("m_DamageMultiplier");
-            EditorGUI.ObjectField(new Rect(rect.x, rect.y + 1, (rect.width - 130), EditorGUIUtility.singleLineHeight), colliderProperty, new GUIContent());
+            EditorGUI.ObjectField(new Rect(rect.x - 12, rect.y + 1, (rect.width - 110), EditorGUIUtility.singleLineHeight), colliderProperty, new GUIContent());
             multiplierProperty.floatValue = EditorGUI.FloatField(new Rect(rect.x + (rect.width - 126), rect.y + 1, 126, EditorGUIUtility.singleLineHeight), multiplierProperty.floatValue);
 
             if (EditorGUI.EndChangeCheck()) {
                 var serializedObject = reorderableList.serializedProperty.serializedObject;
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(serializedObject.targetObject, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(serializedObject.targetObject, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -128,16 +129,15 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Traits
 			if (collider == null) {
 				return;
 			}
-			var colliderTransform = collider.transform;
-            var capsulePosition = colliderTransform.TransformPoint(collider.center);
+
+            var capsulePosition = collider.transform.TransformPoint(collider.center);
             var capsuleRotation = Quaternion.identity;
 
-            var colliderRotation = colliderTransform.rotation;
             switch (collider.direction) // X = 0, Y = 1, Z = 2
             {
-                case 0: { capsuleRotation = Quaternion.LookRotation(colliderRotation * Vector3.forward, colliderRotation * Vector3.right); break; }
+                case 0: { capsuleRotation = Quaternion.LookRotation(collider.transform.rotation * Vector3.forward, collider.transform.rotation * Vector3.right); break; }
                 case 1: { capsuleRotation = collider.transform.rotation; break; }
-                case 2: { capsuleRotation = Quaternion.LookRotation(colliderRotation * Vector3.up, colliderRotation * Vector3.forward); break; }
+                case 2: { capsuleRotation = Quaternion.LookRotation(collider.transform.rotation * Vector3.up, collider.transform.rotation * Vector3.forward); break; }
             }
 
             DrawWireCapsule(capsulePosition, capsuleRotation, collider.radius, collider.height, color);

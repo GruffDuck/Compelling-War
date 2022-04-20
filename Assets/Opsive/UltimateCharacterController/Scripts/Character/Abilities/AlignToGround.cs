@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
-    using Opsive.UltimateCharacterController.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// The AlignToGround ability will orient the character to the direction of the ground's normal.
     /// </summary>
@@ -44,19 +44,18 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                     var frontPoint = m_Transform.position;
                     bool frontHit;
                     RaycastHit raycastHit;
-                    frontHit = Physics.Raycast(m_Transform.TransformPoint(0, m_CharacterLocomotion.Radius,
-                            m_DepthOffset * Mathf.Sign(m_CharacterLocomotion.InputVector.y)), -m_CharacterLocomotion.Up, out raycastHit, m_Distance + m_CharacterLocomotion.Radius,
-                        m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore);
-                    if (frontHit) {
+                    if ((frontHit = Physics.Raycast(m_Transform.TransformPoint(0, m_CharacterLocomotion.Radius, m_DepthOffset * Mathf.Sign(m_CharacterLocomotion.InputVector.y)),
+                                                    -m_CharacterLocomotion.Up, out raycastHit, m_Distance + m_CharacterLocomotion.Radius, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore))) {
                         frontPoint = raycastHit.point;
                         targetNormal = raycastHit.normal;
                     }
 
+                    var backPoint = frontPoint;
                     if (Physics.Raycast(m_Transform.TransformPoint(0, m_CharacterLocomotion.Radius, m_DepthOffset * -Mathf.Sign(m_CharacterLocomotion.InputVector.y)),
                                             -m_CharacterLocomotion.Up, out raycastHit, m_Distance + m_CharacterLocomotion.Radius, m_CharacterLayerManager.SolidObjectLayers, QueryTriggerInteraction.Ignore)) {
                         if (frontHit) {
                             if (m_NormalizeDirection) {
-                                var backPoint = raycastHit.point;
+                                backPoint = raycastHit.point;
                                 var direction = (frontPoint - backPoint).normalized;
                                 targetNormal = Vector3.Cross(direction, Vector3.Cross(m_CharacterLocomotion.Up, direction)).normalized;
                             } else {

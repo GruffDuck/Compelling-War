@@ -4,13 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+
 namespace Opsive.UltimateCharacterController.Objects
 {
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using Opsive.UltimateCharacterController.Traits.Damage;
-    using UnityEngine;
-
     /// <summary>
     /// The Projectile component moves a Destructible object along the specified path. Can apply damage at the collision point.
     /// </summary>
@@ -26,7 +25,6 @@ namespace Opsive.UltimateCharacterController.Objects
         /// </summary>
         /// <param name="velocity">The velocity to apply.</param>
         /// <param name="torque">The torque to apply.</param>
-        /// <param name="damageProcessor">Processes the damage dealt to a Damage Target.</param>
         /// <param name="damageAmount">The amount of damage to apply to the hit object.</param>
         /// <param name="impactForce">The amount of force to apply to the hit object.</param>
         /// <param name="impactForceFrames">The number of frames to add the force to.</param>
@@ -35,16 +33,14 @@ namespace Opsive.UltimateCharacterController.Objects
         /// <param name="impactStateDisableTimer">The number of seconds until the impact state is disabled.</param>
         /// <param name="surfaceImpact">A reference to the Surface Impact triggered when the object hits an object.</param>
         /// <param name="originator">The object that instantiated the trajectory object.</param>
-        public override void Initialize(Vector3 velocity, Vector3 torque, DamageProcessor damageProcessor, float damageAmount, float impactForce, int impactForceFrames, LayerMask impactLayers,
+        public override void Initialize(Vector3 velocity, Vector3 torque, float damageAmount, float impactForce, int impactForceFrames, LayerMask impactLayers,
                                      string impactStateName, float impactStateDisableTimer, SurfaceImpact surfaceImpact, GameObject originator)
         {
             // The projectile can deactivate after it comes in contact with another object or after a specified amount of time. Do the scheduling here to allow
             // it to activate after a set amount of time.
-            if (m_Lifespan > 0) {
-                m_ScheduledDeactivation = SchedulerBase.Schedule(m_Lifespan, Deactivate);
-            }
+            m_ScheduledDeactivation = Scheduler.Schedule(m_Lifespan, Deactivate);
 
-            base.Initialize(velocity, torque, damageProcessor, damageAmount, impactForce, impactForceFrames, impactLayers, impactStateName, impactStateDisableTimer, surfaceImpact, originator);
+            base.Initialize(velocity, torque, damageAmount, impactForce, impactForceFrames, impactLayers, impactStateName, impactStateDisableTimer, surfaceImpact, originator);
         }
 
         /// <summary>
@@ -52,7 +48,6 @@ namespace Opsive.UltimateCharacterController.Objects
         /// </summary>
         private void Deactivate()
         {
-            m_ScheduledDeactivation = null;
             OnCollision(null);
         }
 
@@ -63,7 +58,7 @@ namespace Opsive.UltimateCharacterController.Objects
         protected override void OnCollision(RaycastHit? hit)
         {
             if (m_ScheduledDeactivation != null) {
-                SchedulerBase.Cancel(m_ScheduledDeactivation);
+                Scheduler.Cancel(m_ScheduledDeactivation);
                 m_ScheduledDeactivation = null;
             }
             base.OnCollision(hit);
@@ -77,7 +72,7 @@ namespace Opsive.UltimateCharacterController.Objects
             base.OnDisable();
 
             if (m_ScheduledDeactivation != null) {
-                SchedulerBase.Cancel(m_ScheduledDeactivation);
+                Scheduler.Cancel(m_ScheduledDeactivation);
                 m_ScheduledDeactivation = null;
             }
         }

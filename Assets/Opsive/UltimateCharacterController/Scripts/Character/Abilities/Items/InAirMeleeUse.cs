@@ -4,14 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Items.Actions;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Character.Abilities.Items
 {
-    using Opsive.Shared.Events;
-    using Opsive.UltimateCharacterController.Items.Actions;
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// ItemAbility which will start using the MeleeWeapon while in the air.
     /// </summary>
@@ -19,7 +19,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities.Items
     [DefaultInputName("Fire1")]
     [DefaultItemStateIndex(2)]
     [DefaultState("Use")]
-    [AllowDuplicateTypes]
+    [AllowMultipleAbilityTypes]
     public class InAirMeleeUse : Use
     {
         [Tooltip("The amount of force that should be applied at the start of the ability.")]

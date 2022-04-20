@@ -4,15 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Traits
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// An Attribute can be used to describe a set of values which change over time. Examples include health, shield, stamina, hunger, etc.
     /// </summary>
@@ -58,28 +58,14 @@ namespace Opsive.UltimateCharacterController.Traits
                 ScheduleAutoUpdate(m_AutoUpdateStartDelay);
             }
         }
-        public AutoUpdateValue AutoUpdateValueType { get { return m_AutoUpdateValueType; } set { m_AutoUpdateValueType = value;
-                if (m_AutoUpdateStartDelay != -1) {
-                    ScheduleAutoUpdate(m_AutoUpdateStartDelay);
-                }
-            } }
-        public float AutoUpdateStartDelay { get { return m_AutoUpdateStartDelay; } set { m_AutoUpdateStartDelay = value;
-                if (m_AutoUpdateStartDelay != -1) {
-                    ScheduleAutoUpdate(m_AutoUpdateStartDelay);
-                }
-            } }
+        public AutoUpdateValue AutoUpdateValueType { get { return m_AutoUpdateValueType; } set { m_AutoUpdateValueType = value; ScheduleAutoUpdate(0.01f); } }
+        public float AutoUpdateStartDelay { get { return m_AutoUpdateStartDelay; } set { m_AutoUpdateStartDelay = value; ScheduleAutoUpdate(0.01f); } }
         public float AutoUpdateInterval { get { return m_AutoUpdateInterval; } set { m_AutoUpdateInterval = value; } }
         public float AutoUpdateAmount { get { return m_AutoUpdateAmount; } set { m_AutoUpdateAmount = value; } }
 
         private GameObject m_GameObject;
         private float m_StartValue;
         private ScheduledEventBase m_AutoUpdateEvent;
-
-        private bool m_ValuesStored;
-        private Attribute.AutoUpdateValue m_StoredAutoUpdateValueType;
-        private float m_StoredAutoUpdateStartDelay;
-        private float m_StoredAutoUpdateInterval;
-        private float m_StoredAutoUpdateAmount;
 
         /// <summary>
         /// Default constructor.
@@ -115,12 +101,12 @@ namespace Opsive.UltimateCharacterController.Traits
         /// Schedules an auto update if the auto update value type is not set to none.
         /// </summary>
         /// <param name="delay">The amount to delay the attribute update event by.</param>
-        public void ScheduleAutoUpdate(float delay)
+        private void ScheduleAutoUpdate(float delay)
         {
-            SchedulerBase.Cancel(m_AutoUpdateEvent);
+            Scheduler.Cancel(m_AutoUpdateEvent);
             if ((m_AutoUpdateValueType == AutoUpdateValue.Increase && m_Value != m_MaxValue) ||
                 (m_AutoUpdateValueType == AutoUpdateValue.Decrease && m_Value != m_MinValue)) {
-                m_AutoUpdateEvent = SchedulerBase.Schedule(delay, UpdateValue);
+                m_AutoUpdateEvent = Scheduler.Schedule(delay, UpdateValue);
             }
         }
 
@@ -129,22 +115,17 @@ namespace Opsive.UltimateCharacterController.Traits
         /// </summary>
         private void UpdateValue()
         {
-            if (m_AutoUpdateValueType == AutoUpdateValue.None) {
-                return;
-            }
-
-            m_AutoUpdateEvent = null;
             if (m_AutoUpdateValueType == AutoUpdateValue.Increase) {
                 m_Value = Mathf.Min(m_Value + m_AutoUpdateAmount, m_MaxValue);
                 if (m_Value < m_MaxValue) {
-                    m_AutoUpdateEvent = SchedulerBase.ScheduleFixed(m_AutoUpdateInterval, UpdateValue);
+                    m_AutoUpdateEvent = Scheduler.Schedule(m_AutoUpdateInterval, UpdateValue);
                 } else {
                     EventHandler.ExecuteEvent(this, "OnAttributeReachedDestinationValue");
                 }
             } else { // Decrease.
                 m_Value = Mathf.Max(m_Value - m_AutoUpdateAmount, m_MinValue);
                 if (m_Value > m_MinValue) {
-                    m_AutoUpdateEvent = SchedulerBase.ScheduleFixed(m_AutoUpdateInterval, UpdateValue);
+                    m_AutoUpdateEvent = Scheduler.Schedule(m_AutoUpdateInterval, UpdateValue);
                 } else {
                     EventHandler.ExecuteEvent(this, "OnAttributeReachedDestinationValue");
                 }
@@ -159,31 +140,7 @@ namespace Opsive.UltimateCharacterController.Traits
         /// <returns>True if the attribute value is currently valid.</returns>
         public bool IsValid(float valueChange)
         {
-            return m_Value + valueChange >= m_MinValue;
-        }
-
-        /// <summary>
-        /// Stores or restores the auto update values. This is used by the ability system.
-        /// </summary>
-        /// <param name="store">Should the values be stored?</param>
-        public void StoreRestoreAutoUpdateValues(bool store)
-        {
-            if (m_ValuesStored == store) {
-                return;
-            }
-
-            m_ValuesStored = store;
-            if (store) {
-                m_StoredAutoUpdateAmount = m_AutoUpdateAmount;
-                m_StoredAutoUpdateInterval = m_AutoUpdateInterval;
-                m_StoredAutoUpdateStartDelay = m_AutoUpdateStartDelay;
-                m_StoredAutoUpdateValueType = m_AutoUpdateValueType;
-            } else {
-                m_AutoUpdateAmount = m_StoredAutoUpdateAmount;
-                m_AutoUpdateInterval = m_StoredAutoUpdateInterval;
-                m_AutoUpdateStartDelay = m_StoredAutoUpdateStartDelay;
-                m_AutoUpdateValueType = m_StoredAutoUpdateValueType;
-            }
+            return m_Value + valueChange > m_MinValue;
         }
 
         /// <summary>
@@ -191,7 +148,7 @@ namespace Opsive.UltimateCharacterController.Traits
         /// </summary>
         public void CancelAutoUpdate()
         {
-            SchedulerBase.Cancel(m_AutoUpdateEvent);
+            Scheduler.Cancel(m_AutoUpdateEvent);
         }
 
         /// <summary>
@@ -199,7 +156,7 @@ namespace Opsive.UltimateCharacterController.Traits
         /// </summary>
         public void ResetValue()
         {
-            SchedulerBase.Cancel(m_AutoUpdateEvent);
+            Scheduler.Cancel(m_AutoUpdateEvent);
             m_Value = m_StartValue;
             EventHandler.ExecuteEvent(m_GameObject, "OnAttributeUpdateValue", this);
         }
@@ -217,7 +174,7 @@ namespace Opsive.UltimateCharacterController.Traits
         /// </summary>
         ~Attribute()
         {
-            SchedulerBase.Cancel(m_AutoUpdateEvent);
+            Scheduler.Cancel(m_AutoUpdateEvent);
         }
     }
 
@@ -230,91 +187,48 @@ namespace Opsive.UltimateCharacterController.Traits
         [Tooltip("The name of the attribute.")]
         [SerializeField] protected string m_AttributeName;
         [Tooltip("Specifies the amount to change the attribute by when the modifier is enabled.")]
-        [UnityEngine.Serialization.FormerlySerializedAs("m_ValueChange")]
-        [SerializeField] protected float m_Amount;
-        [Tooltip("Should the attribute be updated every specified interval?")]
-        [SerializeField] protected bool m_AutoUpdate;
+        [SerializeField] protected float m_ValueChange;
+        [Tooltip("Should a new update value be set?")]
+        [SerializeField] protected bool m_ChangeUpdateValue;
+        [Tooltip("Describes how the attribute should update the value.")]
+        [SerializeField] protected Attribute.AutoUpdateValue m_AutoUpdateValueType;
         [Tooltip("The amount of time between a value change and when the auto updater should start.")]
         [SerializeField] protected float m_AutoUpdateStartDelay = 1f;
         [Tooltip("The amount of time to wait in between auto update loops.")]
         [SerializeField] protected float m_AutoUpdateInterval = 0.1f;
-        [Tooltip("The duration that the auto update lasts for. Set to a positive value to enable.")]
-        [SerializeField] protected float m_AutoUpdateDuration = -1;
+        [Tooltip("The amount to change the value with each auto update.")]
+        [SerializeField] protected float m_AutoUpdateAmount = 0.2f;
 
         [NonSerialized] public string AttributeName { get { return m_AttributeName; } set { m_AttributeName = value; } }
-        [NonSerialized] public float Amount { get { return m_Amount; } set { m_Amount = value; } }
-        [NonSerialized] public bool AutoUpdate { get { return m_AutoUpdate; } set { m_AutoUpdate = value; } }
+        [NonSerialized] public float ValueChange { get { return m_ValueChange; } set { m_ValueChange = value; } }
+        [NonSerialized] public bool ChangeUpdateValue { get { return m_ChangeUpdateValue; } set { m_ChangeUpdateValue = value; } }
+        [NonSerialized] public Attribute.AutoUpdateValue AutoUpdateValueType { get { return m_AutoUpdateValueType; } set { m_AutoUpdateValueType = value; } }
         [NonSerialized] public float AutoUpdateStartDelay { get { return m_AutoUpdateStartDelay; } set { m_AutoUpdateStartDelay = value; } }
         [NonSerialized] public float AutoUpdateInterval { get { return m_AutoUpdateInterval; } set { m_AutoUpdateInterval = value; } }
-        [NonSerialized] public float AutoUpdateDuration { get { return m_AutoUpdateDuration; } set { m_AutoUpdateDuration = value; } }
+        [NonSerialized] public float AutoUpdateAmount { get { return m_AutoUpdateAmount; } set { m_AutoUpdateAmount = value; } }
 
         private Attribute m_Attribute;
 
         private bool m_AutoUpdating;
-        private ScheduledEventBase m_DisableAutoUpdateEvent;
-
-        public Attribute Attribute { get { return m_Attribute; } }
-        public bool AutoUpdating { get { return m_AutoUpdating; } }
-
-        /// <summary>
-        /// Default AttributeModifier constructor.
-        /// </summary>
-        public AttributeModifier() { }
-
-        /// <summary>
-        /// AttributeModifier constructor.
-        /// </summary>
-        /// <param name="name">The name of the attribute.</param>
-        /// <param name="amount">Specifies the amount to change the attribute by when the modifier is enabled.</param>
-        /// <param name="autoUpdateValueType">Describes how the attribute should update the value.</param>
-        public AttributeModifier(string name, float amount, Attribute.AutoUpdateValue autoUpdateValueType)
-        {
-            m_AttributeName = name;
-            m_Amount = amount;
-            m_AutoUpdate = autoUpdateValueType != Attribute.AutoUpdateValue.None;
-        }
+        private Attribute.AutoUpdateValue m_StoredAutoUpdateValueType;
+        private float m_StoredAutoUpdateStartDelay;
+        private float m_StoredAutoUpdateInterval;
+        private float m_StoredAutoUpdateAmount;
 
         /// <summary>
         /// Initializes the AttributeModifier.
         /// </summary>
         /// <param name="gameObject">The GameObject that has the AttributeManager attached to it.</param>
-        /// <returns>True if the AttributeModifier was initialized.</returns>
-        public bool Initialize(GameObject gameObject)
+        public void Initialize(GameObject gameObject)
         {
             if (string.IsNullOrEmpty(m_AttributeName)) {
-                return false;
+                return;
             }
 
             var attributeManager = gameObject.GetCachedComponent<AttributeManager>();
-            if (attributeManager == null) {
-                return false;
+            if (attributeManager != null) {
+                m_Attribute = attributeManager.GetAttribute(m_AttributeName);
             }
-
-            m_Attribute = attributeManager.GetAttribute(m_AttributeName);
-            return m_Attribute != null;
-        }
-
-        /// <summary>
-        /// Initializes the AttributeModifier from another AttributeModifier.
-        /// </summary>
-        /// <param name="other">The AttributeModifier to copy.</param>
-        /// <param name="attributeManager">The AttributeManager that the modifier is attached to.</param>
-        /// <returns>True if the AttributeModifier was initialized.</returns>
-        public bool Initialize(AttributeModifier other, AttributeManager attributeManager)
-        {
-            if (string.IsNullOrEmpty(other.AttributeName) || attributeManager == null) {
-                return false;
-            }
-
-            m_AttributeName = other.AttributeName;
-            m_Amount = other.Amount;
-            m_AutoUpdate = other.AutoUpdate;
-            m_AutoUpdateStartDelay = other.AutoUpdateStartDelay;
-            m_AutoUpdateInterval = other.m_AutoUpdateInterval;
-            m_AutoUpdateDuration = other.AutoUpdateDuration;
-
-            m_Attribute = attributeManager.GetAttribute(m_AttributeName);
-            return m_Attribute != null;
         }
 
         /// <summary>
@@ -327,63 +241,46 @@ namespace Opsive.UltimateCharacterController.Traits
                 return true;
             }
 
-            if (m_AutoUpdating) {
-                if (m_Amount < 0) {
-                    return m_Attribute.Value > m_Attribute.MinValue;
-                } else {
-                    return m_Attribute.Value < m_Attribute.MaxValue;
-                }
-            }
-            
-            return m_Attribute.IsValid(m_Amount);
+            return m_Attribute.IsValid(m_ValueChange);
         }
 
         /// <summary>
         /// Enables or disables the modifier.
         /// </summary>
-        /// <param name="enable">Should the modifier be enabled?</param>
+        /// <param name="enable"></param>
         public void EnableModifier(bool enable)
         {
             if (m_Attribute == null) {
                 return;
             }
-            m_DisableAutoUpdateEvent = null;
 
             // The attribute can be changed by a single value...
-            if (enable && (!m_AutoUpdate || m_AutoUpdateStartDelay > 0)) {
-                m_Attribute.Value += m_Amount;
+            if (enable && m_ValueChange != 0) {
+                m_Attribute.Value += m_ValueChange;
             }
 
-            if (!m_AutoUpdate || m_AutoUpdating == enable) {
+            if (!m_ChangeUpdateValue || m_AutoUpdating == enable) {
                 return;
             }
 
             // ...Or a change with a longer duration.
             m_AutoUpdating = enable;
             if (enable) {
-                m_Attribute.StoreRestoreAutoUpdateValues(true);
+                m_StoredAutoUpdateAmount = m_Attribute.AutoUpdateAmount;
+                m_StoredAutoUpdateInterval = m_Attribute.AutoUpdateInterval;
+                m_StoredAutoUpdateStartDelay = m_Attribute.AutoUpdateStartDelay;
+                m_StoredAutoUpdateValueType = m_Attribute.AutoUpdateValueType;
 
-                m_Attribute.AutoUpdateAmount = Mathf.Abs(m_Amount);
-                m_Attribute.AutoUpdateStartDelay = -1; // Set the start delay to -1 to prevent the attribute from updating when changing the attribute properties.
+                m_Attribute.AutoUpdateAmount = m_AutoUpdateAmount;
                 m_Attribute.AutoUpdateInterval = m_AutoUpdateInterval;
-                m_Attribute.AutoUpdateValueType = m_Amount < 0 ? Attribute.AutoUpdateValue.Decrease : Attribute.AutoUpdateValue.Increase;
-                m_Attribute.AutoUpdateStartDelay = m_AutoUpdateStartDelay; // Setting the actual start delay will update the value.
-
-                if (m_AutoUpdateDuration > 0) {
-                    m_DisableAutoUpdateEvent = SchedulerBase.Schedule(m_AutoUpdateDuration, EnableModifier, false);
-                }
+                m_Attribute.AutoUpdateStartDelay = m_AutoUpdateStartDelay;
+                m_Attribute.AutoUpdateValueType = m_AutoUpdateValueType;    
             } else {
-                m_Attribute.StoreRestoreAutoUpdateValues(false);
-
-                if (m_DisableAutoUpdateEvent != null) {
-                    SchedulerBase.Cancel(m_DisableAutoUpdateEvent);
-                    m_DisableAutoUpdateEvent = null;
-                }
-
-                m_Attribute.ScheduleAutoUpdate(m_Attribute.AutoUpdateStartDelay);
+                m_Attribute.AutoUpdateAmount = m_StoredAutoUpdateAmount;
+                m_Attribute.AutoUpdateInterval = m_StoredAutoUpdateInterval;
+                m_Attribute.AutoUpdateStartDelay = m_StoredAutoUpdateStartDelay;
+                m_Attribute.AutoUpdateValueType = m_StoredAutoUpdateValueType;
             }
-
-            EventHandler.ExecuteEvent(this, "OnAttributeModifierAutoUpdateEnabled", this, enable);
         }
     }
 
@@ -395,15 +292,7 @@ namespace Opsive.UltimateCharacterController.Traits
         [Tooltip("The array of Attributes on the object.")]
         [SerializeField] protected Attribute[] m_Attributes = new Attribute[] { new Attribute("Health", 100) };
 
-        public Attribute[] Attributes { get { return m_Attributes; } set {
-                if (m_Attributes != value) {
-                    m_Attributes = value;
-                    if (Application.isPlaying) {
-                        Initialize();
-                    }
-                }
-            }
-        }
+        public Attribute[] Attributes { get { return m_Attributes; } set { m_Attributes = value; } }
 
         private Dictionary<string, Attribute> m_NameAttributeMap = new Dictionary<string, Attribute>();
 
@@ -412,15 +301,6 @@ namespace Opsive.UltimateCharacterController.Traits
         /// </summary>
         private void Awake()
         {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the attributes.
-        /// </summary>
-        private void Initialize()
-        {
-            m_NameAttributeMap.Clear();
             for (int i = 0; i < m_Attributes.Length; ++i) {
                 m_NameAttributeMap.Add(m_Attributes[i].Name, m_Attributes[i]);
                 m_Attributes[i].Initialize(gameObject);
@@ -430,15 +310,15 @@ namespace Opsive.UltimateCharacterController.Traits
         /// <summary>
         /// Gets the attribute with the specified name.
         /// </summary>
-        /// <param name="attributeName">The name of the attribute.</param>
+        /// <param name="name">The name of the attribute.</param>
         /// <returns>The attribute with the specified name. Will return null if no attributes with the specified name exist.</returns>
-        public Attribute GetAttribute(string attributeName)
+        public Attribute GetAttribute(string name)
         {
-            if (string.IsNullOrEmpty(attributeName)) {
+            if (string.IsNullOrEmpty(name)) {
                 return null;
             }
             Attribute attribute;
-            if (m_NameAttributeMap.TryGetValue(attributeName, out attribute)) {
+            if (m_NameAttributeMap.TryGetValue(name, out attribute)) {
                 return attribute;
             }
             return null;

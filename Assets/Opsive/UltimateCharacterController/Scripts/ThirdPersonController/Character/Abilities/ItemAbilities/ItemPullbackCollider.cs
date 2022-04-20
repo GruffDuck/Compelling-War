@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.StateSystem;
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Abilities.Items
 {
-    using Opsive.Shared.StateSystem;
-    using UnityEngine;
-
     /// <summary>
     /// Allows the ItemPullback collider to be resized/positioned based upon the state.
     /// </summary>

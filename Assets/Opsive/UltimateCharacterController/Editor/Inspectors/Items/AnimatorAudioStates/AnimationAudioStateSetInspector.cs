@@ -4,19 +4,20 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using System;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAudioState
 {
-    using Opsive.Shared.Editor.Inspectors.Utility;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Audio;
-    using Opsive.UltimateCharacterController.Items.AnimatorAudioStates;
-    using Opsive.UltimateCharacterController.StateSystem;
-    using System;
-    using System.Collections.Generic;
-    using UnityEditor;
-    using UnityEditorInternal;
-    using UnityEngine;
-
     /// <summary>
     /// Draws a user friendly inspector for the AnimatorAudioStateSet class.
     /// </summary>
@@ -64,15 +65,15 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAud
                     }
                     var animatorAudioOutputSelector = Activator.CreateInstance(s_SelectorTypeCache[newSelected]) as AnimatorAudioStateSelector;
                     animatorAudioStateSet.AnimatorAudioStateSelectorData = Serialization.Serialize(animatorAudioOutputSelector);
-                    Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                    InspectorUtility.SetDirty(target);
                 }
             }
 
             if (animatorAudioStateSet.AnimatorAudioStateSelector != null) {
                 EditorGUI.indentLevel++;
-                Utility.InspectorUtility.DrawObject(animatorAudioStateSet.AnimatorAudioStateSelector, false, true, target, false, () => {
+                InspectorUtility.DrawObject(animatorAudioStateSet.AnimatorAudioStateSelector, false, true, target, false, () => {
                     animatorAudioStateSet.AnimatorAudioStateSelectorData = Serialization.Serialize(animatorAudioStateSet.AnimatorAudioStateSelector);
-                    Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                    InspectorUtility.SetDirty(target);
                 });
                 EditorGUI.indentLevel--;
             }
@@ -104,8 +105,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAud
 
             var listRect = GUILayoutUtility.GetRect(0, reorderableList.GetHeight());
             // Indent the list so it lines up with the rest of the content.
-            listRect.x += Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * indentLevel;
-            listRect.xMax -= Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * indentLevel;
+            listRect.x += InspectorUtility.IndentWidth * indentLevel;
+            listRect.xMax -= InspectorUtility.IndentWidth * indentLevel;
             EditorGUI.BeginChangeCheck();
             var prevPref = EditorPrefs.GetInt(preferencesKey, 0);
             reorderableList.DoList(listRect);
@@ -134,26 +135,23 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAud
             }
 
             var animatorAudioState = animatorAudioStateSet.States[EditorPrefs.GetInt(preferencesKey, 0)];
-            reorderableAudioList = AudioClipSetInspector.DrawAudioClipSet(animatorAudioState.AudioClipSet, reorderableAudioList, drawAudioElementCallback, addAudioCallback, removeAudioCallback);
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(animatorAudioState, new GUIContent("States"), false)) {
+            reorderableAudioList = AudioClipSetInspector.DrawAudioClipSet(animatorAudioState.AudioClipSet, serializedProperty.FindPropertyRelative("m_AudioClipSet"), reorderableAudioList, drawAudioElementCallback, addAudioCallback, removeAudioCallback);
+            if (InspectorUtility.Foldout(animatorAudioState, new GUIContent("States"), false)) {
                 EditorGUI.indentLevel--;
                 // The MovementType class derives from system.object at the base level and reorderable lists can only operate on Unity objects. To get around this restriction
                 // create a dummy array within a Unity object that corresponds to the number of elements within the ability's state list. When the reorderable list is drawn
                 // the ability object will be used so it's like the dummy object never existed.
                 var gameObject = new GameObject();
-                try {
-                    var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
-                    stateIndexHelper.StateIndexData = new int[animatorAudioState.States.Length];
-                    for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
-                        stateIndexHelper.StateIndexData[i] = i;
-                    }
-                    var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
-                    reorderableStateList = Shared.Editor.Inspectors.StateSystem.StateInspector.DrawStates(reorderableStateList, new SerializedObject(target), 
-                                                                stateIndexSerializedObject.FindProperty("m_StateIndexData"),
-                                                                statePreferencesKey, stateDrawElementCallback, stateAddCallback,
-                                                                stateReorderCallback, stateRemoveCallback);
-                } catch (Exception /*e*/) { }
-                UnityEngine.Object.DestroyImmediate(gameObject);
+                var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
+                stateIndexHelper.StateIndexData = new int[animatorAudioState.States.Length];
+                for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
+                    stateIndexHelper.StateIndexData[i] = i;
+                }
+                var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
+                reorderableStateList = StateInspector.DrawStates(reorderableStateList, new SerializedObject(target), stateIndexSerializedObject.FindProperty("m_StateIndexData"),
+                                                            statePreferencesKey, stateDrawElementCallback, stateAddCallback,
+                                                            stateReorderCallback, stateRemoveCallback);
+                GameObject.DestroyImmediate(gameObject);
                 EditorGUI.indentLevel++;
             }
             GUILayout.Space(5);
@@ -185,7 +183,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAud
                     }
 
                     s_SelectorTypeCache.Add(assemblyTypes[j]);
-                    s_SelectorTypeNameCache.Add(Utility.InspectorUtility.DisplayTypeName(assemblyTypes[j], false));
+                    s_SelectorTypeNameCache.Add(InspectorUtility.DisplayTypeName(assemblyTypes[j], false));
                 }
             }
         }
@@ -227,7 +225,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAud
                 animatorAudioStateSet.States[index].Enabled = EditorGUI.Toggle(activeRect, animatorAudioStateSet.States[index].Enabled);
             }
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
             }
         }
 
@@ -275,6 +273,14 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Items.AnimatorAud
             }
             list.displayRemove = list.count > 1;
             EditorPrefs.SetInt(preferencesKey, list.index - 1);
+        }
+
+        /// <summary>
+        /// Draws the header for the AudioClip list.
+        /// </summary>
+        private static void OnAudioClipListHeaderDraw(Rect rect)
+        {
+            EditorGUI.LabelField(rect, "Audio Clips");
         }
 
         /// <summary>

@@ -4,26 +4,24 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Camera.ViewTypes;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Character.Abilities.Items;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Inventory;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Camera
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Camera.ViewTypes;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Character.Abilities.Items;
-    using Opsive.UltimateCharacterController.Events;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Inventory;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// Base class for the first and third person camera controllers. 
     /// </summary>
-    public class CameraController : StateBehavior, ILookSource, Shared.Camera.ICamera
+    public class CameraController : StateBehavior, ILookSource
     {
         [Tooltip("Should the character be initialized on awake?")]
         [SerializeField] protected bool m_InitCharacterOnAwake = true;
@@ -51,9 +49,8 @@ namespace Opsive.UltimateCharacterController.Camera
         [SerializeField] protected bool m_CanZoom = true;
         [Tooltip("The state that should be activated when zoomed.")]
         [SerializeField] protected string m_ZoomState = "Zoom";
-        [Tooltip("Should the ItemIdentifier name be appened to the name of the state name?")]
-        [UnityEngine.Serialization.FormerlySerializedAs("m_StateAppendItemIdentifierName")] // 2.2.
-        [HideInInspector] [SerializeField] protected bool m_StateAppendItemIdentifierName;
+        [Tooltip("Should the ItemType name be appened to the name of the state name?")]
+        [HideInInspector] [SerializeField] protected bool m_StateAppendItemTypeName;
         [Tooltip("Unity event invoked when an view type has been started or stopped.")]
         [SerializeField] protected UnityViewTypeBoolEvent m_OnChangeViewTypesEvent;
         [Tooltip("Unity event invoked when the camera changes perspectives.")]
@@ -124,7 +121,7 @@ namespace Opsive.UltimateCharacterController.Camera
                     } else {
                         // The first person type should always match the name.
                         int index;
-                        var type = TypeUtility.GetType(m_FirstPersonViewTypeFullName);
+                        var type = UnityEngineUtility.GetType(m_FirstPersonViewTypeFullName);
                         if (type != null && m_ViewTypeNameMap.TryGetValue(type.FullName, out index)) {
                             m_FirstPersonViewType = m_ViewTypes[index];
                         }
@@ -142,7 +139,7 @@ namespace Opsive.UltimateCharacterController.Camera
                     } else {
                         // The third person type should always match the name.
                         int index;
-                        var type = TypeUtility.GetType(m_ThirdPersonViewTypeFullName);
+                        var type = UnityEngineUtility.GetType(m_ThirdPersonViewTypeFullName);
                         if (type != null && m_ViewTypeNameMap.TryGetValue(type.FullName, out index)) {
                             m_ThirdPersonViewType = m_ViewTypes[index];
                         }
@@ -205,7 +202,7 @@ namespace Opsive.UltimateCharacterController.Camera
             if (m_Character != null) {
                 var characterLocomotion = m_Character.GetCachedComponent<UltimateCharacterLocomotion>();
                 if (characterLocomotion == null) {
-                    Debug.LogError($"Error: the character {m_Character} doesn't have the Ultimate Character Locomotion component.");
+                    Debug.LogError("Error: the character " + m_Character + " doesn't have the Ultimate Character Locomotion component.");
                     m_Character = null;
                     return;
                 }
@@ -255,18 +252,10 @@ namespace Opsive.UltimateCharacterController.Camera
                     }
                 }
             }
-            if (TypeUtility.GetType(m_ViewTypeFullName) != null) {
+            if (UnityEngineUtility.GetType(m_ViewTypeFullName) != null) {
                 SetViewType(m_ViewTypeFullName);
             } else {
-                var index = 0;
-                if (dirty) {
-                    for (; index < m_ViewTypes.Length; ++index) {
-                        if (m_ViewTypes[index] != null) {
-                            break;
-                        }
-                    }
-                }
-                SetViewType(m_ViewTypes[index].GetType(), false);
+                SetViewType(m_ViewTypes[0].GetType(), false);
             }
             return dirty;
         }
@@ -277,7 +266,7 @@ namespace Opsive.UltimateCharacterController.Camera
         /// <param name="typeName">The type name of the ViewType which should be set.</param>
         private void SetViewType(string typeName)
         {
-            SetViewType(TypeUtility.GetType(typeName), false);
+            SetViewType(UnityEngineUtility.GetType(typeName), false);
         }
 
         /// <summary>
@@ -296,8 +285,9 @@ namespace Opsive.UltimateCharacterController.Camera
                 DeserializeViewTypes();
             }
 
-            if (!m_ViewTypeNameMap.TryGetValue(type.FullName, out var index)) {
-                Debug.LogError($"Error: Unable to find the view type with name {type.FullName}.");
+            int index;
+            if (!m_ViewTypeNameMap.TryGetValue(type.FullName, out index)) {
+                Debug.LogError("Error: Unable to find the view type with name " + type.FullName);
                 return;
             }
 
@@ -333,10 +323,7 @@ namespace Opsive.UltimateCharacterController.Camera
             if (originalViewType != null && m_Character != null && Application.isPlaying) {
                 m_ViewType.ChangeViewType(true, pitch, yaw, characterRotation);
 
-                EventHandler.ExecuteEvent(m_GameObject, "OnCameraChangeViewTypes", m_ViewType, true);
-                if (m_OnChangeViewTypesEvent != null) {
-                    m_OnChangeViewTypesEvent.Invoke(m_ViewType, true);
-                }
+                EventHandler.ExecuteEvent(m_GameObject, "OnChangeViewType", m_ViewType, true);
                 if (originalViewType.FirstPersonPerspective != m_ViewType.FirstPersonPerspective) {
                     EventHandler.ExecuteEvent<bool>(m_Character, "OnCameraWillChangePerspectives", m_ViewType.FirstPersonPerspective);
                 }
@@ -347,7 +334,7 @@ namespace Opsive.UltimateCharacterController.Camera
                     if (m_Transitioner.StartTransition(originalViewType, m_ViewType)) {
                         return;
                     } else if (m_Transitioner.IsTransitioning) {
-                        m_Transitioner.StopTransition();
+                        m_Transitioner.StopTransition(false);
                     }
                 } else {
                     // If there isn't a transitioner then immediately move to the target position.
@@ -369,16 +356,6 @@ namespace Opsive.UltimateCharacterController.Camera
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Returns an array of serialized view types.
-        /// </summary>
-        /// <returns>An array of serialized abilities.</returns>
-        public ViewType[] GetSerializedViewTypes()
-        {
-            if (m_ViewTypeData != null && m_ViewTypeData.Length > 0 && (m_ViewTypes == null || m_ViewTypes.Length == 0)) { DeserializeViewTypes(); }
-            return m_ViewTypes;
         }
 
         /// <summary>
@@ -425,6 +402,8 @@ namespace Opsive.UltimateCharacterController.Camera
 
             // If the character is not null then the previous character should be notified that there is no longer a camera attached.
             if (m_Character != null) {
+                EventHandler.ExecuteEvent<CameraController>(m_Character, "OnCharacterAttachCamera", null);
+                EventHandler.ExecuteEvent<ILookSource>(m_Character, "OnCharacterAttachLookSource", null);
                 EventHandler.UnregisterEvent<Vector3>(m_Character, "OnCameraPositionalForce", AddPositionalForce);
                 EventHandler.UnregisterEvent<Vector3>(m_Character, "OnCameraRotationalForce", AddRotationalForce);
                 EventHandler.UnregisterEvent<Vector3, Vector3, float>(m_Character, "OnAddSecondaryCameraForce", OnAddSecondaryForce);
@@ -434,8 +413,6 @@ namespace Opsive.UltimateCharacterController.Camera
                 EventHandler.UnregisterEvent<ItemAbility, bool>(m_Character, "OnCharacterItemAbilityActive", OnItemAbilityActive);
                 EventHandler.UnregisterEvent<bool>(m_Character, "OnCameraChangePerspectives", OnChangePerspectives);
                 StateManager.LinkGameObjects(m_Character, m_GameObject, false);
-                EventHandler.ExecuteEvent<CameraController>(m_Character, "OnCharacterAttachCamera", null);
-                EventHandler.ExecuteEvent<ILookSource>(m_Character, "OnCharacterAttachLookSource", null);
             }
 
             // The character should no longer be using the zoom state if the camera is no longer attached.
@@ -444,8 +421,10 @@ namespace Opsive.UltimateCharacterController.Camera
             }
 
             // Set the character values.
-            enabled = (character != null);
-            if (enabled) {
+            if ((enabled = (character != null))) {
+                if (m_Character != character) {
+                    m_Anchor = null;
+                }
                 m_Character = character;
                 m_CharacterTransform = m_Character.transform;
                 m_CharacterLocomotion = character.GetCachedComponent<UltimateCharacterLocomotion>();
@@ -457,6 +436,7 @@ namespace Opsive.UltimateCharacterController.Camera
                 m_CharacterTransform = null;
                 m_CharacterLocomotion = null;
                 m_CharacterInventory = null;
+                m_Anchor = null;
             }
 
             // Notify the view types of the character that is being attached.
@@ -502,19 +482,11 @@ namespace Opsive.UltimateCharacterController.Camera
                 var recommendedMovementTypes = m_ViewType.GetType().GetCustomAttributes(typeof(RecommendedMovementType), true);
                 if (recommendedMovementTypes != null && recommendedMovementTypes.Length > 0) {
                     var movementType = m_CharacterLocomotion.ActiveMovementType;
-                    var isRecommendedMovementType = false;
-                    for (int i = 0; i < recommendedMovementTypes.Length; ++i) {
-                        var recommendedMovementType = recommendedMovementTypes[0] as RecommendedMovementType;
-                        if (recommendedMovementType.Type.IsInstanceOfType(movementType)) {
-                            isRecommendedMovementType = true;
-                            break;
-                        }
+                    var recommendedMovementType = recommendedMovementTypes[0] as RecommendedMovementType;
+                    if (!recommendedMovementType.Type.IsAssignableFrom(movementType.GetType())) {
+                        Debug.LogWarning("Warning: The " + UnityEngineUtility.GetFriendlyName(movementType.GetType()) + " MovementType is active while the ViewType " +
+                                         "recommends using " + UnityEngineUtility.GetFriendlyName(recommendedMovementType.Type) + ".");
                     }
-                    if (!isRecommendedMovementType) {
-                        Debug.LogWarning($"Warning: The {Utility.UnityEngineUtility.GetDisplayName(movementType.GetType())} MovementType is active while the ViewType " +
-                                         $"recommends using {Utility.UnityEngineUtility.GetDisplayName((recommendedMovementTypes[0] as RecommendedMovementType).Type)}.");
-                    }
-
                 }
 #endif
             } else {
@@ -532,8 +504,6 @@ namespace Opsive.UltimateCharacterController.Camera
             Transform anchor = null;
             if (m_AutoAnchor && (anchor = m_Character.GetComponent<Animator>().GetBoneTransform(m_AutoAnchorBone)) != null) {
                 m_Anchor = anchor;
-            } else if (m_Anchor != null && !m_Anchor.IsChildOf(m_Character.transform)) {
-                m_Anchor = null;
             }
 
             if (m_Anchor == null) {
@@ -582,7 +552,8 @@ namespace Opsive.UltimateCharacterController.Camera
             if (m_ViewType.RotatePriority) {
                 m_Transform.position = m_ViewType.Move(false);
             } else {
-                m_Transform.SetPositionAndRotation(m_ViewType.Move(false), m_ViewType.Rotate(horizontalMovement, verticalMovement, false));
+                m_Transform.position = m_ViewType.Move(false);
+                m_Transform.rotation = m_ViewType.Rotate(horizontalMovement, verticalMovement, false);
             }
         }
 
@@ -675,7 +646,7 @@ namespace Opsive.UltimateCharacterController.Camera
                 // The item may not allow zooming.
                 if (m_CharacterInventory != null) {
                     for (int i = 0; i < m_CharacterInventory.SlotCount; ++i) {
-                        var item = m_CharacterInventory.GetActiveItem(i);
+                        var item = m_CharacterInventory.GetItem(i);
                         if (item != null && !item.CanCameraZoom()) {
                             SetZoom(false);
                             return;
@@ -721,11 +692,11 @@ namespace Opsive.UltimateCharacterController.Camera
                 StateManager.SetState(m_GameObject, m_ZoomState, m_Zoom);
                 StateManager.SetState(m_Character, m_ZoomState, m_Zoom);
 
-                if (m_CharacterInventory != null && m_StateAppendItemIdentifierName) {
+                if (m_CharacterInventory != null && m_StateAppendItemTypeName) {
                     for (int i = 0; i < m_CharacterInventory.SlotCount; ++i) {
-                        var item = m_CharacterInventory.GetActiveItem(i);
+                        var item = m_CharacterInventory.GetItem(i);
                         if (item != null && item.IsActive()) {
-                            var itemStateName = m_ZoomState + item.ItemDefinition.name;
+                            var itemStateName = m_ZoomState + item.ItemType.name;
                             StateManager.SetState(m_GameObject, itemStateName, m_Zoom);
                             StateManager.SetState(m_Character, itemStateName, m_Zoom);
                         }
@@ -733,7 +704,7 @@ namespace Opsive.UltimateCharacterController.Camera
                 }
             }
 
-            EventHandler.ExecuteEvent<bool>(m_GameObject, "OnCameraZoom", m_Zoom);
+            EventHandler.ExecuteEvent<bool>(m_Character, "OnCameraZoom", m_Zoom);
             if (m_OnZoomEvent != null) {
                 m_OnZoomEvent.Invoke(m_Zoom);
             }
@@ -753,6 +724,7 @@ namespace Opsive.UltimateCharacterController.Camera
         /// <summary>
         /// Returns the delta rotation caused by the crosshairs.
         /// </summary>
+        /// <param name="localSpace">Should the delta rotation be returned in local space?</param>
         /// <returns>The delta rotation caused by the crosshairs.</returns>
         public Quaternion GetCrosshairsDeltaRotation() { return m_ViewType.GetCrosshairsDeltaRotation(); }
 
@@ -849,14 +821,13 @@ namespace Opsive.UltimateCharacterController.Camera
         /// <summary>
         /// Returns the position of the look source.
         /// </summary>
-        /// <param name="characterLookPosition">Is the character look position being retrieved?</param>
         /// <returns>The position of the look source.</returns>
-        public Vector3 LookPosition(bool characterLookPosition)
+        public Vector3 LookPosition()
         {
             if (m_Transitioner != null && m_Transitioner.IsTransitioning) {
-                return m_Transitioner.LookPosition(characterLookPosition);
+                return m_Transitioner.LookPosition();
             }
-            return m_ViewType.LookPosition(characterLookPosition);
+            return m_ViewType.LookPosition();
         }
 
         /// <summary>
@@ -878,15 +849,14 @@ namespace Opsive.UltimateCharacterController.Camera
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
-        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
+        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        public Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread)
+        public Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil)
         {
             if (m_Transitioner != null && m_Transitioner.IsTransitioning) {
-                return m_Transitioner.LookDirection(lookPosition, characterLookDirection, layerMask, includeRecoil, includeMovementSpread);
+                return m_Transitioner.LookDirection(lookPosition, characterLookDirection, layerMask, useRecoil);
             }
-            return m_ViewType.LookDirection(lookPosition, characterLookDirection, layerMask, includeRecoil, includeMovementSpread);
+            return m_ViewType.LookDirection(lookPosition, characterLookDirection, layerMask, useRecoil);
         }
 
         /// <summary>
@@ -905,7 +875,7 @@ namespace Opsive.UltimateCharacterController.Camera
         {
             // If the camera is being positioned immediately then there is no use for the transitioner.
             if (m_Transitioner != null && m_Transitioner.IsTransitioning) {
-                m_Transitioner.StopTransition();
+                m_Transitioner.StopTransition(false);
             }
 
             if (resetViewTypes) {
@@ -916,10 +886,6 @@ namespace Opsive.UltimateCharacterController.Camera
             }
 
             m_ViewType.UpdateFieldOfView(true);
-
-            if (m_KinematicObjectIndex == -1) {
-                return;
-            }
 
             if (m_ViewType.RotatePriority) {
                 KinematicObjectManager.SetCameraRotation(m_KinematicObjectIndex, m_ViewType.Rotate(0, 0, true));
@@ -949,7 +915,7 @@ namespace Opsive.UltimateCharacterController.Camera
         }
 
         /// <summary>
-        /// The camera has been destroyed. Unregister for any registered events.
+        /// The camera has been destroyed. Unregister for an registered events.
         /// </summary>
         private void OnDestroy()
         {

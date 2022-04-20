@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+
 namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
 {
-    using UnityEngine;
-
     /// <summary>
     /// The MatchingRecoil state will return the same state index as what was retrieved by the use state selector.
     /// </summary>

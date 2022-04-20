@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Motion;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.Motion;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Shows a custom inspector for the AnimatorMotion component.
     /// </summary>
@@ -23,10 +23,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
         /// <summary>
         /// Creates a new AnimatorMotion.
         /// </summary>
-        [MenuItem("Assets/Create/Opsive/Ultimate Character Controller/Animator Motion")]
+        [MenuItem("Assets/Create/Ultimate Character Controller/Animator Motion")]
         public static void CreateStateConfiguration()
         {
-            var path = EditorUtility.SaveFilePanel("Save Animator Motion", Shared.Editor.Inspectors.Utility.InspectorUtility.GetSaveFilePath(), "AnimatorMotion.asset", "asset");
+            var path = EditorUtility.SaveFilePanel("Save Animator Motion", InspectorUtility.GetSaveFilePath(), "AnimatorMotion.asset", "asset");
             if (path.Length != 0 && Application.dataPath.Length < path.Length) {
                 var animatorMotion = ScriptableObject.CreateInstance<AnimatorMotion>();
 
@@ -61,7 +61,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
                 m_Duration = duration;
                 NormalizeTime();
 
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
 
@@ -83,7 +83,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Motion
                 EditorGUI.indentLevel--;
             }
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }

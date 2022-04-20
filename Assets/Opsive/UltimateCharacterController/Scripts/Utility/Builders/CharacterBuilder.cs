@@ -4,25 +4,22 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Character.Identifiers;
+using Opsive.UltimateCharacterController.Character.MovementTypes;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Inventory;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Utility.Builders
 {
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Character.Identifiers;
-    using Opsive.UltimateCharacterController.Character.MovementTypes;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Inventory;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// Allows for the Ultimate Character Controller components to be added/removed at runtime.
     /// </summary>
     public static class CharacterBuilder
     {
         private const string c_MovingStateGUID = "527d884c54f1a4b4a82fed73411305a8";
-        private const string c_MoveTowardsStateGUID = "69afbe578b168cd4f99b2873bfca1a8f";
 
         /// <summary>
         /// Adds the essnetial components to the specified character and sets the MovementType.
@@ -55,8 +52,10 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
                             }
                             renderers[j].sharedMaterials = materials;
                         }
+                    } else {
+                        // The PerspectiveMonitor component is responsible for switching out the material.
+                        firstPersonHiddenObjects[i].AddComponent<ThirdPersonObject>();
                     }
-                    firstPersonHiddenObjects[i].AddComponent<ThirdPersonObject>();
                 }
             }
 
@@ -130,23 +129,16 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
 #if UNITY_EDITOR
                 var characterLocomotion = character.AddComponent<UltimateCharacterLocomotion>();
                 if (!Application.isPlaying) {
-                    // The Moving and Move Towards states should automatically be added.
-                    var movingPresetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(c_MovingStateGUID);
-                    var moveTowardsPresetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(c_MoveTowardsStateGUID);
-                    if (!string.IsNullOrEmpty(movingPresetPath) || !string.IsNullOrEmpty(moveTowardsPresetPath)) {
-                        var movingPreset = UnityEditor.AssetDatabase.LoadAssetAtPath(movingPresetPath, typeof(PersistablePreset)) as PersistablePreset;
-                        var moveTowardsPreset = UnityEditor.AssetDatabase.LoadAssetAtPath(moveTowardsPresetPath, typeof(PersistablePreset)) as PersistablePreset;
-                        if (movingPreset != null || moveTowardsPreset != null) {
+                    // The Moving state should automatically be added.
+                    var presetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(c_MovingStateGUID);
+                    if (!string.IsNullOrEmpty(presetPath)) {
+                        var preset = UnityEditor.AssetDatabase.LoadAssetAtPath(presetPath, typeof(StateSystem.PersistablePreset)) as StateSystem.PersistablePreset;
+                        if (preset != null) {
                             var states = characterLocomotion.States;
-                            System.Array.Resize(ref states, states.Length + (movingPreset != null ? 1 : 0) + (moveTowardsPreset != null ? 1 : 0));
+                            System.Array.Resize(ref states, states.Length + 1);
                             // Default must always be at the end.
                             states[states.Length - 1] = states[0];
-                            if (movingPreset != null) { 
-                                states[states.Length - 2] = new State("Moving", movingPreset, null);
-                            }
-                            if (moveTowardsPreset != null) {
-                                states[states.Length - 2 - (movingPreset != null ? 1 : 0)] = new State("MoveTowards", moveTowardsPreset, null);
-                            }
+                            states[states.Length - 2] = new StateSystem.State("Moving", preset, null);
                             characterLocomotion.States = states;
                         }
                     }
@@ -207,6 +199,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
                 animator = character.AddComponent<Animator>();
             }
             animator.runtimeAnimatorController = animatorController;
+            animator.updateMode = AnimatorUpdateMode.AnimatePhysics;
             if (!aiAgent) {
                 animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             }
@@ -224,12 +217,12 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         {
             var animator = character.GetComponent<Animator>();
             if (animator != null) {
-                Object.DestroyImmediate(animator, true);
+                GameObject.DestroyImmediate(animator, true);
             }
 
             var animatorMonitor = character.GetComponent<AnimatorMonitor>();
             if (animatorMonitor != null) {
-                Object.DestroyImmediate(animatorMonitor, true);
+                GameObject.DestroyImmediate(animatorMonitor, true);
             }
         }
 
@@ -242,7 +235,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         private static void SetRecursiveLayer(GameObject gameObject, int layer, int characterLayer)
         {
             var children = gameObject.transform.childCount;
-            for (int i = 0; i < children; ++i) {
+            for (int i = 0; i < gameObject.transform.childCount; ++i) {
                 var child = gameObject.transform.GetChild(i);
                 // Do not set the layer if the child is already set to the Character layer or contains the item identifier components.
                 if (child.gameObject.layer == characterLayer || child.GetComponent<Items.ItemPlacement>() != null) {
@@ -257,9 +250,8 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
 #endif
 
                 // Set the layer.
-                var childGameObject = child.gameObject;
-                childGameObject.layer = layer;
-                SetRecursiveLayer(childGameObject, layer, characterLayer);
+                child.gameObject.layer = layer;
+                SetRecursiveLayer(child.gameObject, layer, characterLayer);
             }
         }
 
@@ -271,38 +263,38 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         {
             var rigidbody = character.GetComponent<Rigidbody>();
             if (rigidbody != null) {
-                Object.DestroyImmediate(rigidbody, true);
+                GameObject.DestroyImmediate(rigidbody, true);
             }
 
             var collider = character.GetComponent<CharacterColliderBaseIdentifier>();
             if (collider != null) {
-                Object.DestroyImmediate(collider, true);
+                GameObject.DestroyImmediate(collider, true);
             }
 
             var ultimateCharacterLocomotion = character.GetComponent<UltimateCharacterLocomotion>();
             if (ultimateCharacterLocomotion != null) {
-                Object.DestroyImmediate(ultimateCharacterLocomotion, true);
+                GameObject.DestroyImmediate(ultimateCharacterLocomotion, true);
             }
 
             var ultimateCharacterLocomotionHandler = character.GetComponent<UltimateCharacterLocomotionHandler>();
             if (ultimateCharacterLocomotionHandler != null) {
-                Object.DestroyImmediate(ultimateCharacterLocomotionHandler, true);
+                GameObject.DestroyImmediate(ultimateCharacterLocomotionHandler, true);
             }
 
             var localLookSource = character.GetComponent<LocalLookSource>();
             if (localLookSource != null) {
-                Object.DestroyImmediate(localLookSource, true);
+                GameObject.DestroyImmediate(localLookSource, true);
             }
 
             var layerManager = character.GetComponent<CharacterLayerManager>();
             if (layerManager != null) {
-                Object.DestroyImmediate(layerManager, true);
+                GameObject.DestroyImmediate(layerManager, true);
             }
 
 #if THIRD_PERSON_CONTROLLER
             var perspectiveMonitor = character.GetComponent<ThirdPersonController.Character.PerspectiveMonitor>();
             if (perspectiveMonitor != null) {
-                Object.DestroyImmediate(perspectiveMonitor, true);
+                GameObject.DestroyImmediate(perspectiveMonitor, true);
             }
 #endif
         }
@@ -336,7 +328,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
                     var movementTypeObj = System.Activator.CreateInstance(type) as MovementType;
                     movementTypesList.Add(movementTypeObj);
                     ultimateCharacterLocomotion.MovementTypes = movementTypesList.ToArray();
-                    ultimateCharacterLocomotion.MovementTypeData = Shared.Utility.Serialization.Serialize<MovementType>(movementTypesList);
+                    ultimateCharacterLocomotion.MovementTypeData = Serialization.Serialize(movementTypesList);
 
                     // If the character has already been initialized then the movement type should be initialized.
                     if (Application.isPlaying) {
@@ -381,11 +373,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
             if (addStandardAbilities) {
                 // Add the Jump, Fall, Speed Change, and Height Change abilities.
                 var characterLocomotion = character.GetComponent<UltimateCharacterLocomotion>();
-                var jump = AbilityBuilder.AddAbility(characterLocomotion, typeof(Character.Abilities.Jump));
-                if (characterLocomotion.GetComponent<Animator>() == null) {
-                    (jump as Jump).JumpEvent = new AnimationEventTrigger(false, 0);
-                    AbilityBuilder.SerializeAbilities(characterLocomotion);
-                }
+                AbilityBuilder.AddAbility(characterLocomotion, typeof(Character.Abilities.Jump));
                 AbilityBuilder.AddAbility(characterLocomotion, typeof(Character.Abilities.Fall));
                 AbilityBuilder.AddAbility(characterLocomotion, typeof(Character.Abilities.MoveTowards));
                 AbilityBuilder.AddAbility(characterLocomotion, typeof(Character.Abilities.SpeedChange));
@@ -415,7 +403,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
                 var index = abilities != null ? abilities.Length : 0;
                 if (abilities != null) {
                     for (int i = 0; i < abilities.Length; ++i) {
-                        if (abilities[i] is SpeedChange || abilities[i] is MoveTowards) {
+                        if (abilities[i] is Character.Abilities.SpeedChange) {
                             index = i;
                             break;
                         }
@@ -475,12 +463,12 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
 
             var locomotionHandler = character.GetComponent<UltimateCharacterLocomotionHandler>();
             if (locomotionHandler != null) {
-                Object.DestroyImmediate(locomotionHandler, true);
+                GameObject.DestroyImmediate(locomotionHandler, true);
             }
 
             var itemHandler = character.GetComponent<ItemHandler>();
             if (itemHandler != null) {
-                Object.DestroyImmediate(itemHandler, true);
+                GameObject.DestroyImmediate(itemHandler, true);
             }
 
             RemoveUnityInput(character);
@@ -494,7 +482,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         {
             var localLookSource = character.GetComponent<LocalLookSource>();
             if (localLookSource != null) {
-                Object.DestroyImmediate(localLookSource, true);
+                GameObject.DestroyImmediate(localLookSource, true);
             }
 
             if (character.GetComponent<UltimateCharacterLocomotionHandler>() == null) {
@@ -510,7 +498,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
 
             var navMeshAgent = character.GetComponent<UnityEngine.AI.NavMeshAgent>();
             if (navMeshAgent != null) {
-                Object.DestroyImmediate(navMeshAgent, true);
+                GameObject.DestroyImmediate(navMeshAgent, true);
             }
         }
 
@@ -520,8 +508,8 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         /// <param name="character">The character to add the UnityInput component to.</param>
         public static void AddUnityInput(GameObject character)
         {
-            if (character.GetComponent<Shared.Input.UnityInput>() == null) {
-                character.AddComponent<Shared.Input.UnityInput>();
+            if (character.GetComponent<Input.UnityInput>() == null) {
+                character.AddComponent<Input.UnityInput>();
             }
         }
 
@@ -531,9 +519,9 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         /// <param name="character">The character to remove the UnityInput component from.</param>
         public static void RemoveUnityInput(GameObject character)
         {
-            var unityInput = character.GetComponent<Shared.Input.UnityInput>();
+            var unityInput = character.GetComponent<Input.UnityInput>();
             if (unityInput != null) {
-                Object.DestroyImmediate(unityInput, true);
+                GameObject.DestroyImmediate(unityInput, true);
             }
         }
 
@@ -580,8 +568,8 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
             }
 
             // Items use the inventory for being equip/unequip.
-            if (character.GetComponent<Inventory>() == null) {
-                character.AddComponent<Inventory>();
+            if (character.GetComponent<Inventory.Inventory>() == null) {
+                character.AddComponent<Inventory.Inventory>();
             }
 
 #if FIRST_PERSON_CONTROLLER
@@ -614,34 +602,34 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
             }
             var itemHandler = character.GetComponent<ItemHandler>();
             if (itemHandler != null) {
-                Object.DestroyImmediate(itemHandler, true);
+                GameObject.DestroyImmediate(itemHandler, true);
             }
             var itemPlacement = character.GetComponentInChildren<Items.ItemPlacement>();
             if (itemPlacement != null) {
-                Object.DestroyImmediate(itemPlacement.gameObject, true);
+                GameObject.DestroyImmediate(itemPlacement.gameObject, true);
             }
 #if FIRST_PERSON_CONTROLLER
             var firstPersonObjects = character.GetComponentInChildren<FirstPersonController.Character.FirstPersonObjects>();
             if (firstPersonObjects != null) {
-                Object.DestroyImmediate(firstPersonObjects, true);
+                GameObject.DestroyImmediate(firstPersonObjects, true);
             }
 #endif
 
             var itemSlots = character.GetComponentsInChildren<Items.ItemSlot>();
             if (itemSlots != null && itemSlots.Length > 0) {
                 for (int i = itemSlots.Length - 1; i >= 0; --i) {
-                    Object.DestroyImmediate(itemSlots[i].gameObject, true);
+                    GameObject.DestroyImmediate(itemSlots[i].gameObject, true);
                 }
             }
 
-            var inventory = character.GetComponent<Inventory>();
+            var inventory = character.GetComponent<Inventory.Inventory>();
             if (inventory != null) {
-                Object.DestroyImmediate(inventory, true);
+                GameObject.DestroyImmediate(inventory, true);
             }
 
             var itemSetManager = character.GetComponent<ItemSetManager>();
             if (itemSetManager != null) {
-                Object.DestroyImmediate(itemSetManager, true);
+                GameObject.DestroyImmediate(itemSetManager, true);
             }
         }
 
@@ -672,17 +660,17 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         {
             var health = character.GetComponent<Traits.CharacterHealth>();
             if (health != null) {
-                Object.DestroyImmediate(health, true);
+                GameObject.DestroyImmediate(health, true);
             }
 
             var attributeManager = character.GetComponent<Traits.AttributeManager>();
             if (attributeManager != null) {
-                Object.DestroyImmediate(attributeManager, true);
+                GameObject.DestroyImmediate(attributeManager, true);
             }
 
             var respawner = character.GetComponent<Traits.CharacterRespawner>();
             if (respawner != null) {
-                Object.DestroyImmediate(respawner, true);
+                GameObject.DestroyImmediate(respawner, true);
             }
         }
 
@@ -705,7 +693,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         {
             var characterIK = character.GetComponent<CharacterIK>();
             if (characterIK != null) {
-                Object.DestroyImmediate(characterIK, true);
+                GameObject.DestroyImmediate(characterIK, true);
             }
         }
 
@@ -717,14 +705,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         {
             if (character.GetComponent<CharacterFootEffects>() == null) {
                 var footEffects = character.AddComponent<CharacterFootEffects>();
-                footEffects.InitializeHumanoidFeet(true);
-
-                // If the character doesn't have any feet then the foot effects should use the AudioSource on the main character GameObject.
-                if (footEffects.Feet == null || footEffects.Feet.Length == 0) {
-                    var audioSource = character.AddComponent<AudioSource>();
-                    audioSource.spatialBlend = 1;
-                    audioSource.playOnAwake = false;
-                }
+                footEffects.InitializeHumanoidFeet();
             }
         }
 
@@ -736,7 +717,7 @@ namespace Opsive.UltimateCharacterController.Utility.Builders
         {
             var footEffects = character.GetComponent<CharacterFootEffects>();
             if (footEffects != null) {
-                Object.DestroyImmediate(footEffects, true);
+                GameObject.DestroyImmediate(footEffects, true);
             }
         }
     }

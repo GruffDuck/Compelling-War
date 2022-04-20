@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
 {
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Traits;
-    using UnityEngine;
-
     /// <summary>
     /// Heals the object that has the Health component.
     /// </summary>
@@ -29,16 +29,7 @@ namespace Opsive.UltimateCharacterController.Objects.CharacterAssist
         /// <param name="other">The GameObject that entered the trigger.</param>
         public override void TriggerEnter(GameObject other)
         {
-            DoPickup(other);
-        }
-
-        /// <summary>
-        /// Picks up the object.
-        /// </summary>
-        /// <param name="target">The object doing the pickup.</param>
-        public override void DoPickup(GameObject target)
-        {
-            var health = target.GetCachedParentComponent<Health>();
+            var health = other.GetCachedParentComponent<Health>();
             if (health != null && health.IsAlive()) {
                 if (health.Heal(m_HealthAmount) || m_AlwaysPickup) {
                     ObjectPickedUp(health.gameObject);

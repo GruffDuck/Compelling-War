@@ -4,14 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abilities
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Draws a custom inspector for the DetectObjectAbilityBase ability.
     /// </summary>
@@ -50,18 +49,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
                     if ((objectDetectionEnumValue & DetectObjectAbilityBase.ObjectDetectionMode.Spherecast) != 0) {
                         InspectorUtility.DrawField(target, "m_SpherecastRadius");
                     }
-                }
-                if ((objectDetectionEnumValue & DetectObjectAbilityBase.ObjectDetectionMode.Trigger) != 0) {
+                } else {
                     InspectorUtility.DrawField(target, "m_MaxTriggerObjectCount");
                 }
-                
-                if (EditorApplication.isPlaying) {
-                    var detectObjectAbility = (DetectObjectAbilityBase)target;
-                    EditorGUILayout.LabelField("Detected Object", detectObjectAbility.DetectedObject != null ? detectObjectAbility.DetectedObject.name : "(none)");
-                }
+
                 EditorGUI.indentLevel--;
             }
-            InspectorUtility.DrawField(target, "m_MoveWithObject");
 
             base.DrawInspectorDrawerFields(target, parent);
         }

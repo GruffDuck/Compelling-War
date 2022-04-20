@@ -4,15 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Camera;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.StateSystem;
+
 namespace Opsive.UltimateCharacterController.Demo
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Traits;
-    using UnityEngine;
-
     /// <summary>
     /// Allows the character to switch between movement types.
     /// </summary>
@@ -72,9 +73,8 @@ namespace Opsive.UltimateCharacterController.Demo
                     return;
                 }
 
-                // The movement type cannot be switched if ride or drive is active.
-                if (m_CharacterLocomotion.IsAbilityTypeActive<UltimateCharacterController.Character.Abilities.Ride>() ||
-                    m_CharacterLocomotion.IsAbilityTypeActive<UltimateCharacterController.Character.Abilities.Drive>()) {
+                // The movement type cannot be switched if ride is active.
+                if (m_CharacterLocomotion.IsAbilityTypeActive<UltimateCharacterController.Character.Abilities.Ride>()) {
                     return;
                 }
 
@@ -116,11 +116,11 @@ namespace Opsive.UltimateCharacterController.Demo
         /// <summary>
         /// The camera perspective between first and third person has changed.
         /// </summary>
-        /// <param name="firstPersonPerspective">Is the camera in a first person view?</param>
+        /// <param name="inFirstPerson">Is the camera in a first person view?</param>
         private void OnChangePerspectives(bool firstPersonPerspective)
         {
             // Wait a frame before changing states to prevent the movement type from switching the same frame the movement type is currently being switched.
-            SchedulerBase.ScheduleFixed(Time.fixedDeltaTime, UpdateStates, firstPersonPerspective);
+            Scheduler.ScheduleFixed(Time.fixedDeltaTime, UpdateStates, firstPersonPerspective);
         }
 
         /// <summary>

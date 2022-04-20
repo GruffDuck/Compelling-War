@@ -4,16 +4,15 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.StateSystem;
+
 namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
 {
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Character;
-    using UnityEngine;
-
     /// <summary>
     /// The AnimatorAudioState will return a Item Substate Index parameter based on the object's state. 
     /// </summary>
-    [UnityEngine.Scripting.Preserve]
     public abstract class AnimatorAudioStateSelector
     {
         protected Item m_Item;
@@ -37,10 +36,10 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
         }
 
         /// <summary>
-        /// Starts or stops the state selection.
+        /// Starts or stops the state selection. Will activate or deactivate the state with the name specified within the AnimatorAudioState.
         /// </summary>
         /// <param name="start">Is the object starting?</param>
-        public virtual void StartStopStateSelection(bool start) 
+        public virtual void StartStopStateSelection(bool start)
         {
             // Activate or deactivate the state.
             var stateIndex = GetStateIndex();
@@ -48,7 +47,12 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
                 return;
             }
 
-            ChangeStates(start ? -1 : stateIndex, start ? stateIndex : -1);
+            var stateName = m_States[stateIndex].StateName;
+            if (string.IsNullOrEmpty(stateName)) {
+                return;
+            }
+
+            StateManager.SetState(m_Character, stateName, start);
         }
 
         /// <summary>
@@ -65,27 +69,6 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
         /// </summary>
         /// <returns>Was the state changed successfully?</returns>
         public virtual bool NextState() { return true; }
-
-        /// <summary>
-        /// Changes states from the fromIndex to the toIndex.
-        /// </summary>
-        /// <param name="fromIndex">The original state index.</param>
-        /// <param name="toIndex">The new state index.</param>
-        protected void ChangeStates(int fromIndex, int toIndex)
-        {
-            if (fromIndex != -1) {
-                var stateName = m_States[fromIndex].StateName;
-                if (!string.IsNullOrEmpty(stateName)) {
-                    StateManager.SetState(m_Character, stateName, false);
-                }
-            }
-            if (toIndex != -1) {
-                var stateName = m_States[toIndex].StateName;
-                if (!string.IsNullOrEmpty(stateName)) {
-                    StateManager.SetState(m_Character, stateName, true);
-                }
-            }
-        }
 
         /// <summary>
         /// Is the state at the specified index valid?

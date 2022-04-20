@@ -4,18 +4,17 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Objects
 {
-    using Opsive.Shared.Audio;
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using Opsive.UltimateCharacterController.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// A trajectory object follows a kinematic parabolic curve and can be simuated using the SimulateTrajectory method.
     /// </summary>
@@ -25,18 +24,17 @@ namespace Opsive.UltimateCharacterController.Objects
         private const float c_ColliderSpacing = 0.01f;
 
         /// <summary>
-        /// Specifies how the object should behave after hitting another collider.
+        /// Specifies how the object should bounce after hitting another collider.
         /// </summary>
-        public enum CollisionMode
+        public enum BounceMode
         {
-            Collide,        // Collides with the object. Does not bounce.
+            None,           // Do not bounce.
             Reflect,        // Reflect according to the velocity.
-            RandomReflect,  // Reflect in a random direction. This mode will make the object nonkinematic but for visual only objects such as shells this is preferred.
-            Ignore          // Passes through the object. A collision is reported.
+            RandomReflect   // Reflect in a random direction. This mode will make the object nonkinematic but for visual only objects such as shells this is preferred.
         }
 
         [Tooltip("Should the component initialize when enabled?")]
-        [SerializeField] protected bool m_InitializeOnEnable;
+        [SerializeField] protected bool m_InitializeOnEnable = false;
         [Tooltip("The mass of the object.")]
         [SerializeField] protected float m_Mass = 1;
         [Tooltip("Multiplies the starting velocity by the specified value.")]
@@ -67,12 +65,10 @@ namespace Opsive.UltimateCharacterController.Objects
         [SerializeField] protected SurfaceImpact m_SurfaceImpact;
         [Tooltip("When a force is applied the multiplier will modify the magnitude of the force.")]
         [SerializeField] protected float m_ForceMultiplier = 40;
-        [Tooltip("Specifies how the object should behave after hitting another collider.")]
-        [UnityEngine.Serialization.FormerlySerializedAs("m_BounceMode")] // 2.2.
-        [SerializeField] protected CollisionMode m_CollisionMode = CollisionMode.Reflect;
-        [Tooltip("If the object can reflect, specifies the multiplier to apply to the reflect velocity.")]
-        [UnityEngine.Serialization.FormerlySerializedAs("m_BounceMultiplier")]
-        [Range(0, 4)] [SerializeField] protected float m_ReflectMultiplier = 1;
+        [Tooltip("Specifies how the object should bounce after hitting another collider.")]
+        [SerializeField] protected BounceMode m_BounceMode = BounceMode.Reflect;
+        [Tooltip("If the object can bounce, specifies the multiplier to apply to the bounce velocity.")]
+        [Range(0, 4)] [SerializeField] protected float m_BounceMultiplier = 1;
         [Tooltip("The maximum number of objects the projectile can collide with at a time.")]
         [SerializeField] protected int m_MaxCollisionCount = 5;
         [Tooltip("The maximum number of positions any single curve amplitude can contain.")]
@@ -94,8 +90,8 @@ namespace Opsive.UltimateCharacterController.Objects
         public LayerMask ImpactLayers { get { return m_ImpactLayers; } set { m_ImpactLayers = value; } }
         public SurfaceImpact SurfaceImpact { get { return m_SurfaceImpact; } set { m_SurfaceImpact = value; } }
         public float ForceMultiplier { get { return m_ForceMultiplier; } set { m_ForceMultiplier = value; } }
-        public CollisionMode Collision { get { return m_CollisionMode; } set { m_CollisionMode = value; } }
-        public float ReflectMultiplier { get { return m_ReflectMultiplier; } set { m_ReflectMultiplier = value; } }
+        public BounceMode Bounce { get { return m_BounceMode; } set { m_BounceMode = value; } }
+        public float BounceMultiplier { get { return m_BounceMultiplier; } set { m_BounceMultiplier = value; } }
         public AudioClipSet ActiveAudioClipSet { get { return m_ActiveAudioClipSet; } set { m_ActiveAudioClipSet = value; } }
 
         protected GameObject m_GameObject;
@@ -106,8 +102,8 @@ namespace Opsive.UltimateCharacterController.Objects
         protected UltimateCharacterLocomotion m_OriginatorCharacterLocomotion;
         private LineRenderer m_LineRenderer;
 
-        protected RaycastHit m_RaycastHit;
-        protected Collider[] m_ColliderHit;
+        private RaycastHit m_RaycastHit;
+        private Collider[] m_ColliderHit;
         private List<Vector3> m_Positions;
 
         private Vector3 m_Gravity;
@@ -123,7 +119,7 @@ namespace Opsive.UltimateCharacterController.Objects
         private bool m_MovementSettled;
         private bool m_RotationSettled;
         private bool m_InCollision;
-        private bool m_Collided;
+        private bool m_Bounced;
 
         private Transform m_Platform;
         private Vector3 m_PlatformRelativePosition;
@@ -141,10 +137,21 @@ namespace Opsive.UltimateCharacterController.Objects
         protected virtual void Awake()
         {
             // The movement will be controlled by the TrajectoryObject.
-            var trajectoryRigidbody = GetComponent<Rigidbody>();
-            if (trajectoryRigidbody != null) {
-                trajectoryRigidbody.useGravity = false;
-                trajectoryRigidbody.isKinematic = true;
+            var rigidbody = GetComponent<Rigidbody>();
+            if (rigidbody != null) {
+                rigidbody.useGravity = false;
+                rigidbody.isKinematic = true;
+            }
+
+            // The object may want to play audio.
+            var hasActiveAudioClipSet = false;
+            if ((hasActiveAudioClipSet = (m_ActiveAudioClipSet.AudioClips != null && m_ActiveAudioClipSet.AudioClips.Length > 0 && m_ActiveAudioClipSet.AudioClips[0] != null)) || 
+                        m_SurfaceImpact != null) {
+                AudioManager.Register(gameObject);
+                // The looping audio should have a reserved index of 0.
+                if (hasActiveAudioClipSet) {
+                    AudioManager.SetReserveCount(gameObject, 1);
+                }
             }
 
             enabled = m_InitializeOnEnable;
@@ -171,14 +178,7 @@ namespace Opsive.UltimateCharacterController.Objects
         {
             var velocity = CalculateVelocity(startPosition, endPosition);
             Initialize(velocity, Vector3.zero, originator);
-            if (m_Collider != null) {
-                m_Collider.enabled = false;
-            }
 
-            if (m_LineRenderer == null) {
-                Debug.LogError($"Error: A LineRenderer must be added to the Trajectory Object {name}.", this);
-                return;
-            }
             if (m_Positions == null) {
                 m_Positions = new List<Vector3>();
             } else {
@@ -194,7 +194,10 @@ namespace Opsive.UltimateCharacterController.Objects
             m_LineRenderer.SetPositions(m_Positions.ToArray());
 
             m_MovementSettled = m_RotationSettled = false;
-            m_Collided = false;
+            m_Bounced = false;
+            if (m_Collider != null) {
+                m_Collider.enabled = false;
+            }
             enabled = false;
         }
 
@@ -209,14 +212,7 @@ namespace Opsive.UltimateCharacterController.Objects
         public void SimulateTrajectory(GameObject originator, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 torque)
         {
             Initialize(velocity, torque, originator, false);
-            if (m_Collider != null) {
-                m_Collider.enabled = false;
-            }
 
-            if (m_LineRenderer == null) {
-                Debug.LogError($"Error: A LineRenderer must be added to the Trajectory Object {name}.", this);
-                return;
-            }
             if (m_Positions == null) {
                 m_Positions = new List<Vector3>();
             } else {
@@ -231,7 +227,10 @@ namespace Opsive.UltimateCharacterController.Objects
 
             m_MovementSettled = m_RotationSettled = false;
             m_InCollision = false;
-            m_Collided = false;
+            m_Bounced = false;
+            if (m_Collider != null) {
+                m_Collider.enabled = false;
+            }
             enabled = false;
         }
 
@@ -245,7 +244,7 @@ namespace Opsive.UltimateCharacterController.Objects
             }
 
             m_LineRenderer.positionCount = 0;
-            if (m_Originator != null) {
+            if (m_OriginatorCharacterLocomotion != null) {
                 EventHandler.UnregisterEvent<float>(m_Originator, "OnCharacterChangeTimeScale", OnChangeTimeScale);
                 m_Originator = null;
                 m_OriginatorCharacterLocomotion = null;
@@ -305,8 +304,8 @@ namespace Opsive.UltimateCharacterController.Objects
                 }
                 positions.Add(position);
 
-                // The loop can stop when the position has settled.
-                if (m_MovementSettled) {
+                // The loop can stop when both the position and rotation have settled.
+                if (m_MovementSettled && m_RotationSettled) {
                     break;
                 }
             }
@@ -347,52 +346,9 @@ namespace Opsive.UltimateCharacterController.Objects
         {
             InitializeComponentReferences();
 
-            m_Velocity = velocity / (m_Mass * m_StartVelocityMultiplier);
+            m_Velocity = velocity / m_Mass * m_StartVelocityMultiplier;
             m_Torque = torque;
-            SetOriginator(originator, defaultNormalizedGravity);
-            m_Gravity = m_NormalizedGravity * m_GravityMagnitude;
-            m_OriginatorCollisionCheck = m_Originator != null;
-
-            m_Platform = null;
-            m_MovementSettled = m_RotationSettled = false;
-            m_InCollision = false;
-            m_Collided = false;
-            if (m_Collider != null) {
-                m_Collider.enabled = true;
-            }
-            m_ActiveAudioClipSet.PlayAudioClip(m_GameObject, true);
-            enabled = true;
-
-            // Set the layer to prevent the current object from getting in the way of the casts.
-            var previousLayer = m_GameObject.layer;
-            m_GameObject.layer = LayerManager.IgnoreRaycast;
-
-            // The object could start in a collision state.
-            if (originatorCollisionCheck && OverlapCast(m_Transform.position, m_Transform.rotation)) {
-                OnCollision(null);
-                if (m_CollisionMode == CollisionMode.Collide) {
-                    m_MovementSettled = m_RotationSettled = true;
-                } else if (m_CollisionMode != CollisionMode.Ignore) { // Reflect and Random Reflection.
-                    // Update the velocity to the reflection direction. Use the originator's forward direction as the normal because the actual collision point is not determined.
-                    m_Velocity = Vector3.Reflect(m_Velocity, -m_OriginatorTransform.forward) * m_ReflectMultiplier;
-                }
-            }
-
-            m_GameObject.layer = previousLayer;
-        }
-
-        /// <summary>
-        /// Sets the originator of the TrajectoryObject.
-        /// </summary>
-        /// <param name="originator">The originator that should be set.</param>
-        /// <param name="defaultNormalizedGravity">The default gravity direction.</param>
-        protected void SetOriginator(GameObject originator, Vector3 defaultNormalizedGravity)
-        {
-            if (m_Originator == originator) {
-                return;
-            }
-
-            if (originator != null) {
+            if (originator != null && originator != m_Originator) {
                 m_Originator = originator;
                 m_OriginatorTransform = m_Originator.transform;
                 m_OriginatorCharacterLocomotion = m_Originator.GetCachedComponent<UltimateCharacterLocomotion>();
@@ -409,6 +365,35 @@ namespace Opsive.UltimateCharacterController.Objects
                 m_TimeScale = 1;
                 m_OriginatorTransform = null;
             }
+            m_Gravity = m_NormalizedGravity * m_GravityMagnitude;
+            m_OriginatorCollisionCheck = originatorCollisionCheck && m_Originator != null;
+
+            m_Platform = null;
+            m_MovementSettled = m_RotationSettled = false;
+            m_InCollision = false;
+            m_Bounced = false;
+            if (m_Collider != null) {
+                m_Collider.enabled = true;
+            }
+            m_ActiveAudioClipSet.PlayAudioClip(m_GameObject, 0, true);
+            enabled = true;
+
+            // Set the layer to prevent the current object from getting in the way of the casts.
+            var previousLayer = m_GameObject.layer;
+            m_GameObject.layer = LayerManager.IgnoreRaycast;
+
+            // The object could start in a collision state.
+            if (m_OriginatorCollisionCheck && OverlapCast(m_Transform.position, m_Transform.rotation)) {
+                OnCollision(null);
+                if (m_BounceMode == BounceMode.None) {
+                    m_MovementSettled = m_RotationSettled = true;
+                } else {
+                    // Update the velocity to the reflection direction. Use the originator's forward direction as the normal because the actual collision point is not determined.
+                    m_Velocity = Vector3.Reflect(m_Velocity, -m_OriginatorTransform.forward) * m_BounceMultiplier;
+                }
+            }
+
+            m_GameObject.layer = previousLayer;
         }
 
         /// <summary>
@@ -436,8 +421,7 @@ namespace Opsive.UltimateCharacterController.Objects
                 hit = Physics.OverlapCapsuleNonAlloc(startEndCap, endEndCap, capsuleCollider.radius * MathUtility.ColliderRadiusMultiplier(capsuleCollider), m_ColliderHit, m_ImpactLayers, QueryTriggerInteraction.Ignore);
             } else if (m_Collider is BoxCollider) {
                 var boxCollider = m_Collider as BoxCollider;
-                var boxRotation = m_Transform.rotation;
-                hit = Physics.OverlapBoxNonAlloc(MathUtility.TransformPoint(position, boxRotation, boxCollider.center), Vector3.Scale(boxCollider.size, boxCollider.transform.lossyScale) / 2, m_ColliderHit, boxRotation, m_ImpactLayers, QueryTriggerInteraction.Ignore);
+                hit = Physics.OverlapBoxNonAlloc(MathUtility.TransformPoint(position, m_Transform.rotation, boxCollider.center), Vector3.Scale(boxCollider.size, boxCollider.transform.lossyScale) / 2, m_ColliderHit, m_Transform.rotation, m_ImpactLayers, QueryTriggerInteraction.Ignore);
             }
 
             if (hit > 0) {
@@ -515,10 +499,9 @@ namespace Opsive.UltimateCharacterController.Objects
 
                 // Update the rotation.
                 Rotate(position, ref rotation);
-                if (m_Platform != null){
-                    var platformRotation = m_Platform.rotation;
-                    rotation *= (platformRotation * Quaternion.Inverse(m_PrevPlatformRotation));
-                    m_PrevPlatformRotation = platformRotation;
+                if (m_Platform != null) {
+                    rotation *= (m_Platform.rotation * Quaternion.Inverse(m_PrevPlatformRotation));
+                    m_PrevPlatformRotation = m_Platform.rotation;
                 }
                 m_Transform.rotation = rotation;
             }
@@ -560,7 +543,7 @@ namespace Opsive.UltimateCharacterController.Objects
             m_Velocity *= Mathf.Clamp01(1 - m_Damping * deltaTime);
 
             // If the object hits an object then it should either reflect off of that object or stop moving.
-            var targetPosition = position + m_Speed * deltaTime * m_Velocity;
+            var targetPosition = position + m_Velocity * m_Speed * deltaTime;
             var direction = targetPosition - position;
             if (SingleCast(position, rotation, direction)) {
                 if (m_RaycastHit.transform.gameObject.layer == LayerManager.MovingPlatform) {
@@ -576,18 +559,13 @@ namespace Opsive.UltimateCharacterController.Objects
                 // If the object has settled but not disabled a collision will occur every frame. Prevent the effects from playing because of this.
                 if (!m_InCollision) {
                     m_InCollision = true;
+
                     OnCollision(m_RaycastHit);
                 }
 
-                if (m_CollisionMode == CollisionMode.Collide) {
-                    m_Velocity = Vector3.zero;
-                    m_Torque = Vector3.zero;
-                    m_MovementSettled = true;
-                    enabled = false;
-                    return true;
-                } else if (m_CollisionMode != CollisionMode.Ignore) { // Reflect and Random Reflect.
+                if (m_BounceMode != BounceMode.None) {
                     Vector3 velocity;
-                    if (m_CollisionMode == CollisionMode.RandomReflect) {
+                    if (m_BounceMode == BounceMode.RandomReflect) {
                         // Add ramdomness to the bounce.
                         // This mode should not be used over the network unless it doesn't matter if the object is synchronized (such as a shell).
                         velocity = Quaternion.AngleAxis(Random.Range(-70, 70), m_RaycastHit.normal) * m_Velocity;
@@ -598,12 +576,18 @@ namespace Opsive.UltimateCharacterController.Objects
                     // The bounce strenght is dependent on the physic material.
                     var dynamicFrictionValue = m_Collider != null ? Mathf.Clamp01(1 - MathUtility.FrictionValue(m_Collider.material, m_RaycastHit.collider.material, true)) : 0;
                     // Update the velocity to the reflection direction.
-                    m_Velocity = dynamicFrictionValue * m_ReflectMultiplier * Vector3.Reflect(velocity, m_RaycastHit.normal);
+                    m_Velocity = Vector3.Reflect(velocity, m_RaycastHit.normal) * dynamicFrictionValue * m_BounceMultiplier;
                     if (m_Velocity.magnitude < m_StartSidewaysVelocityMagnitude) {
                         m_MovementSettled = true;
                     }
-                    m_Collided = true;
+                    m_Bounced = true;
                     return false;
+                } else {
+                    m_Velocity = Vector3.zero;
+                    m_Torque = Vector3.zero;
+                    m_MovementSettled = true;
+                    enabled = false;
+                    return true;
                 }
             } else {
                 m_Platform = null;
@@ -620,10 +604,10 @@ namespace Opsive.UltimateCharacterController.Objects
         protected virtual void OnCollision(RaycastHit? hit)
         {
             if (hit != null && hit.HasValue) {
-                m_ActiveAudioClipSet.Stop(m_GameObject);
+                m_ActiveAudioClipSet.Stop(m_GameObject, 0);
 
                 // A Rigidbody should be affected by the impact.
-                if (hit.Value.rigidbody != null && m_Collider != null && m_Collider.enabled) {
+                if (hit.Value.rigidbody != null) {
                     hit.Value.rigidbody.AddForceAtPosition(m_Velocity, hit.Value.point);
                 }
 
@@ -641,7 +625,7 @@ namespace Opsive.UltimateCharacterController.Objects
         /// <param name="rotation">The rotation of the cast.</param>
         /// <param name="direction">The direction of the cast.</param>
         /// <returns>The number of hit results.</returns>
-        protected virtual bool SingleCast(Vector3 position, Quaternion rotation, Vector3 direction)
+        private bool SingleCast(Vector3 position, Quaternion rotation, Vector3 direction)
         {
             var hit = false;
             if (m_Collider is SphereCollider) {
@@ -685,7 +669,7 @@ namespace Opsive.UltimateCharacterController.Objects
         private void Rotate(Vector3 position, ref Quaternion rotation)
         {
             // The object should rotate to the desired direction after it has bounced and the rotation has settled.
-            if ((m_CollisionMode == CollisionMode.Collide || m_Collided) && (m_Torque.sqrMagnitude < m_SettleThreshold || m_MovementSettled)) {
+            if ((m_BounceMode == BounceMode.None || m_Bounced) && (m_Torque.sqrMagnitude < m_SettleThreshold || m_MovementSettled)) {
                 if (m_Collider is CapsuleCollider || m_Collider is BoxCollider) {
                     if (!m_RotationSettled) {
                         var up = -m_NormalizedGravity;
@@ -739,23 +723,13 @@ namespace Opsive.UltimateCharacterController.Objects
                 hitCount = Physics.OverlapCapsuleNonAlloc(startEndCap, endEndCap, capsuleCollider.radius * MathUtility.CapsuleColliderHeightMultiplier(capsuleCollider), m_ColliderHit, m_ImpactLayers, QueryTriggerInteraction.Ignore);
             } else if (m_Collider is BoxCollider) {
                 var boxCollider = m_Collider as BoxCollider;
-                var boxRotation = m_Transform.rotation;
-                hitCount = Physics.OverlapBoxNonAlloc(MathUtility.TransformPoint(position, boxRotation, boxCollider.center), Vector3.Scale(boxCollider.size, boxCollider.transform.lossyScale) / 2, m_ColliderHit, boxRotation, m_ImpactLayers, QueryTriggerInteraction.Ignore);
+                hitCount = Physics.OverlapBoxNonAlloc(MathUtility.TransformPoint(position, m_Transform.rotation, boxCollider.center), Vector3.Scale(boxCollider.size, boxCollider.transform.lossyScale) / 2, m_ColliderHit, m_Transform.rotation, m_ImpactLayers, QueryTriggerInteraction.Ignore);
             }
 
             // Apply the rotation if the rotation doesnt intersect any object.
             if (hitCount == 0) {
                 rotation = targetRotation;
             }
-        }
-
-        /// <summary>
-        /// Stops the projectile from moving.
-        /// </summary>
-        protected void Stop()
-        {
-            m_Velocity = m_Torque = Vector3.zero;
-            m_MovementSettled = m_RotationSettled = true;
         }
 
         /// <summary>
@@ -805,7 +779,6 @@ namespace Opsive.UltimateCharacterController.Objects
         {
             if (m_Originator != null) {
                 EventHandler.UnregisterEvent<float>(m_Originator, "OnCharacterChangeTimeScale", OnChangeTimeScale);
-                m_Originator = null;
             }
         }
     }

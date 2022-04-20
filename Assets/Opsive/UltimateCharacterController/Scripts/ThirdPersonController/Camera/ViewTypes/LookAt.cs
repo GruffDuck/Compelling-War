@@ -4,15 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Camera;
+using Opsive.UltimateCharacterController.Camera.ViewTypes;
+using Opsive.UltimateCharacterController.Motion;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTypes
 {
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Camera;
-    using Opsive.UltimateCharacterController.Camera.ViewTypes;
-    using Opsive.UltimateCharacterController.Motion;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Looks at the specified target. If no target is specified the camera will look in the character's direction.
     /// </summary>
@@ -33,7 +32,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         [Tooltip("The speed at which the view type should rotate towards the target rotation.")]
         [Range(0, 1)] [SerializeField] protected float m_RotationalLerpSpeed = 0.9f;
         [Tooltip("The spring used for applying a rotation to the camera.")]
-        [SerializeField] protected Spring m_RotationSpring = new Spring();
+        [SerializeField] protected Spring m_RotationSpring;
 
         public Transform Target { get { return m_Target; } set { m_Target = value; } }
         public Vector3 Offset { get { return m_Offset; } set { m_Offset = value; } }
@@ -81,13 +80,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         {
             base.AttachCharacter(character);
 
-            if (m_Character != null && m_Target == null) {
-                var characterAnimator = m_Character.GetCachedComponent<Animator>();
-                if (characterAnimator != null) {
-                    m_Target = characterAnimator.GetBoneTransform(HumanBodyBones.Head);
-                } else {
-                    m_Target = m_Transform;
-                }
+            if (m_Target == null) {
+                m_Target = m_CharacterTransform;
             }
         }
 
@@ -106,10 +100,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             }
 
             // Add the rotational spring value.
-            var anchorRotation = m_CameraController.Anchor.rotation;
-            var localEulerAngles = MathUtility.InverseTransformQuaternion(anchorRotation, rotation).eulerAngles;
+            var localEulerAngles = MathUtility.InverseTransformQuaternion(m_CameraController.Anchor.rotation, rotation).eulerAngles;
             localEulerAngles += m_RotationSpring.Value;
-            rotation = MathUtility.TransformQuaternion(anchorRotation, Quaternion.Euler(localEulerAngles));
+            rotation = MathUtility.TransformQuaternion(m_CameraController.Anchor.rotation, Quaternion.Euler(localEulerAngles));
 
             return rotation;
         }
@@ -121,18 +114,16 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         /// <returns>The updated position.</returns>
         public override Vector3 Move(bool immediateUpdate)
         {
-            var targetTransformPosition = m_Target.position;
-            var cameraPosition = MathUtility.TransformPoint(targetTransformPosition, m_CharacterTransform.rotation, m_Offset);
+            var cameraPosition = MathUtility.TransformPoint(m_Target.position, m_CharacterTransform.rotation, m_Offset);
             // Move towards the target if the target is too far away.
-            var transformPosition = m_Transform.position;
-            var direction = (targetTransformPosition - transformPosition);
+            var direction = (m_Target.position - m_Transform.position);
             var distance = direction.magnitude;
             Vector3 targetPosition;
             if (distance > m_MaxLookDistance) {
-                targetPosition = Vector3.MoveTowards(transformPosition, cameraPosition, immediateUpdate ? (distance - m_MaxLookDistance * 0.8f) : Time.deltaTime * m_MoveSpeed);
+                targetPosition = Vector3.MoveTowards(m_Transform.position, cameraPosition, immediateUpdate ? (distance - m_MaxLookDistance * 0.8f) : Time.fixedDeltaTime * m_MoveSpeed);
             } else if (distance < m_MinLookDistance) {
-                targetPosition = Vector3.MoveTowards(transformPosition, cameraPosition - (m_Target.position - m_Transform.position) * (m_MaxLookDistance - distance),
-                                                        immediateUpdate ? m_MaxLookDistance - distance : Time.deltaTime * m_MoveSpeed);
+                targetPosition = Vector3.MoveTowards(m_Transform.position, cameraPosition - (m_Target.position - m_Transform.position) * (m_MaxLookDistance - distance),
+                                                        immediateUpdate ? m_MaxLookDistance - distance : Time.fixedDeltaTime * m_MoveSpeed);
             } else {
                 targetPosition = m_Transform.position;
             }
@@ -140,8 +131,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             var collisionLayerEnabled = m_CharacterLocomotion.CollisionLayerEnabled;
             m_CharacterLocomotion.EnableColliderCollisionLayer(false);
             // Fire a sphere to prevent the camera from colliding with other objects.
-            direction = targetPosition - targetTransformPosition;
-            if (Physics.SphereCast(targetTransformPosition, m_CollisionRadius, direction.normalized, out m_RaycastHit, Mathf.Max(direction.magnitude - m_MinLookDistance, 0.01f), m_CharacterLayerManager.IgnoreInvisibleCharacterWaterLayers, QueryTriggerInteraction.Ignore)) {
+            direction = targetPosition - m_Target.position;
+            if (Physics.SphereCast(m_Target.position, m_CollisionRadius, direction.normalized, out m_RaycastHit, Mathf.Max(direction.magnitude - m_MinLookDistance, 0.01f), m_CharacterLayerManager.IgnoreInvisibleCharacterWaterLayers, QueryTriggerInteraction.Ignore)) {
                 // Move the camera in if the character isn't in view.
                 targetPosition = m_RaycastHit.point + m_RaycastHit.normal * m_CollisionRadius;
             }
@@ -166,10 +157,9 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
-        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
+        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread)
+        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil)
         {
             return m_CharacterTransform.forward;
         }

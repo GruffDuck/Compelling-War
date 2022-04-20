@@ -4,19 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using Opsive.UltimateCharacterController.Items.Actions;
+using Opsive.UltimateCharacterController.ThirdPersonController.Items;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Traits;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using System;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonController.Items
 {
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Items.Actions;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Traits;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
-    using Opsive.UltimateCharacterController.ThirdPersonController.Items;
-    using Opsive.UltimateCharacterController.Traits;
-    using System;
-    using UnityEditor;
-    using UnityEditorInternal;
-    using UnityEngine;
-
     /// <summary>
     /// Shows a custom inspector for the ThirdPersonMeleeWeaponProperties.
     /// </summary>
@@ -97,7 +96,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
         /// <summary>
         /// Draws the selected hitbox element.
         /// </summary>
-        /// <param name="index">The hitbox index that should be drawn.</param>
+        /// <param name="list"></param>
         private void DrawSelectedHitbox(int index)
         {
             var hitboxProperty = PropertyFromName("m_Hitboxes").GetArrayElementAtIndex(index);
@@ -110,14 +109,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.ThirdPersonContro
         [DrawGizmo(GizmoType.Selected | GizmoType.Active)]
         static void DrawHitboxGizmo(ThirdPersonMeleeWeaponProperties meleeWeaponProperties, GizmoType gizmoType)
         {
-            if (meleeWeaponProperties.Hitboxes == null) {
-                return;
-            }
-            var hitboxes = new Hitbox[meleeWeaponProperties.Hitboxes.Length];
-            for (int i = 0; i < hitboxes.Length; ++i){
-                hitboxes[i] = meleeWeaponProperties.Hitboxes[i];
-            }
-            HitboxInspector.DrawHitboxGizmo(hitboxes, gizmoType);
+            HitboxInspector.DrawHitboxGizmo(meleeWeaponProperties.Hitboxes, gizmoType);
         }
     }
 }

@@ -4,15 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using Opsive.UltimateCharacterController.Demo;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Demo
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.Demo;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using UnityEditor;
-    using UnityEditorInternal;
-    using UnityEngine;
-
     /// <summary>
     /// Shows a custom inspector for the DemoManager component.
     /// </summary>
@@ -68,7 +67,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Demo
             DrawSelectedDemoZone();
 
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -101,8 +100,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Demo
         protected virtual void DrawFreeRoamFields()
         {
             EditorGUILayout.PropertyField(PropertyFromName("m_FreeRoam"));
-            EditorGUILayout.PropertyField(PropertyFromName("m_FreeRoamPickupItemDefinitions"));
-            EditorGUILayout.PropertyField(PropertyFromName("m_FreeRoamItemDefinitionAmounts"), true);
+            EditorGUILayout.PropertyField(PropertyFromName("m_FreeRoamPickupItemTypes"));
+            EditorGUILayout.PropertyField(PropertyFromName("m_FreeRoamItemTypeCounts"), true);
         }
 
         /// <summary>
@@ -117,11 +116,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Demo
             EditorGUILayout.PropertyField(PropertyFromName("m_Action"));
             EditorGUILayout.PropertyField(PropertyFromName("m_NextZoneArrow"));
             EditorGUILayout.PropertyField(PropertyFromName("m_PreviousZoneArrow"));
-            EditorGUILayout.PropertyField(PropertyFromName("m_QuitButton"));
             EditorGUILayout.PropertyField(PropertyFromName("m_NoZoneTitle"));
             EditorGUILayout.LabelField("No Zone Description");
             PropertyFromName("m_NoZoneDescription").stringValue = InspectorUtility.DrawEditorWithoutSelectAll(() =>
-                            EditorGUILayout.TextArea(PropertyFromName("m_NoZoneDescription").stringValue, Shared.Editor.Inspectors.Utility.InspectorStyles.WordWrapTextArea));
+                            EditorGUILayout.TextArea(PropertyFromName("m_NoZoneDescription").stringValue, InspectorStyles.WordWrapTextArea));
             EditorGUILayout.PropertyField(PropertyFromName("m_AddOnDemoManager"));
         }
 
@@ -141,10 +139,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Demo
             EditorGUILayout.PropertyField(demoZoneProperty.FindPropertyRelative("m_DemoZoneTrigger"));
             EditorGUILayout.PropertyField(demoZoneProperty.FindPropertyRelative("m_EnableObjects"), true);
             EditorGUILayout.PropertyField(demoZoneProperty.FindPropertyRelative("m_ToggleObjects"), true);
-            EditorGUILayout.PropertyField(demoZoneProperty.FindPropertyRelative("m_InverseToggleObjects"), true);
             EditorGUILayout.LabelField("Description");
             demoZoneProperty.FindPropertyRelative("m_Description").stringValue = InspectorUtility.DrawEditorWithoutSelectAll(() => 
-                            EditorGUILayout.TextArea(demoZoneProperty.FindPropertyRelative("m_Description").stringValue, Shared.Editor.Inspectors.Utility.InspectorStyles.WordWrapTextArea));
+                            EditorGUILayout.TextArea(demoZoneProperty.FindPropertyRelative("m_Description").stringValue, InspectorStyles.WordWrapTextArea));
             EditorGUILayout.PropertyField(demoZoneProperty.FindPropertyRelative("m_Action"));
         }
     }

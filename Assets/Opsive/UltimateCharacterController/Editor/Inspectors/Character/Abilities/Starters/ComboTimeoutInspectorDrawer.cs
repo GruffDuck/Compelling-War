@@ -4,14 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Character.Abilities.Starters;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abilities.Starters
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.Shared.Editor.Inspectors.Utility;
-    using Opsive.UltimateCharacterController.Character.Abilities.Starters;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Draws a custom inspector for the ComboTimeout AbilityStarter.
     /// </summary>
@@ -26,9 +25,6 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Character.Abiliti
         public override void OnInspectorGUI(object target, Object parent)
         {
             var comboTimeout = target as ComboTimeout;
-            if (comboTimeout == null) {
-                return;
-            }
 
             EditorGUI.BeginChangeCheck();
             // Draw a custom array inspector for the input names.

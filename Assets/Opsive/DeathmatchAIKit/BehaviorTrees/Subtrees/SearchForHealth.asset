@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b23f08d2ae4cba14087c1ed36193d82b, type: 3}
+  m_Name: SearchForHealth
+  m_EditorClassIdentifier: 
+  mBehaviorSource:
+    behaviorName: Search For Health
+    behaviorDescription: 
+    mTaskData:
+      types: []
+      parentIndex: 
+      startIndex: 
+      variableStartIndex: 
+      JSONSerialization: '{"EntryTask":{"Type":"BehaviorDesigner.Runtime.Tasks.EntryTask","NodeData":{"Offset":"(0,0)"},"ID":0,"Name":"Entry","Instant":true},"RootTask":{"Type":"BehaviorDesigner.Runtime.Tasks.Sequence","NodeData":{"Offset":"(0,100)","Comment":"Search
+        for health if health is low"},"ID":1,"Name":"Sequence","Instant":true,"AbortTypeabortType":"LowerPriority","Children":[{"Type":"Opsive.DeathmatchAIKit.AI.Conditions.IsHealthLow","NodeData":{"Offset":"(-230,110)","Comment":"Is
+        the amount of health low?"},"ID":2,"Name":"Is Health Low","Instant":true,"SharedFloatm_Amount":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":15}},{"Type":"Opsive.DeathmatchAIKit.AI.Actions.Reset","NodeData":{"Offset":"(0,110)","Comment":"A
+        conditional abort may have triggered the branch so reset the variables for
+        a fresh start"},"ID":3,"Name":"Reset","Instant":true,"SharedGameObjectm_Target":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Target","IsShared":true},"SharedGameObjectm_PossibleTarget":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Possible
+        Target","IsShared":true},"SharedGameObjectSetm_IgnoreTargets":{"Type":"Opsive.DeathmatchAIKit.AI.SharedGameObjectSet","Name":"Ignore
+        Targets","IsShared":true,"HashSet`1mValue":{}},"SharedCoverPointm_CoverPoint":{"Type":"Opsive.DeathmatchAIKit.AI.SharedCoverPoint","Name":"Cover","IsShared":true},"SharedGameObjectm_Leader":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectm_BackupRequestor":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectm_BackupTarget":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedBoolm_Search":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Search","IsShared":true,"BooleanmValue":false},"SharedBoolm_CanAttack":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Can
+        Attack","IsShared":true,"BooleanmValue":false},"SharedBoolm_CancelBackupRequest":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":true},"SharedBoolm_StopAimAbility":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":null,"BooleanmValue":true}},{"Type":"Opsive.DeathmatchAIKit.AI.Actions.SearchForHealth","NodeData":{"Offset":"(244.042725,110)","Comment":"The
+        health amount is low - search for more health"},"ID":4,"Name":"Search For
+        Health","Instant":true,"SharedFloatm_StartSpeedChangeProbability":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":null,"SinglemValue":0.9},"SharedFloatspeed":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":10},"SharedFloatangularSpeed":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":120},"SharedFloatarriveDistance":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"Arrive
+        Distance","IsShared":true,"SinglemValue":0},"SharedBoolstopOnTaskEnd":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":false},"SharedBoolupdateRotation":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":true}}]},"Variables":[{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Target","IsShared":true},{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Possible
+        Target","IsShared":true},{"Type":"Opsive.DeathmatchAIKit.AI.SharedGameObjectSet","Name":"Ignore
+        Targets","IsShared":true,"HashSet`1mValue":{}},{"Type":"Opsive.DeathmatchAIKit.AI.SharedCoverPoint","Name":"Cover","IsShared":true},{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Search","IsShared":true,"BooleanmValue":false},{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Can
+        Attack","IsShared":true,"BooleanmValue":false},{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"Arrive
+        Distance","IsShared":true,"SinglemValue":0}]}'
+      fieldSerializationData:
+        typeName: []
+        fieldNameHash: 
+        startIndex: 
+        dataPosition: 
+        unityObjects: []
+        byteData: 
+        byteDataArray: 
+      Version: 1.6.7

@@ -4,16 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Character.Abilities.Items;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Items;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Abilities.Items
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Character.Abilities.Items;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Pulls back the item if the character gets too close to a wall. This will prevent the item from clipping with the wall.
     /// </summary>
@@ -113,7 +113,18 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Abi
         /// <returns>True if the ability should be blocked.</returns>
         public override bool ShouldBlockAbilityStart(Ability startingAbility)
         {
-            return CanStopAbility(startingAbility);
+#if ULTIMATE_CHARACTER_CONTROLLER_SHOOTER
+            // The ability should block the use ability if a shootable weapon is trying to be started. This will prevent the weapon from trying to shoot through a wall.
+            if (startingAbility is Use) {
+                var useAbility = startingAbility as Use;
+                return useAbility.UsesItemActionType(typeof(UltimateCharacterController.Items.Actions.ShootableWeapon));
+            }
+            if (startingAbility is Reload && startingAbility.InputIndex != -1) {
+                return true;
+            }
+#endif
+
+            return false;
         }
 
         /// <summary>
@@ -124,22 +135,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Character.Abi
         /// <returns>True if the ability should be stopped.</returns>
         public override bool ShouldStopActiveAbility(Ability activeAbility)
         {
-            return CanStopAbility(activeAbility);
-        }
-
-        /// <summary>
-        /// Can the Item Pullback ability stop the specified ability?
-        /// </summary>
-        /// <param name="ability">The ability that may be able to be stopped.</param>
-        /// <returns>True if the ability can be stopped.</returns>
-        private bool CanStopAbility(Ability ability)
-        {
 #if ULTIMATE_CHARACTER_CONTROLLER_SHOOTER
-            if (ability is Use) {
-                var useAbility = ability as Use;
-                return useAbility.UsesItemActionType(typeof(UltimateCharacterController.Items.Actions.ShootableWeapon));
-            }
-            if (ability is Reload) {
+            if (activeAbility is Reload) {
                 return true;
             }
 #endif

@@ -4,11 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+
 namespace Opsive.UltimateCharacterController.Character
 {
-    using Opsive.Shared.Events;
-    using UnityEngine;
-
     /// <summary>
     /// Acts as a LookSource for any character that does not have a camera (or network) attached.
     /// </summary>
@@ -99,10 +99,9 @@ namespace Opsive.UltimateCharacterController.Character
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
-        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
+        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        public Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread)
+        public Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil)
         {
             if (m_Target != null) {
                 return (m_Target.position - lookPosition).normalized;
@@ -113,9 +112,8 @@ namespace Opsive.UltimateCharacterController.Character
         /// <summary>
         /// Returns the position of the look source.
         /// </summary>
-        /// <param name="characterLookPosition">Is the character look position being retrieved?</param>
         /// <returns>The position of the look source.</returns>
-        public Vector3 LookPosition(bool characterLookPosition)
+        public Vector3 LookPosition()
         {
             return m_LookTransform.position;
         }

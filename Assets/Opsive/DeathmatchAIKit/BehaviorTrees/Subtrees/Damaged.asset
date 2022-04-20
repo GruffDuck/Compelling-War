@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b23f08d2ae4cba14087c1ed36193d82b, type: 3}
+  m_Name: Damaged
+  m_EditorClassIdentifier: 
+  mBehaviorSource:
+    behaviorName: Damaged
+    behaviorDescription: 
+    mTaskData:
+      types: []
+      parentIndex: 
+      startIndex: 
+      variableStartIndex: 
+      JSONSerialization: '{"EntryTask":{"Type":"BehaviorDesigner.Runtime.Tasks.EntryTask","NodeData":{"Offset":"(0,0)"},"ID":0,"Name":"Entry","Instant":true},"RootTask":{"Type":"BehaviorDesigner.Runtime.Tasks.Sequence","NodeData":{"Offset":"(0,100)"},"ID":1,"Name":"Sequence","Instant":true,"AbortTypeabortType":"LowerPriority","Children":[{"Type":"BehaviorDesigner.Runtime.Tasks.UltimateCharacterController.HasTakenDamage","NodeData":{"Offset":"(-232.660034,113.5596)"},"ID":2,"Name":"Has
+        Taken Damage","Instant":true,"SharedGameObjectm_TargetGameObject":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":null},"SharedGameObjectm_Attacker":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Possible
+        Target","IsShared":true}},{"Type":"Opsive.DeathmatchAIKit.AI.Actions.Reset","NodeData":{"Offset":"(-20,110)","Comment":"A
+        conditional abort may have triggered the branch so reset the variables for
+        a fresh start"},"ID":3,"Name":"Reset","Instant":true,"SharedGameObjectm_Target":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectm_PossibleTarget":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectSetm_IgnoreTargets":{"Type":"Opsive.DeathmatchAIKit.AI.SharedGameObjectSet","Name":"","HashSet`1mValue":{}},"SharedCoverPointm_CoverPoint":{"Type":"Opsive.DeathmatchAIKit.AI.SharedCoverPoint","Name":"Cover","IsShared":true},"SharedGameObjectm_Leader":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectm_BackupRequestor":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectm_BackupTarget":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedBoolm_Search":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Search","IsShared":true,"BooleanmValue":false},"SharedBoolm_CanAttack":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Can
+        Attack","IsShared":true,"BooleanmValue":false},"SharedBoolm_CancelBackupRequest":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":true},"SharedBoolm_StopAimAbility":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":null,"BooleanmValue":false}},{"Type":"BehaviorDesigner.Runtime.Tasks.Selector","NodeData":{"Offset":"(160,110)"},"ID":4,"Name":"Selector","Instant":true,"AbortTypeabortType":"None","Children":[{"Type":"BehaviorDesigner.Runtime.Tasks.Sequence","NodeData":{"Offset":"(-360,160)","Comment":"Flee
+        in the oppsite direction if the agent''s health is low and the attacker is
+        far away"},"ID":5,"Name":"Sequence","Instant":true,"AbortTypeabortType":"None","Children":[{"Type":"Opsive.DeathmatchAIKit.AI.Conditions.ShouldFlee","NodeData":{"Offset":"(-230,110)","Comment":"Should
+        the agent flee from the attacker?"},"ID":6,"Name":"Should Flee","Instant":true,"SharedGameObjectm_Attacker":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Possible
+        Target","IsShared":true},"SharedFloatm_HealthAmount":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":null,"SinglemValue":20},"SharedFloatm_MinDistance":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":10}},{"Type":"BehaviorDesigner.Runtime.Tasks.RandomProbability","NodeData":{"Offset":"(0,110)","Comment":"There''s
+        a random chance that the agent doesn''t flee when they should"},"ID":7,"Name":"Random
+        Probability","Instant":true,"SharedFloatsuccessProbability":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":0.5},"SharedIntseed":{"Type":"BehaviorDesigner.Runtime.SharedInt","Name":"","Int32mValue":0},"SharedBooluseSeed":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":false}},{"Type":"Opsive.DeathmatchAIKit.AI.Actions.Flee","NodeData":{"Offset":"(200,110)","Comment":"Flee
+        from the attacker"},"ID":8,"Name":"Flee","Instant":true,"SharedGameObjectm_Attacker":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Possible
+        Target","IsShared":true},"SharedFloatm_FleeDistance":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":20},"SharedFloatm_StartSpeedChangeProbability":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":null,"SinglemValue":0.9},"SharedFloatspeed":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":10},"SharedFloatangularSpeed":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"","SinglemValue":120},"SharedFloatarriveDistance":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"Arrive
+        Distance","IsShared":true,"SinglemValue":0},"SharedBoolstopOnTaskEnd":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":true},"SharedBoolupdateRotation":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":true}}]},{"Type":"BehaviorDesigner.Runtime.Tasks.Sequence","NodeData":{"Offset":"(455.3659,160)","Comment":"There''s
+        a chance that the agent may want to start attacking the attacker rather than
+        the current target"},"ID":9,"Name":"Sequence","Instant":true,"AbortTypeabortType":"None","Children":[{"Type":"Opsive.DeathmatchAIKit.AI.Actions.CheckForTargetSwitch","NodeData":{"Offset":"(-369.756165,110)","Comment":"Should
+        the agent switch targets?"},"ID":10,"Name":"Check For Target Switch","Instant":true,"SharedGameObjectSetm_IgnoreTargets":{"Type":"Opsive.DeathmatchAIKit.AI.SharedGameObjectSet","Name":"Ignore
+        Targets","IsShared":true,"HashSet`1mValue":{}},"SharedFloatm_SwitchHealth":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":null,"SinglemValue":70},"SharedFloatm_ForceSwitchProbability":{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":null,"SinglemValue":1},"SharedGameObjectm_Target":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Target","IsShared":true},"SharedGameObjectm_PossibleTarget":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Possible
+        Target","IsShared":true}},{"Type":"BehaviorDesigner.Runtime.Tasks.ReturnSuccess","NodeData":{"Offset":"(-179.756058,110)"},"ID":11,"Name":"Return
+        Success","Instant":true,"Children":[{"Type":"BehaviorDesigner.Runtime.Tasks.Sequence","NodeData":{"Offset":"(0,120)","Comment":"Prevent
+        the agent from quickly flipping between targets by adding the current target
+        to the ignore list"},"ID":12,"Name":"Sequence","Instant":true,"AbortTypeabortType":"None","Children":[{"Type":"BehaviorDesigner.Runtime.Tasks.Inverter","NodeData":{"Offset":"(-100,105.609756)"},"ID":13,"Name":"Inverter","Instant":true,"Children":[{"Type":"BehaviorDesigner.Runtime.Tasks.Unity.SharedVariables.CompareSharedGameObject","NodeData":{"Offset":"(0,95.60976)","Comment":"Don''t
+        add a null target"},"ID":14,"Name":"Compare Shared Game Object","Instant":true,"SharedGameObjectvariable":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Target","IsShared":true},"SharedGameObjectcompareTo":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""}}]},{"Type":"Opsive.DeathmatchAIKit.AI.Actions.AddTargetToGameObjectSet","NodeData":{"Offset":"(126.585358,105.609756)","Comment":"Add
+        the target to the ignore targets list"},"ID":15,"Name":"Add Target To Game
+        Object Set","Instant":true,"SharedGameObjecttarget":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Target","IsShared":true},"SharedGameObjectSettargetVariable":{"Type":"Opsive.DeathmatchAIKit.AI.SharedGameObjectSet","Name":"Ignore
+        Targets","IsShared":true,"HashSet`1mValue":{}}}]}]},{"Type":"BehaviorDesigner.Runtime.Tasks.Unity.UnityTransform.GetPosition","NodeData":{"Offset":"(10.2439079,110)","Comment":"Get
+        the position of the attacking target"},"ID":16,"Name":"Get Position","Instant":true,"SharedGameObjecttargetGameObject":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Possible
+        Target","IsShared":true},"SharedVector3storeValue":{"Type":"BehaviorDesigner.Runtime.SharedVector3","Name":"Last
+        Target Position","IsShared":true,"Vector3mValue":"(0,0,0)"}},{"Type":"BehaviorDesigner.Runtime.Tasks.Unity.Math.SetBool","NodeData":{"Offset":"(250.243851,110)","Comment":"Start
+        searching for the attacking target"},"ID":17,"Name":"Set Bool","Instant":true,"SharedBoolboolValue":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":true},"SharedBoolstoreResult":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Search","IsShared":true,"BooleanmValue":false}},{"Type":"Opsive.DeathmatchAIKit.AI.Actions.Reset","NodeData":{"Offset":"(440.243835,110)","Comment":"Reset
+        the target"},"ID":18,"Name":"Reset","Instant":true,"SharedGameObjectm_Target":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Target","IsShared":true},"SharedGameObjectm_PossibleTarget":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectSetm_IgnoreTargets":{"Type":"Opsive.DeathmatchAIKit.AI.SharedGameObjectSet","Name":"","HashSet`1mValue":{}},"SharedCoverPointm_CoverPoint":{"Type":"Opsive.DeathmatchAIKit.AI.SharedCoverPoint","Name":""},"SharedGameObjectm_Leader":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectm_BackupRequestor":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedGameObjectm_BackupTarget":{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":""},"SharedBoolm_Search":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":false},"SharedBoolm_CanAttack":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":false},"SharedBoolm_CancelBackupRequest":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"","BooleanmValue":false},"SharedBoolm_StopAimAbility":{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":null,"BooleanmValue":true}}]}]}]},"Variables":[{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Possible
+        Target","IsShared":true},{"Type":"BehaviorDesigner.Runtime.SharedGameObject","Name":"Target","IsShared":true},{"Type":"Opsive.DeathmatchAIKit.AI.SharedGameObjectSet","Name":"Ignore
+        Targets","IsShared":true,"HashSet`1mValue":{}},{"Type":"BehaviorDesigner.Runtime.SharedVector3","Name":"Last
+        Target Position","IsShared":true,"Vector3mValue":"(0,0,0)"},{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Search","IsShared":true,"BooleanmValue":false},{"Type":"Opsive.DeathmatchAIKit.AI.SharedCoverPoint","Name":"Cover","IsShared":true},{"Type":"BehaviorDesigner.Runtime.SharedBool","Name":"Can
+        Attack","IsShared":true,"BooleanmValue":false},{"Type":"BehaviorDesigner.Runtime.SharedFloat","Name":"Arrive
+        Distance","IsShared":true,"SinglemValue":0}]}'
+      fieldSerializationData:
+        typeName: []
+        fieldNameHash: 
+        startIndex: 
+        dataPosition: 
+        unityObjects: []
+        byteData: 
+        byteDataArray: 
+      Version: 1.6.7

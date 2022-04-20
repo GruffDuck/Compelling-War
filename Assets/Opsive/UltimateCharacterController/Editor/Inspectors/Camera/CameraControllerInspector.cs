@@ -4,20 +4,21 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using Opsive.UltimateCharacterController.Camera;
+using Opsive.UltimateCharacterController.Camera.ViewTypes;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Utility.Builders;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Editor.Inspectors.StateSystem;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+using System;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
 {
-    using Opsive.Shared.Editor.Inspectors.StateSystem;
-    using Opsive.UltimateCharacterController.Camera;
-    using Opsive.UltimateCharacterController.Camera.ViewTypes;
-    using Opsive.UltimateCharacterController.Utility.Builders;
-    using Opsive.UltimateCharacterController.StateSystem;
-    using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
-    using System;
-    using System.Collections.Generic;
-    using UnityEngine;
-    using UnityEditor;
-    using UnityEditorInternal;
-
     /// <summary>
     /// Shows a custom inspector for the CameraController.
     /// </summary>
@@ -110,7 +111,6 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
                 }
 
                 if (Foldout("View Types")) {
-                    EditorGUILayout.BeginVertical("Box");
                     EditorGUI.indentLevel++;
                     // Only show the first/third person view type popup if that view type is available.
                     if (!string.IsNullOrEmpty(m_CameraController.FirstPersonViewTypeFullName) && !string.IsNullOrEmpty(m_CameraController.ThirdPersonViewTypeFullName)) {
@@ -147,11 +147,10 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
                         }
                         EditorGUILayout.PropertyField(PropertyFromName("m_CanChangePerspectives"));
                     }
+                    EditorGUI.indentLevel--;
                     ReorderableListSerializationHelper.DrawReorderableList(ref m_ReorderableViewTypeList, this, m_CameraController.ViewTypes, "m_ViewTypeData", 
                                                                     OnViewTypeListDrawHeader, OnViewTypeListDraw, OnViewTypeListReorder, OnViewTypeListAdd, 
-                                                                    OnViewTypeListRemove, OnViewTypeListSelect, DrawSelectedViewType, SelectedViewTypeIndexKey, true, true, false);
-                    EditorGUI.indentLevel--;
-                    EditorGUILayout.EndVertical();
+                                                                    OnViewTypeListRemove, OnViewTypeListSelect, DrawSelectedViewType, SelectedViewTypeIndexKey, true, true);
                 }
                 if (Foldout("Zoom")) {
                     EditorGUI.indentLevel++;
@@ -160,9 +159,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
                     EditorGUILayout.PropertyField(PropertyFromName("m_ZoomState"));
                     GUILayout.Space(-5);
                     GUI.enabled = !string.IsNullOrEmpty(PropertyFromName("m_ZoomState").stringValue);
-                    var appendItemIdentifierNameProperty = PropertyFromName("m_StateAppendItemIdentifierName");
-                    appendItemIdentifierNameProperty.boolValue = EditorGUILayout.ToggleLeft(new GUIContent("Append Item", "Should the ItemIdentifier name be appened to the state name?"),
-                                                            appendItemIdentifierNameProperty.boolValue, GUILayout.Width(110));
+                    var appendItemTypeNameProperty = PropertyFromName("m_StateAppendItemTypeName");
+                    appendItemTypeNameProperty.boolValue = EditorGUILayout.ToggleLeft(new GUIContent("Append Item", "Should the ItemType name be appened to the state name?"),
+                                                            appendItemTypeNameProperty.boolValue, GUILayout.Width(110));
                     GUI.enabled = true;
                     EditorGUILayout.EndHorizontal();
 
@@ -170,9 +169,9 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
                 }
                 if (Foldout("Events")) {
                     EditorGUI.indentLevel++;
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnChangeViewTypesEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnChangePerspectivesEvent"));
-                    Shared.Editor.Inspectors.Utility.InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnZoomEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnChangeViewTypesEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnChangePerspectivesEvent"));
+                    InspectorUtility.UnityEventPropertyField(PropertyFromName("m_OnZoomEvent"));
                     EditorGUI.indentLevel--;
                 }
             };
@@ -245,10 +244,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
         /// </summary>
         private void OnViewTypeListReorder(ReorderableList list)
         {
-#if !UNITY_2021_2_OR_NEWER
             // Deserialize the view types so the ViewType array will be correct. The list operates on the ViewTypeData array.
             m_CameraController.DeserializeViewTypes(true);
-#endif
 
             // Update the selected index.
             EditorPrefs.SetInt(SelectedViewTypeIndexKey, list.index);
@@ -278,7 +275,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             m_ReorderableViewTypeStateList = null;
 
             // Allow the view type to perform any initialization.
-            var inspectorDrawer = Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.InspectorDrawerForType(viewType.GetType()) as ViewTypeInspectorDrawer;
+            var inspectorDrawer = InspectorDrawerUtility.InspectorDrawerForType(viewType.GetType()) as ViewTypeInspectorDrawer;
             if (inspectorDrawer != null) {
                 inspectorDrawer.ViewTypeAdded(viewType, target);
             }
@@ -295,11 +292,11 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             var viewTypeFullName = viewTypes[list.index].GetType().FullName;
 
             // Remove the element.
-            Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+            InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
 
             // Allow the ability to perform any destruction.
             var viewType = viewTypes[list.index];
-            var inspectorDrawer = Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.InspectorDrawerForType(viewType.GetType()) as ViewTypeInspectorDrawer;
+            var inspectorDrawer = InspectorDrawerUtility.InspectorDrawerForType(viewType.GetType()) as ViewTypeInspectorDrawer;
             if (inspectorDrawer != null) {
                 inspectorDrawer.ViewTypeRemoved(viewType, target);
             }
@@ -351,23 +348,21 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             var viewType = m_CameraController.ViewTypes[index];
             InspectorUtility.DrawObject(viewType, true, true, target, true, SerializeViewTypes);
 
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(viewType, new GUIContent("States"), false)) {
+            if (InspectorUtility.Foldout(viewType, new GUIContent("States"), false)) {
                 // The View Type class derives from system.object at the base level and reorderable lists can only operate on Unity objects. To get around this restriction
                 // create a dummy array within a Unity object that corresponds to the number of elements within the view type's state list. When the reorderable list is drawn
                 // the view type object will be used so it's like the dummy object never existed.
-                var selectedViewType = viewType;
+                var selectedViewType = viewType as ViewType;
                 var gameObject = new GameObject();
-                try {
-                    var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
-                    stateIndexHelper.StateIndexData = new int[selectedViewType.States.Length];
-                    for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
-                        stateIndexHelper.StateIndexData[i] = i;
-                    }
-                    var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
-                    m_ReorderableViewTypeStateList = StateInspector.DrawStates(m_ReorderableViewTypeStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"), 
-                                                                GetSelectedViewTypeStateIndexKey(selectedViewType), OnViewTypeStateListDraw, OnViewTypeStateListAdd, OnViewTypeStateListReorder, 
-                                                                OnViewTypeStateListRemove);
-                } catch (Exception /*e*/) { }
+                var stateIndexHelper = gameObject.AddComponent<StateInspectorHelper>();
+                stateIndexHelper.StateIndexData = new int[selectedViewType.States.Length];
+                for (int i = 0; i < stateIndexHelper.StateIndexData.Length; ++i) {
+                    stateIndexHelper.StateIndexData[i] = i;
+                }
+                var stateIndexSerializedObject = new SerializedObject(stateIndexHelper);
+                m_ReorderableViewTypeStateList = StateInspector.DrawStates(m_ReorderableViewTypeStateList, serializedObject, stateIndexSerializedObject.FindProperty("m_StateIndexData"), 
+                                                            GetSelectedViewTypeStateIndexKey(selectedViewType), OnViewTypeStateListDraw, OnViewTypeStateListAdd, OnViewTypeStateListReorder, 
+                                                            OnViewTypeStateListRemove);
                 DestroyImmediate(gameObject);
             }
         }
@@ -389,12 +384,6 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
                 return;
             }
 
-            if (m_CameraController.ViewTypes == null || m_CameraController.ViewTypes.Length <= EditorPrefs.GetInt(SelectedViewTypeIndexKey)) {
-                m_ReorderableViewTypeList.index = -1;
-                EditorPrefs.SetInt(SelectedViewTypeIndexKey, -1);
-                return;
-            }
-
             var viewType = m_CameraController.ViewTypes[EditorPrefs.GetInt(SelectedViewTypeIndexKey)];
 
             // The index may be out of range if the component was copied.
@@ -407,7 +396,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             EditorGUI.BeginChangeCheck();
             StateInspector.OnStateListDraw(viewType, viewType.States, rect, index);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 SerializeViewTypes();
 
                 StateInspector.UpdateDefaultStateValues(viewType.States);
@@ -431,7 +420,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             var states = StateInspector.AddExistingPreset(viewType.GetType(), viewType.States, m_ReorderableViewTypeStateList, GetSelectedViewTypeStateIndexKey(viewType));
             if (viewType.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableViewTypeStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 viewType.States = states;
                 SerializeViewTypes();
             }
@@ -446,7 +435,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             var states = StateInspector.CreatePreset(viewType, viewType.States, m_ReorderableViewTypeStateList, GetSelectedViewTypeStateIndexKey(viewType));
             if (viewType.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableViewTypeStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 viewType.States = states;
                 SerializeViewTypes();
             }
@@ -460,7 +449,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             var viewType = m_CameraController.ViewTypes[EditorPrefs.GetInt(SelectedViewTypeIndexKey)];
 
             // Use the dummy array in order to determine what element the selected index was swapped with.
-            var copiedStates = new Shared.StateSystem.State[viewType.States.Length];
+            var copiedStates = new UltimateCharacterController.StateSystem.State[viewType.States.Length];
             Array.Copy(viewType.States, copiedStates, viewType.States.Length);
             for (int i = 0; i < viewType.States.Length; ++i) {
                 var element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -473,7 +462,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             var states = StateInspector.OnStateListReorder(viewType.States);
             if (viewType.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableViewTypeStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 viewType.States = states;
                 SerializeViewTypes();
             }
@@ -488,7 +477,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
             var states = StateInspector.OnStateListRemove(viewType.States, GetSelectedViewTypeStateIndexKey(viewType), list);
             if (viewType.States.Length != states.Length) {
                 InspectorUtility.SynchronizePropertyCount(states, m_ReorderableViewTypeStateList.serializedProperty);
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 viewType.States = states;
                 SerializeViewTypes();
             }
@@ -503,7 +492,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
 
             // Update the default first and third person view types based off of the new view type list.
             UpdateDefaultViewTypes();
-            Shared.Editor.Utility.EditorUtility.SetDirty(target);
+            InspectorUtility.SetDirty(target);
         }
 
         /// <summary>
@@ -512,13 +501,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Camera
         private void UpdateDefaultViewTypes()
         {
             // The view type may not exist anymore.
-            if (Shared.Utility.TypeUtility.GetType(m_CameraController.FirstPersonViewTypeFullName) == null) {
+            if (UnityEngineUtility.GetType(m_CameraController.FirstPersonViewTypeFullName) == null) {
                 m_CameraController.FirstPersonViewTypeFullName = string.Empty;
-                Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                InspectorUtility.SetDirty(target);
             }
-            if (Shared.Utility.TypeUtility.GetType(m_CameraController.ThirdPersonViewTypeFullName) == null) {
+            if (UnityEngineUtility.GetType(m_CameraController.ThirdPersonViewTypeFullName) == null) {
                 m_CameraController.ThirdPersonViewTypeFullName = string.Empty;
-                Shared.Editor.Utility.EditorUtility.SetDirty(target);
+                InspectorUtility.SetDirty(target);
             }
 
             var hasSelectedViewType = false;

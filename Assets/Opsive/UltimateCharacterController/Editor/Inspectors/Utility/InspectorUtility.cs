@@ -4,37 +4,72 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEngine.SceneManagement;
+using UnityEditor.SceneManagement;
+using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Reflection;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Motion;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
 {
-    using Shared.Editor.Inspectors.Utility;
-    using Opsive.UltimateCharacterController.Traits;
-    using Opsive.UltimateCharacterController.Motion;
-    using System;
-    using System.Collections.Generic;
-    using System.Reflection;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Utility class for the Ultimate Character Controller inspectors.
     /// </summary>
     public static class InspectorUtility
     {
+        private const int c_IndentWidth = 15;
+        public static int IndentWidth { get { return c_IndentWidth; } }
+        private const string c_EditorPrefsFoldoutKey = "Opsive.UltimateCharacterController.Editor.Foldout.";
+
+        private static Dictionary<string, string> s_CamelCaseSplit = new Dictionary<string, string>();
+        private static Regex s_CamelCaseRegex = new Regex(@"(?<=[A-Z])(?=[A-Z][a-z])|(?<=[^A-Z])(?=[A-Z])|(?<=[A-Za-z])(?=[^A-Za-z])", RegexOptions.IgnorePatternWhitespace);
+
         private static Dictionary<string, FieldInfo> s_FieldNameMap = new Dictionary<string, FieldInfo>();
+        private static Dictionary<object, bool> s_FoldoutValueMap = new Dictionary<object, bool>();
 
         public static Dictionary<Type, string[]> s_TypeNameMap = new Dictionary<Type, string[]>();
         public static Dictionary<Type, int[]> s_TypeIndexMap = new Dictionary<Type, int[]>();
         public static Dictionary<Type, Type[]> s_TypeTypeMap = new Dictionary<Type, Type[]>();
 
         /// <summary>
+        /// Places a space before each capital letter in a word.
+        /// </summary>
+        public static string SplitCamelCase(string s)
+        {
+            if (s.Equals(""))
+                return s;
+            if (s_CamelCaseSplit.ContainsKey(s)) {
+                return s_CamelCaseSplit[s];
+            }
+
+            var origString = s;
+            // Remove the "m_" and '_' prefix.
+            if (s.Length > 2 && s.Substring(0, 2).CompareTo("m_") == 0) {
+                s = s.Substring(2);
+            } else if (s.Length > 1 && s[0].CompareTo('_') == 0) {
+                s = s.Substring(1);
+            }
+            s = s_CamelCaseRegex.Replace(s, " ");
+            s = s.Replace("_", " ");
+            s = (char.ToUpper(s[0]) + s.Substring(1)).Trim();
+            s_CamelCaseSplit.Add(origString, s);
+            return s;
+        }
+
+        /// <summary>
         /// Returns a string which shows the namespace with a more friendly prefix.
         /// </summary>
         public static string DisplayTypeName(Type type, bool friendlyNamespacePrefix)
         {
-            var name = Shared.Editor.Utility.EditorUtility.SplitCamelCase(type.Name);
+            var name = SplitCamelCase(type.Name);
             // Show a friendly version of the full path.
             if (friendlyNamespacePrefix) {
-                name = UltimateCharacterController.Utility.UnityEngineUtility.GetDisplayName(type.FullName, name);
+                name = UltimateCharacterController.Utility.UnityEngineUtility.GetFriendlyName(type.FullName, name);
             }
             return name;
         }
@@ -47,22 +82,70 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// <param name="animationEventTriggerProperty">The property of the AnimationEventTrigger.</param>
         public static void DrawAnimationEventTrigger(object obj, string name, SerializedProperty animationEventTriggerProperty)
         {
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(obj, new GUIContent(name, GetFieldTooltip(obj, animationEventTriggerProperty.name)))) {
+            if (Foldout(obj, new GUIContent(name, GetFieldTooltip(obj, animationEventTriggerProperty.name)))) {
                 EditorGUI.indentLevel++;
-                var waitForAnimationEventProperty = animationEventTriggerProperty.FindPropertyRelative("m_WaitForAnimationEvent");
-                EditorGUILayout.PropertyField(waitForAnimationEventProperty);
-                if (!waitForAnimationEventProperty.boolValue) {
-                    var durationProperty = animationEventTriggerProperty.FindPropertyRelative("m_Duration");
-                    EditorGUILayout.PropertyField(durationProperty);
-                    EditorGUILayout.HelpBox($"The event will be triggered after {durationProperty.floatValue} seconds. Ensure no animation events exist which could trigger the event sooner.", MessageType.Info);
-                } else {
-                    var slotEventProperty = animationEventTriggerProperty.FindPropertyRelative("m_WaitForSlotEvent");
-                    if (slotEventProperty != null) { 
-                        EditorGUILayout.PropertyField(slotEventProperty);
-                    }
-                }
+                EditorGUILayout.PropertyField(animationEventTriggerProperty.FindPropertyRelative("m_WaitForAnimationEvent"));
+                EditorGUILayout.PropertyField(animationEventTriggerProperty.FindPropertyRelative("m_Duration"));
                 EditorGUI.indentLevel--;
             }
+        }
+
+        /// <summary>
+        /// Draws a EditorGUI foldout, saving the foldout expand/collapse bool within a EditorPref.
+        /// </summary>
+        /// <param name="obj">The object that is being drawn beneath the foldout.</param>
+        /// <param name="name">The name of the foldout.</param>
+        /// <returns>True if the foldout is expanded.</returns>
+        public static bool Foldout(object obj, string name)
+        {
+            return Foldout(obj, new GUIContent(name), true, string.Empty);
+        }
+
+        /// <summary>
+        /// Draws a EditorGUI foldout, saving the foldout expand/collapse bool within a EditorPref.
+        /// </summary>
+        /// <param name="obj">The object that is being drawn beneath the foldout.</param>
+        /// <param name="guiContent">The GUIContent of the foldout.</param>
+        /// <returns>True if the foldout is expanded.</returns>
+        public static bool Foldout(object obj, GUIContent guiContent)
+        {
+            return Foldout(obj, guiContent, true, string.Empty);
+        }
+
+        /// <summary>
+        /// Draws a EditorGUI foldout, saving the foldout expand/collapse bool within a EditorPref.
+        /// </summary>
+        /// <param name="obj">The object that is being drawn beneath the foldout.</param>
+        /// <param name="guiContent">The GUIContent of the foldout.</param>
+        /// <param name="defaultExpanded">The default value if the foldout is expanded.</param>
+        /// <returns>True if the foldout is expanded.</returns>
+        public static bool Foldout(object obj, GUIContent guiContent, bool defaultExpanded)
+        {
+            return Foldout(obj, guiContent, defaultExpanded, string.Empty);
+        }
+
+        /// <summary>
+        /// Draws a EditorGUI foldout, saving the foldout expand/collapse bool within a EditorPref.
+        /// </summary>
+        /// <param name="obj">The object that is being drawn beneath the foldout.</param>
+        /// <param name="guiContent">The GUIContent of the foldout.</param>
+        /// <param name="defaultExpanded">The default value if the foldout is expanded.</param>
+        /// <param name="identifyingString">A string that can be used to help identify the foldout key.</param>
+        /// <returns>True if the foldout is expanded.</returns>
+        public static bool Foldout(object obj, GUIContent guiContent, bool defaultExpanded, string identifyingString)
+        {
+            var key = c_EditorPrefsFoldoutKey + "." + obj.GetType() + (obj is MonoBehaviour ? ("." + (obj as MonoBehaviour).name) : string.Empty) + "." + identifyingString + "." + guiContent.text;
+            bool prevFoldout;
+            if (!s_FoldoutValueMap.TryGetValue(key, out prevFoldout)) {
+                prevFoldout = EditorPrefs.GetBool(key, defaultExpanded);
+                s_FoldoutValueMap.Add(key, prevFoldout);
+            }
+            var foldout = EditorGUILayout.Foldout(prevFoldout, guiContent);
+            if (foldout != prevFoldout) {
+                EditorPrefs.SetBool(key, foldout);
+                s_FoldoutValueMap[key] = foldout;
+            }
+            return foldout;
         }
 
         /// <summary>
@@ -249,7 +332,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// <summary>
         /// Synchronizes the number of elements within the state array with the number of elements within the property array.
         /// </summary>
-        public static void SynchronizePropertyCount(Opsive.Shared.StateSystem.State[] states, SerializedProperty serializedProperty)
+        public static void SynchronizePropertyCount(UltimateCharacterController.StateSystem.State[] states, SerializedProperty serializedProperty)
         {
             var serializedCount = serializedProperty.arraySize;
             if (serializedCount > states.Length) {
@@ -269,16 +352,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// </summary>
         public static void DrawObject(object obj, bool drawHeader, bool friendlyNamespacePrefix, UnityEngine.Object target, bool drawNoFieldsNotice, Action changeCallback)
         {
-            if (obj == null) {
-                return;
-            }
-
             if (drawHeader) {
                 EditorGUILayout.LabelField(DisplayTypeName(obj.GetType(), friendlyNamespacePrefix), EditorStyles.boldLabel);
             }
 
             EditorGUI.BeginChangeCheck();
-            var inspectorDrawer = Shared.Editor.Inspectors.Utility.InspectorDrawerUtility.InspectorDrawerForType(obj.GetType());
+            var inspectorDrawer = InspectorDrawerUtility.InspectorDrawerForType(obj.GetType());
             if (inspectorDrawer != null) {
                 inspectorDrawer.OnInspectorGUI(obj, target);
             } else {
@@ -286,7 +365,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
             }
 
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 if (changeCallback != null) {
                     changeCallback();
                 }
@@ -304,13 +383,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
             if (field != null) {
                 try {
                     var prevValue = field.GetValue(obj);
-                    var value = ObjectInspector.DrawObject(new GUIContent(Shared.Editor.Utility.EditorUtility.SplitCamelCase(name), GetFieldTooltip(field)), field.FieldType, obj, prevValue, name, 0, null, null, field, true);
+                    var value = ObjectInspector.DrawObject(new GUIContent(SplitCamelCase(name), GetFieldTooltip(field)), field.FieldType, prevValue, name, 0, null, null, field, true);
                     if (prevValue != value && GUI.changed) {
                         field.SetValue(obj, value);
                     }
                 } catch (Exception /*e*/) { }
             } else {
-                Debug.LogError($"Error: Unable to find a field with name {name} on object {obj}.");
+                Debug.LogError("Error: Unable to find a field with name " + name + " on object " + obj);
             }
         }
 
@@ -324,7 +403,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         public static void DrawFieldSlider(object obj, string name, float minValue, float maxValue)
         {
             var sliderValue = GetFieldValue<float>(obj, name);
-            var value = EditorGUILayout.Slider(new GUIContent(Shared.Editor.Utility.EditorUtility.SplitCamelCase(name), GetFieldTooltip(obj, name)), sliderValue, minValue, maxValue);
+            var value = EditorGUILayout.Slider(new GUIContent(InspectorUtility.SplitCamelCase(name), GetFieldTooltip(obj, name)), sliderValue, minValue, maxValue);
             if (sliderValue != value) {
                 SetFieldValue(obj, name, value);
             }
@@ -340,7 +419,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         public static void DrawFieldIntSlider(object obj, string name, int minValue, int maxValue)
         {
             var sliderValue = GetFieldValue<int>(obj, name);
-            var value = EditorGUILayout.IntSlider(new GUIContent(Shared.Editor.Utility.EditorUtility.SplitCamelCase(name), GetFieldTooltip(obj, name)), sliderValue, minValue, maxValue);
+            var value = EditorGUILayout.IntSlider(new GUIContent(InspectorUtility.SplitCamelCase(name), GetFieldTooltip(obj, name)), sliderValue, minValue, maxValue);
             if (sliderValue != value) {
                 SetFieldValue(obj, name, value);
             }
@@ -355,7 +434,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         public static void DrawSpring(object owner, string foldoutName, string fieldName)
         {
             var spring = GetFieldValue<Spring>(owner, fieldName);
-            if (Shared.Editor.Inspectors.Utility.InspectorUtility.Foldout(owner, new GUIContent(foldoutName, GetFieldTooltip(GetField(owner, fieldName))), false, fieldName)) {
+            if (Foldout(owner, new GUIContent(foldoutName, GetFieldTooltip(GetField(owner, fieldName))))) {
                 EditorGUI.indentLevel++;
                 DrawFieldSlider(spring, "m_Stiffness", 0, 1);
                 DrawFieldSlider(spring, "m_Damping", 0, 1);
@@ -372,11 +451,12 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// <summary>
         /// Draws the Attribute fields.
         /// </summary>
+        /// <param name="target">The UnityEngine object.</param>
         /// <param name="attributeManager">The AttributeManager that the target uses.</param>
         /// <param name="attributeName">The name of the selected attribute.</param>
         /// <param name="fieldName">The name of the field that is being drawn.</param>
         /// <returns>The name of the attribute.</returns>
-        public static string DrawAttribute(AttributeManager attributeManager, string attributeName, string fieldName)
+        public static string DrawAttribute(UnityEngine.Object target, AttributeManager attributeManager, string attributeName, string fieldName)
         {
             if (attributeManager != null) {
                 var attributeNames = new string[attributeManager.Attributes.Length + 1];
@@ -401,27 +481,45 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         /// <summary>
         /// Draws the AttributeModifier fields.
         /// </summary>
+        /// <param name="target">The UnityEngine object.</param>
         /// <param name="attributeManager">The AttributeManager that the target uses.</param>
         /// <param name="attributeModifier">The AttributeModifier that should be drawn.</param>
         /// <param name="fieldName">The name of the attribute field.</param>
-        public static void DrawAttributeModifier(AttributeManager attributeManager, AttributeModifier attributeModifier, string fieldName)
+        public static void DrawAttributeModifier(UnityEngine.Object target, AttributeManager attributeManager, AttributeModifier attributeModifier, string fieldName)
         {
-            var attributeName = DrawAttribute(attributeManager, attributeModifier.AttributeName, fieldName);
+            var attributeName = DrawAttribute(target, attributeManager, attributeModifier.AttributeName, fieldName);
             if (attributeName != attributeModifier.AttributeName) {
                 attributeModifier.AttributeName = attributeName;
                 GUI.changed = true;
             }
             if (!string.IsNullOrEmpty(attributeModifier.AttributeName)) {
                 EditorGUI.indentLevel++;
-                attributeModifier.Amount = EditorGUILayout.FloatField("Amount", attributeModifier.Amount);
-                attributeModifier.AutoUpdate = EditorGUILayout.Toggle("Auto Update", attributeModifier.AutoUpdate);
-                if (attributeModifier.AutoUpdate) {
-                    attributeModifier.AutoUpdateStartDelay = EditorGUILayout.FloatField("Start Delay", attributeModifier.AutoUpdateStartDelay);
-                    attributeModifier.AutoUpdateInterval = EditorGUILayout.FloatField("Interval", attributeModifier.AutoUpdateInterval);
-                    attributeModifier.AutoUpdateDuration = EditorGUILayout.FloatField("Duration", attributeModifier.AutoUpdateDuration);
+                attributeModifier.ValueChange = EditorGUILayout.FloatField("Value Change", attributeModifier.ValueChange);
+                attributeModifier.ChangeUpdateValue = EditorGUILayout.Toggle(new GUIContent("Change Update Value", "Should a new update value be set?"), attributeModifier.ChangeUpdateValue);
+                if (attributeModifier.ChangeUpdateValue) {
+                    attributeModifier.AutoUpdateValueType = (UltimateCharacterController.Traits.Attribute.AutoUpdateValue)EditorGUILayout.EnumPopup("Auto Update Type", attributeModifier.AutoUpdateValueType);
+                    if (attributeModifier.AutoUpdateValueType != UltimateCharacterController.Traits.Attribute.AutoUpdateValue.None) {
+                        attributeModifier.AutoUpdateStartDelay = EditorGUILayout.FloatField("Start Delay", attributeModifier.AutoUpdateStartDelay);
+                        attributeModifier.AutoUpdateInterval = EditorGUILayout.FloatField("Interval", attributeModifier.AutoUpdateInterval);
+                        attributeModifier.AutoUpdateAmount = EditorGUILayout.FloatField("Amount", attributeModifier.AutoUpdateAmount);
+                    }
                 }
                 EditorGUI.indentLevel--;
             }
+        }
+
+        /// <summary>
+        /// Returns the Tooltip attribute for the given field, if it exists.
+        /// </summary>
+        /// <param name="field">The field to get the Tooltip attribute of.</param>
+        /// <returns>The Tooltip for the given field. If it does not exist then null is returned.</returns>
+        public static TooltipAttribute GetTooltipAttribute(FieldInfo field)
+        {
+            var tooltipAttributes = field.GetCustomAttributes(typeof(TooltipAttribute), false) as TooltipAttribute[];
+            if (tooltipAttributes.Length > 0) {
+                return tooltipAttributes[0];
+            }
+            return null;
         }
 
         /// <summary>
@@ -504,6 +602,18 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
         }
 
         /// <summary>
+        /// Draws the UnityEvent property field with the correct indentation.
+        /// </summary>
+        /// <param name="property">The UnityEvent property.</param>
+        public static void UnityEventPropertyField(SerializedProperty property)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUI.indentLevel * c_IndentWidth);
+            EditorGUILayout.PropertyField(property);
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
         /// Returns a highlight color for wireframe that contrasts well against the solid color.
         /// </summary>
         /// <param name="color">The color to contract against.</param>
@@ -542,6 +652,74 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
             }
 
             return value;
+        }
+
+        /// <summary>
+        /// Records the object to the Undo manager and sets the dirty state.
+        /// </summary>
+        /// <param name="obj">The object that has been changed.</param>
+        /// <param name="undoName">The name of the operation that can be undone.</param>
+        public static void RecordUndoDirtyObject(UnityEngine.Object obj, string undoName)
+        {
+            if (obj == null || Application.isPlaying) {
+                return;
+            }
+
+            Undo.RecordObject(obj, undoName);
+
+            // The object should also be marked dirty so the changes persist.
+            SetDirty(obj);
+        }
+
+        /// <summary>
+        /// Flags the object as dirty.
+        /// </summary>
+        /// <param name="obj">The object that was changed.</param>
+        public static void SetDirty(UnityEngine.Object obj)
+        {
+            if (obj == null || Application.isPlaying) {
+                return;
+            }
+
+            PrefabUtility.RecordPrefabInstancePropertyModifications(obj);
+            if (obj is Component) {
+                EditorSceneManager.MarkSceneDirty((obj as Component).gameObject.scene);
+            } else if (obj is GameObject) {
+                EditorSceneManager.MarkSceneDirty((obj as GameObject).scene);
+            } else if (!EditorUtility.IsPersistent(obj)) {
+                EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+            } else {
+                EditorUtility.SetDirty(obj);
+            }
+        }
+
+        /// <summary>
+        /// Returns the active path that the save file window should start at.
+        /// </summary>
+        /// <returns>The name of the path to save the file in.</returns>
+        public static string GetSaveFilePath()
+        {
+            var selectedPath = AssetDatabase.GetAssetPath(Selection.activeObject);
+            if (string.IsNullOrEmpty(selectedPath)) {
+                selectedPath = "Assets";
+            }
+
+            return selectedPath;
+        }
+
+        /// <summary>
+        /// Adds the component of the specified type if it doesn't already exist.
+        /// </summary>
+        /// <typeparam name="T">The type of component to add.</typeparam>
+        /// <param name="gameObject">The GameObject to add the component to.</param>
+        /// <returns>The added component.</returns>
+        public static T AddComponent<T>(GameObject gameObject) where T : Component
+        {
+            T component;
+            if ((component = gameObject.GetComponent<T>()) == null) {
+                return gameObject.AddComponent<T>();
+            }
+            return component;
         }
     }
 }

@@ -4,42 +4,27 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEngine.UI;
+using Opsive.UltimateCharacterController.Camera;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Items;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.UI
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Camera;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Items;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-    using UnityEngine.UI;
-
     /// <summary>
     /// The CrosshairsMonitor will update the UI for the crosshair.
     /// </summary>
     public class CrosshairsMonitor : CharacterMonitor
     {
-#if UNITY_EDITOR
-        [Tooltip("Draw a debug line to see the direction that the crosshairs is looking (editor only).")]
-        [SerializeField] protected bool m_DebugDrawLookRay;
-#endif
-        [Tooltip("Should the crosshairs automatically set the target on the on the AimAssit component?")]
-        [SerializeField] protected bool m_AutoAssignAimAssistTarget = true;
+        [Tooltip("Should the crosshairs be shown?")]
+        [SerializeField] protected bool m_ShowCrosshairs = true;
         [Tooltip("The radius of the crosshair's collision sphere to detect if it is targetting an enemy.")]
         [SerializeField] protected float m_CollisionRadius = 0.05f;
         [Tooltip("The maximum number of colliders that the crosshairs can detect.")]
         [SerializeField] protected int m_MaxCollisionCount = 40;
-        [Tooltip("Specifies if the crosshairscan detect triggers.")]
-        [SerializeField] protected QueryTriggerInteraction m_TriggerInteraction = QueryTriggerInteraction.Ignore;
-        [Tooltip("Should the crosshairs move with the crosshairs?")]
-        [SerializeField] protected bool m_MoveWithCursor;
-        [Tooltip("The amount of spread to add based on the character's movement speed.")]
-        [Range(0, 360)] [SerializeField] protected float m_MovementSpread;
-        [Tooltip("The maximum squared magnitude of the character. The spread will be at the max value when the character is moving at this magnitude.")]
-        [SerializeField] protected float m_MaxSpreadVelocitySqrMagnitude = 50;
-        [Tooltip("The speed at which the spread value should change values.")]
-        [SerializeField] protected float m_MovementSpreadSpeed = 6;
         [Tooltip("The crosshairs used when the item doesn't specify a crosshairs.")]
         [SerializeField] protected Sprite m_DefaultSprite;
         [Tooltip("The default color of the crosshairs.")]
@@ -59,22 +44,8 @@ namespace Opsive.UltimateCharacterController.UI
         [Tooltip("Should the crosshairs be disabled when the character dies?")]
         [SerializeField] protected bool m_DisableOnDeath = true;
 
-        public bool AutoAssignAimAssistTarget { get { return m_AutoAssignAimAssistTarget; } set { m_AutoAssignAimAssistTarget = value; } }
+        public bool ShowCrosshairs { get { return m_ShowCrosshairs; } set { m_ShowCrosshairs = value; if (Application.isPlaying) m_GameObject.SetActive(m_ShowCrosshairs); } }
         public float CollisionRadius { get { return m_CollisionRadius; } set { m_CollisionRadius = value; } }
-        public QueryTriggerInteraction TriggerInteraction { get { return m_TriggerInteraction; } set { m_TriggerInteraction = value; } }
-        public bool MoveWithCursor { get { return m_MoveWithCursor; } set { 
-                if (m_MoveWithCursor == value) { return; }
-                m_MoveWithCursor = value;
-                if (m_MoveWithCursor) {
-                    m_OriginalPosition = m_RectTransform.position;
-                } else {
-                    m_RectTransform.position = m_OriginalPosition;
-                }
-            } 
-        }
-        public float MovementSpread { get { return m_MovementSpread; } set { m_MovementSpread = value; } }
-        public float MaxSpreadVelocitySqrMagnitude { get { return m_MaxSpreadVelocitySqrMagnitude; } set { m_MaxSpreadVelocitySqrMagnitude = value; } }
-        public float MovementSpreadSpeed { get { return m_MovementSpreadSpeed; } set { m_MovementSpreadSpeed = value; } }
         public Color DefaultColor { get { return m_DefaultColor; } set { m_DefaultColor = value; } }
         public Color TargetColor { get { return m_TargetColor; } set { m_TargetColor = value; } }
         public bool DisableOnDeath { get { return m_DisableOnDeath; } set { m_DisableOnDeath = value; } }
@@ -86,9 +57,7 @@ namespace Opsive.UltimateCharacterController.UI
         private Transform m_CharacterTransform;
         private CharacterLayerManager m_CharacterLayerManager;
         private UltimateCharacterLocomotion m_CharacterLocomotion;
-        private Shared.Input.PlayerInput m_PlayerInput;
 
-        private RectTransform m_RectTransform;
         private RectTransform m_CenterRectTransform;
         private RectTransform m_LeftRectTransform;
         private RectTransform m_TopRectTransform;
@@ -104,8 +73,6 @@ namespace Opsive.UltimateCharacterController.UI
         private bool m_Aiming;
         private bool m_EnableImage;
         private int m_EquippedItemCount;
-        private float m_SmoothedMovementVelocity;
-        private Vector3 m_OriginalPosition;
 
         /// <summary>
         /// Initialize the default values.
@@ -115,13 +82,12 @@ namespace Opsive.UltimateCharacterController.UI
             base.Awake();
 
             m_GameObject = gameObject;
-            m_RectTransform = GetComponent<RectTransform>();
             if (m_CenterCrosshairsImage == null) {
                 m_CenterCrosshairsImage = GetComponent<Image>();
             }
             m_CenterCrosshairsImage.sprite = m_DefaultSprite;
             m_CenterRectTransform = m_CenterCrosshairsImage.GetComponent<RectTransform>();
-            if ((m_CenterCrosshairsImage.enabled = (m_DefaultSprite != null)) == true) {
+            if ((m_CenterCrosshairsImage.enabled = (m_DefaultSprite != null))) {
                 UnityEngineUtility.SizeSprite(m_CenterCrosshairsImage.sprite, m_CenterRectTransform);
             }
 
@@ -160,7 +126,7 @@ namespace Opsive.UltimateCharacterController.UI
                 return;
             }
 
-            m_Camera = Shared.Camera.CameraUtility.FindCamera(m_Character);
+            m_Camera = UnityEngineUtility.FindCamera(m_Character);
             m_CameraController = m_Camera.gameObject.GetCachedComponent<CameraController>();
             m_CameraController.SetCrosshairs(transform);
 
@@ -168,9 +134,7 @@ namespace Opsive.UltimateCharacterController.UI
             m_CharacterTransform = m_Character.transform;
             m_CharacterLayerManager = m_Character.GetCachedComponent<CharacterLayerManager>();
             m_CharacterLocomotion = m_Character.GetCachedComponent<UltimateCharacterLocomotion>();
-            m_PlayerInput = m_Character.GetCachedComponent<Shared.Input.PlayerInput>();
             m_EnableImage = false;
-            gameObject.SetActive(CanShowUI());
 
             EventHandler.RegisterEvent<Item, int>(m_Character, "OnAbilityWillEquipItem", OnEquipItem);
             EventHandler.RegisterEvent<Item, bool>(m_Character, "OnItemUpdateDominantItem", OnUpdateDominantItem);
@@ -185,7 +149,7 @@ namespace Opsive.UltimateCharacterController.UI
             var inventory = m_Character.GetCachedComponent<Inventory.InventoryBase>();
             if (inventory != null) {
                 for (int i = 0; i < inventory.SlotCount; ++i) {
-                    var item = inventory.GetActiveItem(i);
+                    var item = inventory.GetItem(i);
                     if (item != null) {
                         OnEquipItem(item, i);
                     }
@@ -207,13 +171,7 @@ namespace Opsive.UltimateCharacterController.UI
                 direction.y = 0;
                 crosshairsRay.origin = crosshairsRay.GetPoint(direction.magnitude);
             }
-#if UNITY_EDITOR
-            // Visualize the direction of the look direction.
-            if (m_DebugDrawLookRay) {
-                Debug.DrawRay(crosshairsRay.origin, crosshairsRay.direction * m_CameraController.LookDirectionDistance, Color.white);
-            }
-#endif
-            var hitCount = Physics.SphereCastNonAlloc(crosshairsRay, m_CollisionRadius, m_RaycastHits, m_CameraController.LookDirectionDistance, m_CharacterLayerManager.IgnoreInvisibleLayers, m_TriggerInteraction);
+            var hitCount = Physics.SphereCastNonAlloc(crosshairsRay, m_CollisionRadius, m_RaycastHits, m_CameraController.LookDirectionDistance, m_CharacterLayerManager.IgnoreInvisibleLayers, QueryTriggerInteraction.Ignore);
 #if UNITY_EDITOR
             if (hitCount == m_MaxCollisionCount) {
                 Debug.LogWarning("Warning: The crosshairs detected the maximum number of objects. Consider increasing the Max Collision Count on the Crosshairs Monitor.");
@@ -235,26 +193,13 @@ namespace Opsive.UltimateCharacterController.UI
                     break;
                 }
             }
-
-            if (m_AutoAssignAimAssistTarget && m_AimAssist != null) {
+            if (m_AimAssist != null) {
                 m_AimAssist.SetTarget(target);
             }
 
-            // The crosshairs can move with the cursor position.
-            if (m_MoveWithCursor && Cursor.visible) {
-                m_RectTransform.position = new Vector3(m_PlayerInput.GetMousePosition().x, m_PlayerInput.GetMousePosition().y, 0);
-            }
-
-            // The spread of the crosshairs can change based on how quickly the character is moving.
-            if (m_MovementSpread > 0) {
-                var velocity = Mathf.Clamp01(m_CharacterLocomotion.LocalLocomotionVelocity.sqrMagnitude / m_MaxSpreadVelocitySqrMagnitude);
-                m_SmoothedMovementVelocity = Mathf.SmoothStep(m_SmoothedMovementVelocity, velocity, m_MovementSpreadSpeed * Time.deltaTime);
-            }
             if (m_EquippedItem != null) {
-                var movementSpread = (((m_MovementSpread / 360) + m_SmoothedMovementVelocity) / 2) * m_EquippedItem.MaxQuadrantSpread;
-                m_CurrentCrosshairsSpread = Mathf.SmoothDamp(m_CurrentCrosshairsSpread,
-                                                Mathf.Clamp(m_TargetCrosshairsSpread + movementSpread, 0, m_EquippedItem.MaxQuadrantSpread), 
-                                                ref m_CrosshairsSpreadVelocity, m_EquippedItem.QuadrantSpreadDamping);
+                m_CurrentCrosshairsSpread = Mathf.SmoothDamp(m_CurrentCrosshairsSpread, m_TargetCrosshairsSpread, ref m_CrosshairsSpreadVelocity,
+                                                m_EquippedItem.QuadrantSpreadDamping);
             }
             m_CenterCrosshairsImage.color = crosshairsColor;
             if (m_LeftCrosshairsImage != null && m_LeftCrosshairsImage.enabled) {
@@ -282,19 +227,9 @@ namespace Opsive.UltimateCharacterController.UI
         }
 
         /// <summary>
-        /// Returns the spread based on the movement values.
-        /// </summary>
-        /// <returns>The spread based on the movement values (0-1).</returns>
-        public float GetMovementSpread()
-        {
-            var modifier = Mathf.Clamp01(m_CharacterLocomotion.LocalLocomotionVelocity.sqrMagnitude / m_MaxSpreadVelocitySqrMagnitude);
-            return (m_MovementSpread / 360) * modifier;
-        }
-
-        /// <summary>
         /// An item has been equipped.
         /// </summary>
-        /// <param name="item">The equipped item.</param>
+        /// <param name="itemType">The equipped item.</param>
         /// <param name="slotID">The slot that the item now occupies.</param>
         private void OnEquipItem(Item item, int slotID)
         {
@@ -374,7 +309,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <summary>
         /// An item has been unequipped.
         /// </summary>
-        /// <param name="item">The unequipped item.</param>
+        /// <param name="itemType">The unequipped item.</param>
         /// <param name="slotID">The slot that the item previously occupied.</param>
         private void OnUnequipItem(Item item, int slotID)
         {
@@ -451,7 +386,7 @@ namespace Opsive.UltimateCharacterController.UI
         /// <summary>
         /// The Aim ability has started or stopped.
         /// </summary>
-        /// <param name="aim">Has the Aim ability started?</param>
+        /// <param name="start">Has the Aim ability started?</param>
         /// <param name="inputStart">Was the ability started from input?</param>
         private void OnAim(bool aim, bool inputStart)
         {
@@ -473,7 +408,6 @@ namespace Opsive.UltimateCharacterController.UI
             if (m_TopCrosshairsImage != null) m_TopCrosshairsImage.enabled = enable && m_TopCrosshairsImage.sprite != null;
             if (m_RightCrosshairsImage != null) m_RightCrosshairsImage.enabled = enable && m_RightCrosshairsImage.sprite != null;
             if (m_BottomCrosshairsImage != null) m_BottomCrosshairsImage.enabled = enable && m_BottomCrosshairsImage.sprite != null;
-            if (!enable) { m_TargetCrosshairsSpread = m_CurrentCrosshairsSpread = 0; }
         }
 
         /// <summary>
@@ -494,35 +428,12 @@ namespace Opsive.UltimateCharacterController.UI
         /// </summary>
         private void OnRespawn()
         {
-            if (m_DisableOnDeath && base.CanShowUI()) {
+            if (m_DisableOnDeath && m_ShowCrosshairs && m_ShowUI) {
                 m_GameObject.SetActive(true);
             }
 
             // Force the crosshairs to update so the color will be correct.
             Update();
-        }
-
-        /// <summary>
-        /// Shows or hides the UI.
-        /// </summary>
-        /// <param name="show">Should the UI be shown?</param>
-        protected override void ShowUI(bool show)
-        {
-            base.ShowUI(show);
-
-            if (!CanShowUI()) {
-                m_TargetCrosshairsSpread = m_CurrentCrosshairsSpread = 0;
-                Update();
-            }
-        }
-
-        /// <summary>
-        /// Can the UI be shown?
-        /// </summary>
-        /// <returns>True if the UI can be shown.</returns>
-        protected override bool CanShowUI()
-        {
-            return base.CanShowUI() && (!m_DisableOnDeath || (m_CharacterLocomotion != null && m_CharacterLocomotion.Alive));
         }
     }
 }

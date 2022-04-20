@@ -4,22 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Demo
 {
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Character;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Adjusts the size of the trigger when the character enters. This is useful for movement type triggers so the character doesn't keep switching modes as the controls
     /// change while on the edge of the trigger.
     /// </summary>
     public class TriggerAdjustor : MonoBehaviour
     {
-        [Tooltip("Specifies the amount to adjust the BoxCollider center by.")]
-        [SerializeField] protected Vector3 m_BoxColliderCenterAdjustment;
         [Tooltip("Specifies the amount to expand the BoxCollider trigger by.")]
         [SerializeField] protected Vector3 m_BoxColliderExpansion;
         [Tooltip("Specifies the amount to inflate the MeshCollider trigger by.")]
@@ -59,27 +56,27 @@ namespace Opsive.UltimateCharacterController.Demo
 
             // The object is a character. Expand the trigger.
             if (m_Collider is BoxCollider) {
-                AdjustBoxCollider(m_Collider as BoxCollider, m_BoxColliderCenterAdjustment, m_BoxColliderExpansion);
+                AdjustBoxCollider(m_Collider as BoxCollider, m_BoxColliderExpansion);
             } else if (m_Collider is MeshCollider) {
                 // When the mesh is inflated it'll trigger an OnTriggerExit callback. Prevent this callback from doing anything until 
                 // after the inflated mesh has stabalized.
                 m_AllowTriggerExit = false;
-                SchedulerBase.ScheduleFixed(Time.fixedDeltaTime * 2, () => { m_AllowTriggerExit = true; });
+                Game.Scheduler.ScheduleFixed(Time.fixedDeltaTime * 2, () => { m_AllowTriggerExit = true; });
                 (m_Collider as MeshCollider).sharedMesh = m_ExpandedMesh;
             }
             m_ActiveObject = other.gameObject;
         }
 
         /// <summary>
-        /// Adjusts the BoxCollider.
+        /// Adjusts the size of the BoxCollider.
         /// </summary>
         /// <param name="boxCollider">The BoxCollider that should be adjusted.</param>
-        /// <param name="centerAdjustment">The amount to adjust the BoxCollider center by.</param>
-        /// <param name="sizeAdjustment">The amount to adjust the BoxCollider size by.</param>
-        private void AdjustBoxCollider(BoxCollider boxCollider, Vector3 centerAdjustment, Vector3 sizeAdjustment)
+        /// <param name="adjustment">The amount to adjust the BoxCollider by.</param>
+        private void AdjustBoxCollider(BoxCollider boxCollider, Vector3 adjustment)
         {
-            boxCollider.center = boxCollider.center + centerAdjustment;
-            boxCollider.size = boxCollider.size + sizeAdjustment;
+            var size = boxCollider.size;
+            size += adjustment;
+            boxCollider.size = size;
         }
 
         /// <summary>
@@ -94,7 +91,7 @@ namespace Opsive.UltimateCharacterController.Demo
 
             if (m_ActiveObject == other.gameObject) {
                 if (m_Collider is BoxCollider) {
-                    AdjustBoxCollider(m_Collider as BoxCollider, -m_BoxColliderCenterAdjustment, -m_BoxColliderExpansion);
+                    AdjustBoxCollider(m_Collider as BoxCollider, -m_BoxColliderExpansion);
                 } else if (m_Collider is MeshCollider) {
                     (m_Collider as MeshCollider).sharedMesh = m_OriginalMesh;
                 }

@@ -3,12 +3,13 @@
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
+using UnityEngine;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Utility;
 
 namespace Opsive.UltimateCharacterController.Demo.Objects
 {
-    using Opsive.UltimateCharacterController.Traits;
-    using UnityEngine;
-
     /// <summary>
     /// Instantly kills the character if the character moves beneath the moving platform as it is moving down.
     /// </summary>
@@ -32,9 +33,8 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
         /// </summary>
         private void FixedUpdate()
         {
-            var position = m_Transform.position;
-            m_DownwardMovement = m_Transform.InverseTransformDirection(position - m_PrevPosition).y < 0;
-            m_PrevPosition = position;
+            m_DownwardMovement = m_Transform.InverseTransformDirection(m_Transform.position - m_PrevPosition).y < 0;
+            m_PrevPosition = m_Transform.position;
         }
 
         /// <summary>
@@ -54,8 +54,7 @@ namespace Opsive.UltimateCharacterController.Demo.Objects
                 return;
             }
 
-            var position = m_Transform.position;
-            health.ImmediateDeath(position, Vector3.down, (position - m_PrevPosition).magnitude);
+            health.ImmediateDeath(m_Transform.position, Vector3.down, (m_Transform.position - m_PrevPosition).magnitude);
         }
     }
 }

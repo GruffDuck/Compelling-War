@@ -4,10 +4,10 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+
 namespace Opsive.UltimateCharacterController.Motion
 {
-    using UnityEngine;
-
     /// <summary>
     /// Allows for a user-defined path that objects can follow.
     /// </summary>
@@ -101,7 +101,7 @@ namespace Opsive.UltimateCharacterController.Motion
         /// <summary>
         /// Represents one segment of a cubic bezier curve.
         /// </summary>
-        public struct CubicBezierCurve
+        public class CubicBezierCurve
         {
             private const int c_StepCount = 300;
 
@@ -149,6 +149,7 @@ namespace Opsive.UltimateCharacterController.Motion
             /// Returns the closest time at the specified position.
             /// </summary>
             /// <param name="position">The position to retrieve the time of.</param>
+            /// <param name="endCap">Should the end cap be included?</param>
             /// <returns>The closest time at the specified position.</returns>
             public float GetTime(Vector3 position)
             {
@@ -184,6 +185,7 @@ namespace Opsive.UltimateCharacterController.Motion
             /// Returns the closest point on the curve to the specified position.
             /// </summary>
             /// <param name="position">The position to retrieve the closest point on the curve of.</param>
+            /// <param name="endCap">Should the curve's end cap be included?</param>
             /// <returns>The closest point on the curve to the specified position.</returns>
             public Vector3 GetClosestPoint(Vector3 position)
             {

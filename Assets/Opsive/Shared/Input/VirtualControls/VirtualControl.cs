@@ -1,13 +1,13 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Input.VirtualControls
-{
-    using UnityEngine;
+using UnityEngine;
 
+namespace Opsive.UltimateCharacterController.Input.VirtualControls
+{
     /// <summary>
     /// An abstract class which represents a virtual control on the screen.
     /// </summary>
@@ -36,8 +36,8 @@ namespace Opsive.Shared.Input.VirtualControls
         /// <summary>
         /// Returns the value of the axis.
         /// </summary>
-        /// <param name="buttonName">The name of the axis.</param>
+        /// <param name="name">The name of the axis.</param>
         /// <returns>The value of the axis.</returns>
-        public virtual float GetAxis(string buttonName) { return 0; }
+        public virtual float GetAxis(string name) { return 0; }
     }
 }

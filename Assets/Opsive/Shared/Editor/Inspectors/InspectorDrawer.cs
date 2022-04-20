@@ -1,13 +1,13 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Editor.Inspectors
-{
-    using System;
+using System;
 
+namespace Opsive.UltimateCharacterController.Editor.Inspectors
+{
     /// <summary>
     /// InspectorDrawers allow non-Unity Objects to draw custom objects to the editor inspector.
     /// </summary>

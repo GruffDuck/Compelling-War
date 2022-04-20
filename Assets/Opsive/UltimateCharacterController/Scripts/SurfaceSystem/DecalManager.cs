@@ -4,15 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.SurfaceSystem
 {
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using System.Collections.Generic;
-    using UnityEngine;
-    using UnityEngine.SceneManagement;
-
     /// <summary>
     /// The DecalManager is responsible for managing the spawned decals. The decals can be capped at a limit to prevent too many from being
     /// spawned. These decals can then slowly be faded (weathered) for a smooth transition rather than the decal just popping out of existance.
@@ -133,7 +132,7 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         private GameObject SpawnDecal(GameObject original, RaycastHit hit, Quaternion rotation, float scale, float allowedEdgeOverlap)
         {
             // Prevent z fighting by slightly raising the decal off of the surface. 
-            var decal = ObjectPoolBase.Instantiate(original, hit.point + (hit.normal * 0.001f), rotation);
+            var decal = ObjectPool.Instantiate(original, hit.point + (hit.normal * 0.001f), rotation);
             // Only set the decal parent to the hit transform on uniform objects to prevent stretching.
             if (MathUtility.IsUniform(hit.transform.localScale)) {
                 decal.transform.parent = hit.transform;
@@ -141,19 +140,19 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
             if (scale != 1) {
                 var vectorScale = Vector3.one;
                 vectorScale.x = vectorScale.y = scale;
-                decal.transform.localScale = vectorScale;
+                decal.transform.localScale = Vector3.Scale(decal.transform.localScale, vectorScale);
             }
 
             // Destroy the object if it cannot be cached. The object won't be able to be cached if it doesn't have all of the required components.
             if (!CacheMeshAndRenderer(decal)) {
-                ObjectPoolBase.Destroy(decal);
+                ObjectPool.Destroy(decal);
                 return null;
             }
 
             // Do a test on the decal's quad to ensure all four corners are flush against a surface. This will prevent the decal from sticking out on an edge.
             if (allowedEdgeOverlap < 0.5f) {
                 if (!DoQuadTest(decal, allowedEdgeOverlap)) {
-                    ObjectPoolBase.Destroy(decal);
+                    ObjectPool.Destroy(decal);
                     return null;
                 }
             }
@@ -171,8 +170,8 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         /// <returns>True if the mesh and renderer were able to be cached.</returns>
         private bool CacheMeshAndRenderer(GameObject decal)
         {
-            Renderer decalRenderer;
-            if (!m_DecalRendererMap.TryGetValue(decal, out decalRenderer)) {
+            Renderer renderer;
+            if (!m_DecalRendererMap.TryGetValue(decal, out renderer)) {
                 var meshFilter = decal.GetComponent<MeshFilter>();
                 if (meshFilter == null) {
                     return false;
@@ -181,24 +180,23 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
                     return false;
                 }
 
-                decalRenderer = decal.GetComponent<Renderer>();
-                if (decalRenderer == null) {
+                renderer = decal.GetComponent<Renderer>();
+                if (renderer == null) {
                     return false;
                 }
-                if (decalRenderer.material == null) {
+                if (renderer.material == null) {
                     return false;
                 }
 
                 // Cache the decal renderer and mesh.
-                m_DecalRendererMap.Add(decal, decalRenderer);
+                m_DecalRendererMap.Add(decal, renderer);
                 m_DecalMeshMap.Add(decal, meshFilter.mesh);
             }
 
             // The decal should start opaque.
-            var decalMaterial = decalRenderer.material;
-            var color = decalMaterial.color;
+            var color = renderer.material.color;
             color.a = 1;
-            decalMaterial.color = color;
+            renderer.material.color = color;
 
             return true;
         }
@@ -251,10 +249,6 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         {
             // As each decal is added to the weathered list it should slowly fade out.
             for (int i = 0; i < m_WeatheredDecals.Count; ++i) {
-                if (m_WeatheredDecals[i] == null) {
-                    m_WeatheredDecals.RemoveAt(i);
-                    continue;
-                }
                 var color = m_WeatheredDecals[i].material.color;
                 color.a = Mathf.Clamp01(color.a - (1 / (float)m_WeatheredDecalLimit));
                 m_WeatheredDecals[i].material.color = color;
@@ -274,15 +268,11 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
         private void Update()
         {
             for (int i = m_DecalsToFade.Count - 1; i >= 0; --i) {
-                if (m_DecalsToFade[i] == null) {
-                    m_DecalsToFade.RemoveAt(i);
-                    continue;
-                }
                 var color = m_DecalsToFade[i].material.color;
                 color.a = Mathf.Lerp(color.a, 0, Time.deltaTime * m_RemoveFadeoutSpeed);
                 // The decal can be removed from the list when it is completely faded out.
                 if (color.a == 0) {
-                    ObjectPoolBase.Destroy(m_DecalsToFade[i].gameObject);
+                    ObjectPool.Destroy(m_DecalsToFade[i].gameObject);
                     m_DecalsToFade.RemoveAt(i);
                 } else {
                     m_DecalsToFade[i].material.color = color;
@@ -313,6 +303,7 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
             SceneManager.sceneUnloaded += SceneUnloaded;
         }
 
+#if UNITY_2019_3_OR_NEWER
         /// <summary>
         /// Reset the static variables for domain reloading.
         /// </summary>
@@ -322,5 +313,6 @@ namespace Opsive.UltimateCharacterController.SurfaceSystem
             s_Initialized = false;
             s_Instance = null;
         }
+#endif
     }
 }

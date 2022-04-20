@@ -1,15 +1,16 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Input.VirtualControls
-{
-    using Opsive.Shared.Events;
-    using System.Collections.Generic;
-    using UnityEngine;
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
 
+namespace Opsive.UltimateCharacterController.Input.VirtualControls
+{
     /// <summary>
     /// Coordinates all of the virtual controls. All of the virtual controls must be a child of the VirtualControlsManager GameObject.
     /// </summary>
@@ -31,9 +32,9 @@ namespace Opsive.Shared.Input.VirtualControls
         {
             m_GameObject = gameObject;
             if (m_Character == null) {
-                var foundCamera = Shared.Camera.CameraUtility.FindCamera(null);
-                if (foundCamera != null) {
-                    m_CameraGameObject = foundCamera.gameObject;
+                var camera = UnityEngineUtility.FindCamera(null);
+                if (camera != null) {
+                    m_CameraGameObject = camera.gameObject;
                     EventHandler.RegisterEvent<GameObject>(m_CameraGameObject, "OnCameraAttachCharacter", OnAttachCharacter);
                 }
             } else {
@@ -41,6 +42,8 @@ namespace Opsive.Shared.Input.VirtualControls
                 m_Character = null; // Set the character to null so the assignment will occur.
                 OnAttachCharacter(character);
             }
+
+            m_GameObject.SetActive(false);
         }
 
         /// <summary>
@@ -56,7 +59,6 @@ namespace Opsive.Shared.Input.VirtualControls
             if (m_Character != null) {
                 var unityInput = m_Character.GetComponent<UnityInput>();
                 if (unityInput == null) {
-                    m_GameObject.SetActive(false);
                     return;
                 }
 
@@ -69,8 +71,7 @@ namespace Opsive.Shared.Input.VirtualControls
             if (character != null) {
                 var unityInput = m_Character.GetComponent<UnityInput>();
                 if (unityInput == null) {
-                    Debug.LogError($"Error: The character {m_Character.name} has no UnityInput component.");
-                    m_GameObject.SetActive(false);
+                    Debug.LogError("Error: The character " + m_Character.name + " has no UnityInput component.");
                     return;
                 }
 
@@ -85,7 +86,7 @@ namespace Opsive.Shared.Input.VirtualControls
         /// Associates the input name with the virtual control object.
         /// </summary>
         /// <param name="inputName">The name to associate the virtual control object with.</param>
-        /// <param name="virtualControl">The object to associate with the name.</param>
+        /// <param name="virtualInput">The object to associate with the name.</param>
         public void RegisterVirtualControl(string inputName, VirtualControl virtualControl)
         {
             m_NameVirtualControlsMap.Add(inputName, virtualControl);
@@ -94,13 +95,13 @@ namespace Opsive.Shared.Input.VirtualControls
         /// <summary>
         /// Returns if the button is true with the specified ButtonAction.
         /// </summary>
-        /// <param name="buttonName">The name of the button.</param>
+        /// <param name="name">The name of the button.</param>
         /// <param name="action">The type of action to check.</param>
         /// <returns>The status of the action.</returns>
-        public bool GetButton(string buttonName, InputBase.ButtonAction action)
+        public bool GetButton(string name, InputBase.ButtonAction action)
         {
             VirtualControl virtualControl;
-            if (!m_NameVirtualControlsMap.TryGetValue(buttonName, out virtualControl)) {
+            if (!m_NameVirtualControlsMap.TryGetValue(name, out virtualControl)) {
                 //Debug.LogError("Error: No virtual input object exists with the name " + name);
                 return false;
             }
@@ -111,17 +112,17 @@ namespace Opsive.Shared.Input.VirtualControls
         /// <summary>
         /// Returns the axis of the specified button.
         /// </summary>
-        /// <param name="buttonName">The name of the axis.</param>
+        /// <param name="name">The name of the axis.</param>
         /// <returns>The axis value.</returns>
-        public float GetAxis(string buttonName)
+        public float GetAxis(string name)
         {
             VirtualControl virtualControl;
-            if (!m_NameVirtualControlsMap.TryGetValue(buttonName, out virtualControl)) {
+            if (!m_NameVirtualControlsMap.TryGetValue(name, out virtualControl)) {
                 //Debug.LogError("Error: No virtual input object exists with the name " + name);
                 return 0;
             }
 
-            return virtualControl.GetAxis(buttonName);
+            return virtualControl.GetAxis(name);
         }
 
         /// <summary>

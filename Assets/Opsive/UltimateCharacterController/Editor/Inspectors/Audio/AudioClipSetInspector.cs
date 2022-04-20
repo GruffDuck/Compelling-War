@@ -4,15 +4,16 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using UnityEditorInternal;
+using Opsive.UltimateCharacterController.Audio;
+using System;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.Audio
 {
-    using Opsive.Shared.Audio;
-    using UnityEngine;
-    using UnityEditor;
-    using UnityEditorInternal;
-    using System;
-    using System.Collections.Generic;
-
     /// <summary>
     /// Draws a user friendly inspector for the AudioClipSet class.
     /// </summary>
@@ -21,13 +22,17 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Audio
         /// <summary>
         /// Draws the AudioClipSet.
         /// </summary>
-        public static ReorderableList DrawAudioClipSet(AudioClipSet audioClipSet, ReorderableList reorderableList, ReorderableList.ElementCallbackDelegate drawElementCallback,
+        public static ReorderableList DrawAudioClipSet(AudioClipSet audioClipSet, SerializedProperty serializedProperty, ReorderableList reorderableList, ReorderableList.ElementCallbackDelegate drawElementCallback,
                                                 ReorderableList.AddCallbackDelegate addCallback, ReorderableList.RemoveCallbackDelegate removeCallback)
         {
-            audioClipSet.AudioConfig = (AudioConfig)EditorGUILayout.ObjectField("Audio Config", audioClipSet.AudioConfig, typeof(AudioConfig), false);
-            EditorGUILayout.Space(5);
-            if (audioClipSet.AudioConfig != null) {
-                return null;
+            if (serializedProperty != null) {
+                EditorGUI.BeginChangeCheck();
+                EditorGUILayout.PropertyField(serializedProperty.FindPropertyRelative("m_Delay"));
+                if (EditorGUI.EndChangeCheck()) {
+                    serializedProperty.serializedObject.ApplyModifiedProperties();
+                }
+            } else {
+                audioClipSet.Delay = EditorGUILayout.FloatField("Audio Delay", audioClipSet.Delay);
             }
 
             if (reorderableList == null || audioClipSet.AudioClips != reorderableList.list) {
@@ -48,8 +53,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Audio
 
             var listRect = GUILayoutUtility.GetRect(0, reorderableList.GetHeight());
             // Indent the list so it lines up with the rest of the content.
-            listRect.x += Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * indentLevel;
-            listRect.xMax -= Shared.Editor.Inspectors.Utility.InspectorUtility.IndentWidth * indentLevel;
+            listRect.x += InspectorUtility.IndentWidth * indentLevel;
+            listRect.xMax -= InspectorUtility.IndentWidth * indentLevel;
             reorderableList.DoList(listRect);
             while (EditorGUI.indentLevel < indentLevel) {
                 EditorGUI.indentLevel++;
@@ -71,14 +76,13 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Audio
         /// </summary>
         public static void OnAudioClipDraw(ReorderableList list, Rect rect, int index, AudioClipSet audioClipSet, UnityEngine.Object target)
         {
+            EditorGUI.BeginChangeCheck();
+            rect.y += 2;
+            rect.height -= 5;
             try {
-                EditorGUI.BeginChangeCheck();
-                rect.y += 2;
-                rect.height -= 5;
-
                 audioClipSet.AudioClips[index] = (AudioClip)EditorGUI.ObjectField(rect, audioClipSet.AudioClips[index], typeof(AudioClip), false);
                 if (EditorGUI.EndChangeCheck() && target != null) {
-                    Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                    InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 }
             } catch (Exception /*e*/) { }
         }
@@ -95,9 +99,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Audio
                 Array.Resize(ref audioClips, audioClips.Length + 1);
             }
             list.list = audioClipSet.AudioClips = audioClips;
-
             if (target != null) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
             }
         }
 
@@ -110,9 +113,8 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.Audio
             audioClipList.RemoveAt(list.index);
             list.list = audioClipSet.AudioClips = audioClipList.ToArray();
             list.index = list.index - 1;
-
             if (target != null) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
             }
         }
     }

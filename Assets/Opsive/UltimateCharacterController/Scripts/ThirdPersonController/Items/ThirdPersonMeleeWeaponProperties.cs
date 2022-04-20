@@ -4,12 +4,11 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Items.Actions;
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
 {
-    using Opsive.UltimateCharacterController.Items.Actions;
-    using Opsive.UltimateCharacterController.Items.Actions.PerspectiveProperties;
-    using UnityEngine;
-
     /// <summary>
     /// Describes any third person perspective dependent properties for the MeleeWeapon.
     /// </summary>
@@ -31,9 +30,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Items
             base.Awake();
 
             for (int i = 0; i < m_Hitboxes.Length; ++i) {
-                if (!m_Hitboxes[i].Initialize(m_Object, m_CharacterTransform)) {
-                    Debug.LogError($"Error: Unable to initialize {name}. Ensure the weapon has a collider.", this);
-                }
+                m_Hitboxes[i].Initialize(m_CharacterTransform);
             }
         }
     }

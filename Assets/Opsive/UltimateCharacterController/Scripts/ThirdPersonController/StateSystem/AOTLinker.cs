@@ -4,12 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+#if NET_4_6 || UNITY_2018_3_OR_NEWER || UNITY_WEBGL || UNITY_IOS || UNITY_ANDROID || UNITY_WII || UNITY_WIIU || UNITY_SWITCH || UNITY_PS3 || UNITY_PS4 || UNITY_XBOXONE || UNITY_WSA
+using UnityEngine;
+using System;
+using Opsive.UltimateCharacterController.StateSystem;
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.StateSystem
 {
-    using Opsive.Shared.StateSystem;
-    using System;
-    using UnityEngine;
-
     // See Opsive.UltimateCharacterController.StateSystem.AOTLinker for an explanation of this class.
     public class AOTLinker : MonoBehaviour
     {
@@ -25,3 +26,4 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.StateSystem
         }
     }
 }
+#endif

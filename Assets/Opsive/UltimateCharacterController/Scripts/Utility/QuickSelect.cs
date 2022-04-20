@@ -3,11 +3,10 @@
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
+using System.Collections.Generic;
 
 namespace Opsive.UltimateCharacterController.Utility
 {
-    using System.Collections.Generic;
-
     /// <summary>
     /// The QuickSelect algorithm is a selection algorithm that uses a similar method as the QuickSort sorting algorithm. More information can be found on this page:
     /// https://en.wikipedia.org/wiki/Quickselect. 
@@ -69,6 +68,7 @@ namespace Opsive.UltimateCharacterController.Utility
         /// <param name="array">The array that should be sorted.</param>
         /// <param name="startIndex">The starting index of the array.</param>
         /// <param name="endIndex">The ending index of the array.</param>
+        /// <param name="k">The nth smallest value to retrieve. 0 indicates the smallest element, endIndex - 1 indicates the largest.</param>
         /// <param name="comparer">The IComparer used to compare the array.</param>
         /// <returns>The position of the pivot.</returns>
         private static int Partition<T>(T[] array, int startIndex, int endIndex, IComparer<T> comparer)

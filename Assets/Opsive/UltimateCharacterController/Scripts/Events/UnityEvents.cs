@@ -4,21 +4,26 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEngine.Events;
+using Opsive.UltimateCharacterController.Camera.ViewTypes;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Character.Abilities.Items;
+using Opsive.UltimateCharacterController.Character.MovementTypes;
+using Opsive.UltimateCharacterController.Items;
+using Opsive.UltimateCharacterController.Inventory;
+
 namespace Opsive.UltimateCharacterController.Events
 {
-    using Opsive.Shared.Inventory;
-    using Opsive.UltimateCharacterController.Camera.ViewTypes;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Character.Abilities.Items;
-    using Opsive.UltimateCharacterController.Character.MovementTypes;
-    using Opsive.UltimateCharacterController.Items;
-    using UnityEngine;
-    using UnityEngine.Events;
-
     /// <summary>
     /// (float) UnityEvent subclass so the event will appear in the inspector.
     /// </summary>
     [System.Serializable] public class UnityFloatEvent : UnityEvent<float> { }
+
+    /// <summary>
+    /// (bool) UnityEvent subclass so the event will appear in the inspector.
+    /// </summary>
+    [System.Serializable] public class UnityBoolEvent : UnityEvent<bool> { }
 
     /// <summary>
     /// (Transform) UnityEvent subclass so the event will appear in the inspector.
@@ -54,15 +59,10 @@ namespace Opsive.UltimateCharacterController.Events
     [System.Serializable] public class UnityItemIntEvent : UnityEvent<Item, int> { }
 
     /// <summary>
-    /// (IItemIdentifier, float) UnityEvent subclass so the event will appear in the inspector.
+    /// (ItemType, float) UnityEvent subclass so the event will appear in the inspector.
     /// </summary>
     [System.Serializable]
-    public class UnityItemIdentifierFloatEvent : UnityEvent<IItemIdentifier, float> { }
-
-    /// <summary>
-    /// (Item, bool, bool) UnityEvent subclass so the event will appear in the inspector.
-    /// </summary>
-    [System.Serializable] public class UnityItemBoolBoolEvent : UnityEvent<Item, bool, bool> { }
+    public class UnityItemTypeFloatEvent : UnityEvent<ItemType, float> { }
 
     /// <summary>
     /// (Item, float, bool, bool) UnityEvent subclass so the event will appear in the inspector.
@@ -70,14 +70,9 @@ namespace Opsive.UltimateCharacterController.Events
     [System.Serializable] public class UnityItemFloatBoolBoolEvent : UnityEvent<Item, float, bool, bool> { }
 
     /// <summary>
-    /// (Item, RaycastHit, SurfaceImpact) UnityEvent subclass so the event will appear in the inspector.
+    /// (ItemType, float, bool, bool) UnityEvent subclass so the event will appear in the inspector.
     /// </summary>
-    [System.Serializable] public class UnityItemRaycastHitSurfaceImpactEvent : UnityEvent<Item, RaycastHit, SurfaceSystem.SurfaceImpact> { }
-
-    /// <summary>
-    /// (IItemIdentifier, float, bool, bool) UnityEvent subclass so the event will appear in the inspector.
-    /// </summary>
-    [System.Serializable] public class UnityItemIdentifierFloatBoolBoolEvent : UnityEvent<IItemIdentifier, float, bool, bool> { }
+    [System.Serializable] public class UnityItemTypeFloatBoolBoolEvent : UnityEvent<ItemType, float, bool, bool> { }
 
     /// <summary>
     /// (Vector3, Vector3, GameObject) UnityEvent subclass so the event will appear in the inspector.

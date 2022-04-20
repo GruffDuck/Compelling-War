@@ -4,12 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Game
 {
-    using UnityEngine;
-    using UnityEngine.SceneManagement;
-    using System.Collections.Generic;
-
     /// <summary>
     /// Determines which SpawnPoint to use in order to determine where the object should spawn.
     /// </summary>
@@ -141,7 +141,7 @@ namespace Opsive.UltimateCharacterController.Game
         {
             List<SpawnPoint> spawnPoints;
             if (!m_SpawnPointGroupings.TryGetValue(grouping, out spawnPoints)) {
-                Debug.LogError($"Error: Unable to find a spawn point with the grouping index {grouping}.");
+                Debug.LogError("Error: Unable to find a spawn point with the grouping index " + grouping);
                 return false;
             }
 
@@ -172,7 +172,7 @@ namespace Opsive.UltimateCharacterController.Game
         private void ShuffleSpawnPoints(List<SpawnPoint> spawnPoints)
         {
             var n = spawnPoints.Count - 1;
-            while (n > 0) {
+            while (n > 1) {
                 var k = Random.Range(0, n);
                 var temp = spawnPoints[n];
                 spawnPoints[n] = spawnPoints[k];
@@ -200,7 +200,7 @@ namespace Opsive.UltimateCharacterController.Game
         {
             List<SpawnPoint> spawnPoints;
             if (!m_SpawnPointGroupings.TryGetValue(grouping, out spawnPoints)) {
-                Debug.LogError($"Error: Unable to find a spawn point with the grouping index {grouping}.");
+                Debug.LogError("Error: Unable to find a spawn point with the grouping index " + grouping);
             }
             return spawnPoints;
         }
@@ -255,6 +255,7 @@ namespace Opsive.UltimateCharacterController.Game
             SceneManager.sceneUnloaded -= SceneUnloaded;
         }
 
+#if UNITY_2019_3_OR_NEWER
         /// <summary>
         /// Reset the static variables for domain reloading.
         /// </summary>
@@ -264,5 +265,6 @@ namespace Opsive.UltimateCharacterController.Game
             s_Initialized = false;
             s_Instance = null;
         }
+#endif
     }
 }

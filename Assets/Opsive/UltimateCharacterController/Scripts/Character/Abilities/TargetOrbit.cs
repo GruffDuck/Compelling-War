@@ -1,17 +1,10 @@
-﻿/// ---------------------------------------------
-/// Ultimate Character Controller
-/// Copyright (c) Opsive. All Rights Reserved.
-/// https://www.opsive.com
-/// ---------------------------------------------
+﻿using UnityEngine;
+using Opsive.UltimateCharacterController.Camera;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Utility;
 
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Camera;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Orbits around the target when the character moves.
     /// </summary>
@@ -81,18 +74,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         }
 
         /// <summary>
-        /// Stops the ability if the target is null.
-        /// </summary>
-        public override void Update()
-        {
-            base.Update();
-
-            if (Target == null) {
-                StopAbility();
-            }
-        }
-
-        /// <summary>
         /// Verify the position values. Called immediately before the position is applied.
         /// </summary>
         public override void ApplyPosition()
@@ -109,6 +90,15 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             var direction = MathUtility.InverseTransformDirection(m_CharacterLocomotion.MoveDirection, rotation);
             direction.z = 0;
             m_CharacterLocomotion.MoveDirection = MathUtility.TransformDirection(direction, rotation);
+        }
+
+        /// <summary>
+        /// Can the ability be stopped?
+        /// </summary>
+        /// <returns>True if the ability can be stopped.</returns>
+        public override bool CanStopAbility()
+        {
+            return Target == null;
         }
 
         /// <summary>

@@ -4,17 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTypes
 {
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
-    /// <summary>
     /// The Adventure View Type will inherit the functionality from the Third Person View Type while allowing the camera yaw to rotate freely.
-    /// </summary>
     [UltimateCharacterController.Camera.ViewTypes.RecommendedMovementType(typeof(Character.MovementTypes.Adventure))]
-    [UltimateCharacterController.Camera.ViewTypes.RecommendedMovementType(typeof(Character.MovementTypes.FourLegged))]
-    [Opsive.Shared.StateSystem.AddState("Zoom", "da67cc4518129ec40bc4e49daeff5c3a")]
+    [Opsive.UltimateCharacterController.StateSystem.AddState("Zoom", "da67cc4518129ec40bc4e49daeff5c3a")]
     public class Adventure : ThirdPerson
     {
         [Tooltip("The minimum yaw angle (in degrees).")]

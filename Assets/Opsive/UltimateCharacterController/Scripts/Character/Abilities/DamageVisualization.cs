@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Plays an animation when the character takes damage.
     /// </summary>
@@ -113,7 +113,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             base.AbilityStarted();
             
             if (!m_DamageVisualizationCompleteEvent.WaitForAnimationEvent) {
-                m_CompleteEvent = SchedulerBase.Schedule(m_DamageVisualizationCompleteEvent.Duration, OnDamageVisualizationComplete);
+                m_CompleteEvent = Scheduler.Schedule(m_DamageVisualizationCompleteEvent.Duration, OnDamageVisualizationComplete);
             }
         }
 
@@ -133,7 +133,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         {
             base.AbilityStopped(force);
 
-            SchedulerBase.Cancel(m_CompleteEvent);
+            Scheduler.Cancel(m_CompleteEvent);
         }
 
         /// <summary>

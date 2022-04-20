@@ -1,14 +1,14 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Editor.Inspectors.Utility
-{
-    using UnityEditor;
-    using UnityEngine;
+using UnityEngine;
+using UnityEditor;
 
+namespace Opsive.UltimateCharacterController.Editor.Inspectors.Utility
+{
     /// <summary>
     /// Contains the styles for the inspector buttons.
     /// </summary>

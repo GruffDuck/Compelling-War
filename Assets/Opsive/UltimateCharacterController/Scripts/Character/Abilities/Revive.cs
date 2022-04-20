@@ -4,13 +4,14 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Traits;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Traits;
-    using UnityEngine;
-
     /// <summary>
     /// The Revive ability will play a standing animation from laying on the ground. The OnRespawn event will be executed when the animation is complete.
     /// </summary>
@@ -81,7 +82,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
 
             m_ReviveTypeIndex = GetReviveTypeIndex(position, force, attacker);
-            SchedulerBase.ScheduleFixed(m_DeathStartDelay, StartRevive);
+            Scheduler.ScheduleFixed(m_DeathStartDelay, StartRevive);
         }
 
         /// <summary>
@@ -112,7 +113,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             StopAbility();
 
             // The respawn component will perform the necessary cleanup after the character has died.
-            if (!m_CharacterLocomotion.Alive) {
+            if (m_StartOnDeath) {
                 m_Respawner.Respawn();
             }
         }

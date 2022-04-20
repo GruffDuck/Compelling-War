@@ -4,11 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Managers
 {
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Utility functions for the manager classes.
     /// </summary>
@@ -43,9 +44,9 @@ namespace Opsive.UltimateCharacterController.Editor.Managers
         public static void DrawControlBox(string title, System.Action additionalControls, string message, bool enableButton, string button, System.Action action, string successLog)
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            GUILayout.Label(title, Shared.Editor.Inspectors.Utility.InspectorStyles.BoldLabel);
+            GUILayout.Label(title, InspectorStyles.BoldLabel);
             GUILayout.Space(4);
-            GUILayout.Label(message, Shared.Editor.Inspectors.Utility.InspectorStyles.WordWrapLabel);
+            GUILayout.Label(message, InspectorStyles.WordWrapLabel);
             if (additionalControls != null) {
                 additionalControls();
             }

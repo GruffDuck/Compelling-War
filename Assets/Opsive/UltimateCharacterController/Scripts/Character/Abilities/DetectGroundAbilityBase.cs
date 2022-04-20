@@ -4,13 +4,12 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Objects;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Objects;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Abstract class which determines if the ground object is a valid object.
     /// </summary>
@@ -24,26 +23,11 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         [Range(0, 1)] [SerializeField] protected float m_GroundNormalSensitivity = 0.5f;
         [Tooltip("The maximum angle that the character can be relative to the forward direction of the object.")]
         [Range(0, 180)] [SerializeField] protected float m_AngleThreshold = 180;
-        [Tooltip("Should the character move with the ground object?")]
-        [HideInInspector] [SerializeField] protected bool m_MoveWithObject;
 
         public int ObjectID { get { return m_ObjectID; } set { m_ObjectID = value; } }
         public LayerMask LayerMask { get { return m_LayerMask; } set { m_LayerMask = value; } }
         public float NormalSensitivity { get { return m_GroundNormalSensitivity; } set { m_GroundNormalSensitivity = value; } }
         public float AngleThreshold { get { return m_AngleThreshold; } set { m_AngleThreshold = value; } }
-        public bool MoveWithObject {
-            get { return m_MoveWithObject; }
-            set {
-                if (m_MoveWithObject == value) { return; }
-                m_MoveWithObject = value;
-                if (!IsActive || m_GroundTransform == null) { return; }
-                if (m_MoveWithObject && m_CharacterLocomotion.Platform == null) {
-                    m_CharacterLocomotion.SetPlatform(m_GroundTransform);
-                } else if (!m_MoveWithObject && m_CharacterLocomotion.Platform == m_GroundTransform) {
-                    m_CharacterLocomotion.SetPlatform(null);
-                }
-            }
-        }
 
         protected Collider m_GroundCollider;
         protected Transform m_GroundTransform;
@@ -72,35 +56,14 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 return false;
             }
 
-            if (IsOverValidObject(m_CharacterLocomotion.GroundRaycastHit)) {
-                // The ground object is valid.
-                m_GroundCollider = m_CharacterLocomotion.GroundRaycastHit.collider;
-                m_GroundTransform = m_GroundCollider.transform;
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Is the raycast hit over a valid ground object?
-        /// </summary>
-        /// <param name="raycastHit">The raycast hit to check against.</param>
-        /// <returns>True if the raycast hit is over a valid ground object.</returns>
-        protected bool IsOverValidObject(RaycastHit raycastHit)
-        {
-            // The transform may have been destroyed during a scene load.
-            if (raycastHit.transform == null) {
-                return false;
-            }
-
             // The ability may require the character to be directly on top of the ground.
-            if (Vector3.Dot(m_CharacterLocomotion.Up, raycastHit.normal) < m_GroundNormalSensitivity) {
+            if (Vector3.Dot(m_CharacterLocomotion.Up, m_CharacterLocomotion.GroundRaycastHit.normal) < m_GroundNormalSensitivity) {
                 return false;
             }
 
-            var angle = Quaternion.Angle(Quaternion.LookRotation(m_Transform.forward, m_CharacterLocomotion.Up),
-                                Quaternion.LookRotation(raycastHit.transform.forward, m_CharacterLocomotion.Up));
-            var objectFaces = raycastHit.transform.gameObject.GetCachedParentComponent<ObjectForwardFaces>();
+            var angle = Quaternion.Angle(Quaternion.LookRotation(m_Transform.forward, m_CharacterLocomotion.Up), 
+                                Quaternion.LookRotation(m_CharacterLocomotion.GroundRaycastHit.transform.forward, m_CharacterLocomotion.Up));
+            var objectFaces = m_CharacterLocomotion.GroundRaycastHit.transform.gameObject.GetCachedParentComponent<ObjectForwardFaces>();
             // If an object has multiple faces then the ability can start from multiple directions.
             if (objectFaces != null) {
                 var roundedAngle = 180 / objectFaces.ForwardFaceCount;
@@ -111,10 +74,10 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             }
 
             // Determine if the ground object is a valid ground object. This check only needs to be run when the grounded object changes.
-            if (m_GroundCollider != raycastHit.collider) {
+            if (m_GroundCollider != m_CharacterLocomotion.GroundRaycastHit.collider) {
                 // The ground object can be detected by using the ObjectIdentifier component.
                 if (m_ObjectID != -1) {
-                    var objIdentifiers = raycastHit.collider.gameObject.GetCachedComponents<ObjectIdentifier>();
+                    var objIdentifiers = m_CharacterLocomotion.GroundRaycastHit.collider.gameObject.GetCachedComponents<ObjectIdentifier>();
                     if (objIdentifiers == null || objIdentifiers.Length == 0) {
                         return false;
                     }
@@ -133,27 +96,17 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
                 }
 
                 // The ground object can be detected by using the layer mask.
-                if (!MathUtility.InLayerMask(raycastHit.collider.gameObject.layer, m_LayerMask)) {
+                if (!MathUtility.InLayerMask(m_CharacterLocomotion.GroundRaycastHit.collider.gameObject.layer, m_LayerMask)) {
                     return false;
                 }
+
+                // The ground object is valid.
+                m_GroundCollider = m_CharacterLocomotion.GroundRaycastHit.collider;
+                m_GroundTransform = m_GroundCollider.transform;
             }
 
             return true;
         }
-
-        /// <summary>
-        /// The ability has started.
-        /// </summary>
-        protected override void AbilityStarted()
-        {
-            base.AbilityStarted();
-
-            // The character can move with the ground.
-            if (m_MoveWithObject && m_CharacterLocomotion.Platform == null) {
-                m_CharacterLocomotion.SetPlatform(m_GroundTransform);
-            }
-        }
-
 
         /// <summary>
         /// Stops the ability if the character is no longer over a valid object.
@@ -174,11 +127,6 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
         protected override void AbilityStopped(bool force)
         {
             base.AbilityStopped(force);
-
-            // The character is no longer moving with the object.
-            if (m_MoveWithObject && m_CharacterLocomotion.Platform == m_GroundTransform) {
-                m_CharacterLocomotion.SetPlatform(null);
-            }
 
             m_GroundCollider = null;
             m_GroundTransform = null;

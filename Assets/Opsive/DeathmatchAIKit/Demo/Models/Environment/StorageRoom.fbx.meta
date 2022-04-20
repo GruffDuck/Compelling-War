@@ -1,0 +1,163 @@
+fileFormatVersion: 2
+guid: c48ca288c83ded747be81a2d02ad2606
+ModelImporter:
+  serializedVersion: 23
+  fileIDToRecycleName:
+    100000: Storage_FloorCeiling
+    100002: Storage_Walls
+    100004: StorageHall_FloorCeiling
+    100006: StorageHall_Walls
+    100008: //RootNode
+    100010: StorageHall_Door2
+    100012: StorageHall_Doorway2
+    100014: Storage_Containers
+    100016: Storage_WIre
+    100018: Storage_Wire
+    100020: Server_Walls
+    100022: Storage_Ceiling
+    100024: Storage_Floor
+    100026: Server_Walls_001
+    100028: Storage_Experiment
+    400000: Storage_FloorCeiling
+    400002: Storage_Walls
+    400004: StorageHall_FloorCeiling
+    400006: StorageHall_Walls
+    400008: //RootNode
+    400010: StorageHall_Door2
+    400012: StorageHall_Doorway2
+    400014: Storage_Containers
+    400016: Storage_WIre
+    400018: Storage_Wire
+    400020: Server_Walls
+    400022: Storage_Ceiling
+    400024: Storage_Floor
+    400026: Server_Walls_001
+    400028: Storage_Experiment
+    2300000: Storage_FloorCeiling
+    2300002: Storage_Walls
+    2300004: StorageHall_FloorCeiling
+    2300006: StorageHall_Walls
+    2300008: StorageHall_Door2
+    2300010: StorageHall_Doorway2
+    2300012: Storage_Containers
+    2300014: Storage_WIre
+    2300016: Storage_Wire
+    2300018: Server_Walls
+    2300020: Storage_Ceiling
+    2300022: Storage_Floor
+    2300024: Server_Walls_001
+    2300026: Storage_Experiment
+    3300000: Storage_FloorCeiling
+    3300002: Storage_Walls
+    3300004: StorageHall_FloorCeiling
+    3300006: StorageHall_Walls
+    3300008: StorageHall_Door2
+    3300010: StorageHall_Doorway2
+    3300012: Storage_Containers
+    3300014: Storage_WIre
+    3300016: Storage_Wire
+    3300018: Server_Walls
+    3300020: Storage_Ceiling
+    3300022: Storage_Floor
+    3300024: Server_Walls_001
+    3300026: Storage_Experiment
+    4300000: StorageHall_Walls
+    4300002: Storage_Walls
+    4300004: StorageHall_FloorCeiling
+    4300006: Storage_FloorCeiling
+    4300008: StorageHall_Doorway2
+    4300010: StorageHall_Door2
+    4300012: Storage_Containers
+    4300014: Storage_WIre
+    4300016: Storage_Wire
+    4300018: Server_Walls
+    4300020: Storage_Floor
+    4300022: Storage_Ceiling
+    4300024: Server_Walls_001
+    4300026: Storage_Experiment
+  externalObjects: {}
+  materials:
+    importMaterials: 0
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 0
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleCurves: 1
+    optimizeGameObjects: 0
+    motionNodeName: 
+    rigImportErrors: 
+    rigImportWarnings: 
+    animationImportErrors: 
+    animationImportWarnings: 
+    animationRetargetingWarnings: 
+    animationDoRetargetingWarnings: 0
+    importAnimatedCustomProperties: 0
+    importConstraints: 0
+    animationCompression: 1
+    animationRotationError: 0.5
+    animationPositionError: 0.5
+    animationScaleError: 0.5
+    animationWrapMode: 0
+    extraExposedTransformPaths: []
+    extraUserProperties: []
+    clipAnimations: []
+    isReadable: 1
+  meshes:
+    lODScreenPercentages: []
+    globalScale: 1
+    meshCompression: 0
+    addColliders: 0
+    useSRGBMaterialColor: 1
+    importVisibility: 0
+    importBlendShapes: 1
+    importCameras: 0
+    importLights: 0
+    swapUVChannels: 0
+    generateSecondaryUV: 0
+    useFileUnits: 1
+    optimizeMeshForGPU: 1
+    keepQuads: 0
+    weldVertices: 1
+    preserveHierarchy: 0
+    indexFormat: 1
+    secondaryUVAngleDistortion: 8
+    secondaryUVAreaDistortion: 15.000001
+    secondaryUVHardAngle: 88
+    secondaryUVPackMargin: 4
+    useFileScale: 1
+    previousCalculatedGlobalScale: 1
+    hasPreviousCalculatedGlobalScale: 0
+  tangentSpace:
+    normalSmoothAngle: 60
+    normalImportMode: 0
+    tangentImportMode: 4
+    normalCalculationMode: 0
+    legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 1
+    blendShapeNormalImportMode: 1
+    normalSmoothingSource: 0
+  importAnimation: 1
+  copyAvatar: 0
+  humanDescription:
+    serializedVersion: 2
+    human: []
+    skeleton: []
+    armTwist: 0.5
+    foreArmTwist: 0.5
+    upperLegTwist: 0.5
+    legTwist: 0.5
+    armStretch: 0.05
+    legStretch: 0.05
+    feetSpacing: 0
+    rootMotionBoneName: 
+    hasTranslationDoF: 0
+    hasExtraRoot: 0
+    skeletonHasParents: 0
+  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  animationType: 0
+  humanoidOversampling: 1
+  additionalBone: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

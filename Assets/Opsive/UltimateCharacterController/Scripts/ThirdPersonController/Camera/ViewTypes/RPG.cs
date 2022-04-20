@@ -4,20 +4,19 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.Input;
+
 namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTypes
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Input;
-    using Opsive.Shared.Utility;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// The RPG ViewType uses a control scheme similar to the standard in the RPG genre. The ViewType works with the RPG MovementType to move and rotate the camera.
     /// </summary>
     [UltimateCharacterController.Camera.ViewTypes.RecommendedMovementType(typeof(Character.MovementTypes.RPG))]
-    [UltimateCharacterController.Camera.ViewTypes.RecommendedMovementType(typeof(Character.MovementTypes.FourLegged))]
     public class RPG : ThirdPerson
     {
         [Tooltip("The dapming of the yaw angle when it snaps back to behind the character as the character moves.")]
@@ -72,10 +71,10 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
             if (activate) {
                 // Work with the handler to listen for any input events.
                 if (m_Handler != null) {
-                    m_StartFreeMovementInputEvent = GenericObjectPool.Get<ActiveInputEvent>();
+                    m_StartFreeMovementInputEvent = ObjectPool.Get<ActiveInputEvent>();
                     m_StartFreeMovementInputEvent.Initialize(ActiveInputEvent.Type.ButtonDown, m_CameraFreeMovementInputName, "OnRPGViewTypeStartFreeMovement");
 
-                    m_StopFreeMovementInputEvent = GenericObjectPool.Get<ActiveInputEvent>();
+                    m_StopFreeMovementInputEvent = ObjectPool.Get<ActiveInputEvent>();
                     m_StopFreeMovementInputEvent.Initialize(ActiveInputEvent.Type.ButtonUp, m_CameraFreeMovementInputName, "OnRPGViewTypeStopFreeMovement");
 
                     m_Handler.RegisterInputEvent(m_StartFreeMovementInputEvent);
@@ -93,8 +92,8 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
                         m_Handler.UnregisterAbilityInputEvent(m_StartFreeMovementInputEvent);
                     }
 
-                    GenericObjectPool.Return(m_StartFreeMovementInputEvent);
-                    GenericObjectPool.Return(m_StopFreeMovementInputEvent);
+                    ObjectPool.Return(m_StartFreeMovementInputEvent);
+                    ObjectPool.Return(m_StopFreeMovementInputEvent);
                 }
                 EventHandler.UnregisterEvent(m_GameObject, "OnRPGViewTypeStartFreeMovement", OnStartFreeMovement);
                 EventHandler.UnregisterEvent(m_GameObject, "OnRPGViewTypeStopFreeMovement", OnStopFreeMovement);
@@ -126,7 +125,7 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
                 if (m_FreeMovement) {
                     m_YawOffset += horizontalMovement * m_CharacterLocomotion.TimeScale * Time.timeScale;
                 } else if (m_CharacterLocomotion.Moving) {
-                    m_YawOffset = Mathf.SmoothDamp(m_YawOffset, 0, ref m_YawSnapVelocity, m_YawSnapDamping * m_CharacterLocomotion.TimeScale * Time.timeScale * TimeUtility.FramerateDeltaTime);
+                    m_YawOffset = Mathf.SmoothDamp(m_YawOffset, 0, ref m_YawSnapVelocity, m_YawSnapDamping * m_CharacterLocomotion.TimeScale * Time.timeScale * m_CharacterLocomotion.FramerateDeltaTime);
                 }
                 var deltaRotation = MathUtility.InverseTransformQuaternion(m_CharacterRotation, m_CharacterTransform.rotation);
                 m_Yaw = deltaRotation.eulerAngles.y + m_YawOffset;
@@ -156,13 +155,12 @@ namespace Opsive.UltimateCharacterController.ThirdPersonController.Camera.ViewTy
         /// <param name="lookPosition">The position that the character is looking from.</param>
         /// <param name="characterLookDirection">Is the character look direction being retrieved?</param>
         /// <param name="layerMask">The LayerMask value of the objects that the look direction can hit.</param>
-        /// <param name="includeRecoil">Should recoil be included in the look direction?</param>
-        /// <param name="includeMovementSpread">Should the movement spread be included in the look direction?</param>
+        /// <param name="useRecoil">Should recoil be included in the look direction?</param>
         /// <returns>The direction that the character is looking.</returns>
-        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool includeRecoil, bool includeMovementSpread)
+        public override Vector3 LookDirection(Vector3 lookPosition, bool characterLookDirection, int layerMask, bool useRecoil)
         {
             if (!characterLookDirection) {
-                return base.LookDirection(lookPosition, characterLookDirection, layerMask, includeRecoil, includeMovementSpread);
+                return base.LookDirection(lookPosition, characterLookDirection, layerMask, useRecoil);
             }
             return m_CharacterTransform.forward;
         }

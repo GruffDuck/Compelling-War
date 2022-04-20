@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Utility;
+
 namespace Opsive.UltimateCharacterController.Character.Abilities
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.UltimateCharacterController.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// Plays a full body animation in response to a melee counter attack.
     /// </summary>
@@ -57,7 +57,7 @@ namespace Opsive.UltimateCharacterController.Character.Abilities
             base.AbilityStarted();
 
             if (!m_StopEvent.WaitForAnimationEvent) {
-                SchedulerBase.ScheduleFixed(m_StopEvent.Duration, OnComplete);
+                Scheduler.ScheduleFixed(m_StopEvent.Duration, OnComplete);
             }
         }
 

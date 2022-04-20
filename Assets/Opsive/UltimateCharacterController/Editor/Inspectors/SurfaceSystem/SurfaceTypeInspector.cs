@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using UnityEditor;
+using Opsive.UltimateCharacterController.SurfaceSystem;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
+
 namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
 {
-    using Opsive.Shared.Editor.Inspectors;
-    using Opsive.UltimateCharacterController.SurfaceSystem;
-    using UnityEditor;
-    using UnityEngine;
-
     /// <summary>
     /// Custom inspector for the SurfaceType component.
     /// </summary>
@@ -20,14 +20,14 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
         /// <summary>
         /// Creates a new SurfaceType.
         /// </summary>
-        [MenuItem("Assets/Create/Opsive/Ultimate Character Controller/Surface Type")]
+        [MenuItem("Assets/Create/Ultimate Character Controller/Surface Type")]
         public static void CreateSurfaceType()
         {
-            var path = EditorUtility.SaveFilePanel("Save Surface Type", Shared.Editor.Inspectors.Utility.InspectorUtility.GetSaveFilePath(), "SurfaceType.asset", "asset");
+            var path = EditorUtility.SaveFilePanel("Save Surface Type", InspectorUtility.GetSaveFilePath(), "SurfaceType.asset", "asset");
             if (path.Length != 0 && Application.dataPath.Length < path.Length) {
                 var surfaceType = ScriptableObject.CreateInstance<SurfaceType>();
 
-                // Save the surface type.
+                // Save the collection.
                 path = string.Format("Assets/{0}", path.Substring(Application.dataPath.Length + 1));
                 AssetDatabase.DeleteAsset(path);
                 AssetDatabase.CreateAsset(surfaceType, path);
@@ -45,7 +45,7 @@ namespace Opsive.UltimateCharacterController.Editor.Inspectors.SurfaceSystem
             EditorGUI.BeginChangeCheck();
             EditorGUILayout.PropertyField(PropertyFromName("m_ImpactEffects"), true);
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }

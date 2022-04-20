@@ -1,17 +1,18 @@
 ﻿/// ---------------------------------------------
-/// Opsive Shared
+/// Ultimate Character Controller
 /// Copyright (c) Opsive. All Rights Reserved.
 /// https://www.opsive.com
 /// ---------------------------------------------
 
-namespace Opsive.Shared.Editor.Inspectors
-{
-    using System.Collections.Generic;
-    using UnityEditor;
-    using UnityEngine;
+using UnityEngine;
+using UnityEditor;
+using System.Collections.Generic;
+using Opsive.UltimateCharacterController.Editor.Inspectors.Utility;
 
+namespace Opsive.UltimateCharacterController.Editor.Inspectors
+{
     /// <summary>
-    /// Base class for all IMGUI inspectors.
+    /// Base class for all Ultimate Character Controller inspectors.
     /// </summary>
     public abstract class InspectorBase : UnityEditor.Editor
     {
@@ -26,7 +27,7 @@ namespace Opsive.Shared.Editor.Inspectors
             EditorGUI.BeginChangeCheck();
             EditorGUILayout.PropertyField(PropertyFromName("m_Script"));
             if (EditorGUI.EndChangeCheck()) {
-                Shared.Editor.Utility.EditorUtility.RecordUndoDirtyObject(target, "Change Value");
+                InspectorUtility.RecordUndoDirtyObject(target, "Change Value");
                 serializedObject.ApplyModifiedProperties();
             }
         }
@@ -34,77 +35,77 @@ namespace Opsive.Shared.Editor.Inspectors
         /// <summary>
         /// Uses a dictionary to lookup a property from a string key.
         /// </summary>
-        /// <param name="propertyName">The name of the property.</param>
+        /// <param name="name">The name of the property.</param>
         /// <returns>The found SerializedProperty.</returns>
-        public SerializedProperty PropertyFromName(string propertyName)
+        public SerializedProperty PropertyFromName(string name)
         {
-            return PropertyFromName(serializedObject, propertyName);
+            return PropertyFromName(serializedObject, name);
         }
 
         /// <summary>
         /// Uses a dictionary to lookup a property from a string key.
         /// </summary>
-        /// <param name="propertySerializedObject">The object which contains the property.</param>
-        /// <param name="propertyName">The name of the property.</param>
+        /// <param name="serializedObject">The object which contains the property.</param>
+        /// <param name="name">The name of the property.</param>
         /// <returns>The found SerializedProperty.</returns>
-        public SerializedProperty PropertyFromName(SerializedObject propertySerializedObject, string propertyName)
+        public SerializedProperty PropertyFromName(SerializedObject serializedObject, string name)
         {
             SerializedProperty property = null;
-            if (m_PropertyStringMap.TryGetValue(propertyName, out property)) {
+            if (m_PropertyStringMap.TryGetValue(name, out property)) {
                 return property;
             }
 
-            property = propertySerializedObject.FindProperty(propertyName);
+            property = serializedObject.FindProperty(name);
             if (property == null) {
-                Debug.LogError("Unable to find property " + propertyName);
+                Debug.LogError("Unable to find property " + name);
                 return null;
             }
-            m_PropertyStringMap.Add(propertyName, property);
+            m_PropertyStringMap.Add(name, property);
             return property;
         }
 
         /// <summary>
         /// Shortcut for drawing a foldout on the current target.
         /// </summary>
-        /// <param name="foldoutName">The name of the foldout.</param>
-        /// <returns>True if the foldout is expanded.</returns>
-        protected bool Foldout(string foldoutName)
+        /// <param name="name">The name of the foldout.</param>
+        /// <returns>True if the foldout is expanded.</returns></param>
+        protected bool Foldout(string name)
         {
-            return Foldout(foldoutName, true, string.Empty);
+            return Foldout(name, true, string.Empty);
         }
 
         /// <summary>
         /// Shortcut for drawing a foldout on the current target.
         /// </summary>
-        /// <param name="foldoutName">The name of the foldout.</param>
+        /// <param name="name">The name of the foldout.</param>
         /// <param name="defaultExpanded">The default value if the foldout is expanded.</param>
-        /// <returns>True if the foldout is expanded.</returns>
-        protected bool Foldout(string foldoutName, bool defaultExpanded)
+        /// <returns>True if the foldout is expanded.</returns></param>
+        protected bool Foldout(string name, bool defaultExpanded)
         {
-            return Foldout(foldoutName, defaultExpanded, string.Empty);
+            return Foldout(name, defaultExpanded, string.Empty);
         }
 
         /// <summary>
         /// Shortcut for drawing a foldout on the current target.
         /// </summary>
-        /// <param name="foldoutName">The name of the foldout.</param>
+        /// <param name="name">The name of the foldout.</param>
         /// <param name="identifyingString">A string that can be used to help identify the foldout key.</param>
-        /// <returns>True if the foldout is expanded.</returns>
-        protected bool Foldout(string foldoutName, string identifyingString)
+        /// <returns>True if the foldout is expanded.</returns></param>
+        protected bool Foldout(string name, string identifyingString)
         {
-            return Foldout(foldoutName, true, identifyingString);
+            return Foldout(name, true, identifyingString);
         }
 
         /// <summary>
         /// Shortcut for drawing a foldout on the current target.
         /// </summary>
-        /// <param name="foldoutName">The name of the foldout.</param>
+        /// <param name="name">The name of the foldout.</param>
         /// <param name="defaultExpanded">The default value if the foldout is expanded.</param>
         /// <param name="identifyingString">A string that can be used to help identify the foldout key.</param>
-        /// <returns>True if the foldout is expanded.</returns>
-        protected bool Foldout(string foldoutName, bool defaultExpanded, string identifyingString)
+        /// <returns>True if the foldout is expanded.</returns></param>
+        protected bool Foldout(string name, bool defaultExpanded, string identifyingString)
         {
-            return Utility.InspectorUtility.Foldout(target, new GUIContent(foldoutName), defaultExpanded, identifyingString);
+            return InspectorUtility.Foldout(target, new GUIContent(name), defaultExpanded, identifyingString);
         }
     }
 }

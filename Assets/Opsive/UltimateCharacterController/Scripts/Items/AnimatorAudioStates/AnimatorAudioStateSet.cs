@@ -4,13 +4,13 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Audio;
+using Opsive.UltimateCharacterController.Utility;
+using Opsive.UltimateCharacterController.StateSystem;
+
 namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
 {
-    using Opsive.Shared.Audio;
-    using Opsive.Shared.StateSystem;
-    using Opsive.Shared.Utility;
-    using UnityEngine;
-
     /// <summary>
     /// The AnimatorAudioStateSet represets a set of animation parameters and audio clips that should be played together.
     /// </summary>
@@ -61,9 +61,10 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
             /// Plays the audio clip with a random set index.
             /// </summary>
             /// <param name="gameObject">The GameObject that is playing the audio clip.</param>
-            public void PlayAudioClip(GameObject gameObject)
+            /// <param name="reservedIndex">The index of the component that should be played. -1 indicates any component.</param>
+            public void PlayAudioClip(GameObject gameObject, int reservedIndex)
             {
-                m_AudioClipSet.PlayAudioClip(gameObject);
+                m_AudioClipSet.PlayAudioClip(gameObject, reservedIndex);
             }
         }
 
@@ -106,12 +107,10 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
         /// <summary>
         /// Constructor with one parameter.
         /// </summary>
-        /// <param name="itemSubstateParameter">The value of the animator's Item Substate Index parameter.</param>
+        /// <param name="itemSubstateIndex">The value of the animator's Item Substate Index parameter.</param>
         public AnimatorAudioStateSet(int itemSubstateParameter) : this()
         {
-            if (m_States == null) {
-                m_States = new AnimatorAudioState[] { new AnimatorAudioState(itemSubstateParameter) };
-            }
+            m_States = new AnimatorAudioState[] { new AnimatorAudioState(itemSubstateParameter) };
         }
 
         /// <summary>
@@ -184,6 +183,16 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
         /// <param name="gameObject">The GameObject that is playing the audio clip.</param>
         public void PlayAudioClip(GameObject gameObject)
         {
+            PlayAudioClip(gameObject, -1);
+        }
+
+        /// <summary>
+        /// Plays the audio clip.
+        /// </summary>
+        /// <param name="gameObject">The GameObject that is playing the audio clip.</param>
+        /// <param name="reservedIndex">The index of the component that should be played. -1 indicates any component.</param>
+        public void PlayAudioClip(GameObject gameObject, int reservedIndex)
+        {
             if (m_AnimatorAudioStateSelector == null || m_States.Length == 0) {
                 return;
             }
@@ -191,7 +200,7 @@ namespace Opsive.UltimateCharacterController.Items.AnimatorAudioStates
             if (stateIndex == -1 || stateIndex >= m_States.Length) {
                 return;
             }
-            m_States[stateIndex].PlayAudioClip(gameObject);
+            m_States[stateIndex].PlayAudioClip(gameObject, reservedIndex);
         }
 
         /// <summary>

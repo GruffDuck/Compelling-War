@@ -4,18 +4,18 @@
 /// https://www.opsive.com
 /// ---------------------------------------------
 
+using UnityEngine;
+using Opsive.UltimateCharacterController.Character.Abilities;
+using Opsive.UltimateCharacterController.Character.Abilities.Items;
+using Opsive.UltimateCharacterController.Game;
+using Opsive.UltimateCharacterController.Events;
+using Opsive.UltimateCharacterController.Input;
+using Opsive.UltimateCharacterController.StateSystem;
+using Opsive.UltimateCharacterController.Utility;
+using System.Collections.Generic;
+
 namespace Opsive.UltimateCharacterController.Character
 {
-    using Opsive.Shared.Events;
-    using Opsive.Shared.Game;
-    using Opsive.Shared.Input;
-    using Opsive.Shared.StateSystem;
-    using Opsive.UltimateCharacterController.Character.Abilities;
-    using Opsive.UltimateCharacterController.Character.Abilities.Items;
-    using Opsive.UltimateCharacterController.Game;
-    using System.Collections.Generic;
-    using UnityEngine;
-
     /// <summary>
     /// The UltimateCharacterLocomotionHandler manages player input and the UltimateCharacterLocomotion.
     /// </summary>
@@ -109,9 +109,6 @@ namespace Opsive.UltimateCharacterController.Character
                 for (int i = 0; i < abilities.Length; ++i) {
                     // The ability has to be enabled in order for it to be able to be stopped/started.
                     if (!abilities[i].Enabled) {
-                        if (abilities[i].IsActive) {
-                            TryStopAbility(abilities[i]);
-                        }
                         continue;
                     }
 
@@ -195,7 +192,6 @@ namespace Opsive.UltimateCharacterController.Character
         /// <returns>The delta yaw rotation of the character.</returns>
         public float GetDeltaYawRotation()
         {
-            if (!enabled) { return 0; }
             var lookVector = m_PlayerInput.GetLookVector(true);
             return m_CharacterLocomotion.ActiveMovementType.GetDeltaYawRotation(m_HorizontalMovement, m_ForwardMovement, lookVector.x, lookVector.y);
         }
