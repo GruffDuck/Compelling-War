@@ -30175,18 +30175,6 @@ MonoBehaviour:
         m_BlockList: []
         m_Default: 1
       m_Slots:
-      - {fileID: 2993602430383707635, guid: 96a1c0d6f1136844196c4cda8fac63bb, type: 2}
-      - {fileID: 0}
-      m_State: 
-      m_Enabled: 1
-      m_CanSwitchTo: 1
-      m_DisabledIndex: -1
-    - m_States:
-      - m_Name: Default
-        m_Preset: {fileID: 0}
-        m_BlockList: []
-        m_Default: 1
-      m_Slots:
       - {fileID: 114982450061250758, guid: 5481010ef14c32f4cb7b6661b0c59fb4, type: 2}
       - {fileID: 0}
       m_State: 
@@ -30201,18 +30189,6 @@ MonoBehaviour:
       m_Slots:
       - {fileID: 114334400771614146, guid: 5481010ef14c32f4cb7b6661b0c59fb4, type: 2}
       - {fileID: 0}
-      m_State: 
-      m_Enabled: 1
-      m_CanSwitchTo: 1
-      m_DisabledIndex: -1
-    - m_States:
-      - m_Name: Default
-        m_Preset: {fileID: 0}
-        m_BlockList: []
-        m_Default: 1
-      m_Slots:
-      - {fileID: 0}
-      - {fileID: 114334400771614146, guid: 5481010ef14c32f4cb7b6661b0c59fb4, type: 2}
       m_State: 
       m_Enabled: 1
       m_CanSwitchTo: 1
