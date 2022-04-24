@@ -642,6 +642,7 @@ namespace Worq.AEAI.Enemy
         {
             //embed enemy kill code
             hasKilledEnemy = true;
+            Debug.Log("Death");
             mSource.Stop();
             if (hasDeathAnim && deathAnimations != null && deathAnimations.Length > 0)
             {

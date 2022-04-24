@@ -62,7 +62,7 @@ namespace Worq.AEAI.HealthAndDamage
             currentPlayerHealth -= amount;
 
             if (healthSlider != null)
-                healthSlider.value = currentPlayerHealth;
+                healthSlider.value -= FindObjectOfType<Enemy.AIData>().playerTakeDamageValue/100;
 
             if (deathAudio != null)
                 playerAudio.Play();

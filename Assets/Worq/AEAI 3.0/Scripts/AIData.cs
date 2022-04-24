@@ -19,6 +19,7 @@ namespace Worq.AEAI.Enemy
     [DisallowMultipleComponent]
     public class AIData : MonoBehaviour
     {
+        public static AIData Instance { get; private set; }
         [Space(20)] [Tooltip("Player or target gameObject that the enemy should find")]
         public GameObject player;
 
