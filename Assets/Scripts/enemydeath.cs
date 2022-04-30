@@ -4,8 +4,9 @@ using UnityEngine;
 
 public class enemydeath : MonoBehaviour
 {
-  public  Camera camera;
+    public Camera camera;
     int health = 100;
+    public int sayac;
     void Update()
     {
         if (Input.GetMouseButtonDown(0))
@@ -21,17 +22,18 @@ public class enemydeath : MonoBehaviour
                 {
 
                     raycastHit.collider.GetComponent<enemyhealths>().healt -= 25;
-                    
+
                     if (raycastHit.collider.GetComponent<enemyhealths>().healt <= 0)
                     {
+                        sayac++;
                         raycastHit.collider.GetComponent<Animator>().SetTrigger("isDead");
-                        Destroy(raycastHit.collider.gameObject,1.5f);
+                        Destroy(raycastHit.collider.gameObject, 1.5f);
                     }
                 }
             }
-            
-           
-            }
+
+
         }
     }
+}
 
