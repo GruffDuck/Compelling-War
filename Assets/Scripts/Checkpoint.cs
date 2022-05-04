@@ -7,15 +7,13 @@ using TMPro;
 public class Checkpoint : MonoBehaviour
 {
   public  string text;
+    public int satac;
   public TextMeshProUGUI textMeshProUGUI;
 
 
     private void Update()
     {
-        if (FindObjectOfType<enemydeath>().sayac == 2)
-        {
-            textMeshProUGUI.text = "Görev Tamamlandý.";
-        }
+       
     }
     private void OnTriggerEnter(Collider other)
     {

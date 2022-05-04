@@ -98,7 +98,7 @@ LightmapSettings:
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
   m_LightingDataAsset: {fileID: 0}
-  m_LightingSettings: {fileID: 0}
+  m_LightingSettings: {fileID: 4890085278179872738, guid: af79d9359e1552047a0e122ed612562a, type: 2}
 --- !u!196 &4
 NavMeshSettings:
   serializedVersion: 2
@@ -22332,7 +22332,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &748905901
 RectTransform:
   m_ObjectHideFlags: 0
@@ -36568,7 +36568,7 @@ GameObject:
   - component: {fileID: 1187340233}
   - component: {fileID: 1187340232}
   - component: {fileID: 1187340231}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: rr
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -36588,6 +36588,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   text: "Sa\u011Fdaki ta\u015Fa yakla\u015F ve ye\u015Fil d\xFC\u015Fman\u0131 \xF6ld\xFCr"
+  satac: 2
   textMeshProUGUI: {fileID: 349245253}
 --- !u!65 &1187340232
 BoxCollider:
@@ -51921,7 +51922,7 @@ GameObject:
   - component: {fileID: 1731301445}
   m_Layer: 0
   m_Name: Camera
-  m_TagString: Untagged
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -57380,7 +57381,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49aa7465c6cc2b34892817fe75d0435a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  texxts: 
   healt: 100
+  textMeshProUGUI: {fileID: 349245253}
 --- !u!1001 &1917756232
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -63846,6 +63849,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5860864488103921304, guid: ee132171333a76a4ca6bd2dbe5cfb46c, type: 3}
+      propertyPath: textMeshProUGUI
+      value: 
+      objectReference: {fileID: 349245253}
     - target: {fileID: 5860864488372586635, guid: ee132171333a76a4ca6bd2dbe5cfb46c, type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
@@ -63915,6 +63922,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 5020974091616565939, guid: 32062c764b1846643a367b1c6b14ab07, type: 3}
+      propertyPath: m_Radius
+      value: 0.21991377
+      objectReference: {fileID: 0}
+    - target: {fileID: 5020974091616565939, guid: 32062c764b1846643a367b1c6b14ab07, type: 3}
+      propertyPath: m_Center.x
+      value: -0.15522668
+      objectReference: {fileID: 0}
+    - target: {fileID: 5020974091616565939, guid: 32062c764b1846643a367b1c6b14ab07, type: 3}
+      propertyPath: m_Center.z
+      value: -0.20891345
+      objectReference: {fileID: 0}
+    - target: {fileID: 5923614162067552418, guid: 32062c764b1846643a367b1c6b14ab07, type: 3}
+      propertyPath: healt
+      value: 30
+      objectReference: {fileID: 0}
     - target: {fileID: 5923614162067552418, guid: 32062c764b1846643a367b1c6b14ab07, type: 3}
       propertyPath: camera
       value: 
@@ -63923,6 +63946,10 @@ PrefabInstance:
       propertyPath: healthSlider
       value: 
       objectReference: {fileID: 1453214247}
+    - target: {fileID: 5923614163252196263, guid: 32062c764b1846643a367b1c6b14ab07, type: 3}
+      propertyPath: m_CenterCrosshairs
+      value: 
+      objectReference: {fileID: 21300022, guid: 5fb67c614ba76ca45a811c8e1f7be476, type: 3}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 32062c764b1846643a367b1c6b14ab07, type: 3}
 --- !u!1001 &6376150895621036749
